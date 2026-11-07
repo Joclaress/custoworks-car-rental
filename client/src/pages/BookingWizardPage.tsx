@@ -1408,9 +1408,9 @@ export const BookingWizardPage: React.FC = () => {
                   Important Rental Notices & Policies:
                 </span>
                 <div className="space-y-1.5 leading-relaxed">
-                  <p>• <strong>{formatPeso(quote?.reservationFee || 500)} Reservation Fee:</strong> Deducted from your rental total and locks your vehicle schedule immediately.</p>
+                  <p>• <strong>{formatPeso(quote?.reservationFee || 1000)} Reservation Fee:</strong> Deducted from your rental total and locks your vehicle schedule immediately. Strictly non-refundable upon cancellation; however, if you need to cancel, your booking may be rescheduled only.</p>
+                  <p>• <strong>Refundable Security Deposit:</strong> Your {formatPeso(quote?.reservationFee || 1000)} reservation fee serves as your security deposit, which is fully refundable after return inspection in clean condition with matched fuel levels.</p>
                   <p>• <strong>Remaining Balance:</strong> Settled upon vehicle pick-up at our Naga City office (or handover upon delivery).</p>
-                  <p>• <strong>Refundable Security Deposit:</strong> Handled separately from rental fees and returned in full after vehicle check-in.</p>
                 </div>
 
                 {/* Carwash & Cleanliness Highlight */}
@@ -1464,7 +1464,7 @@ export const BookingWizardPage: React.FC = () => {
                 <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 8 of 8</span>
                 <h2 className="text-2xl font-black text-slate-900">Pay Reservation Fee</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Send the <strong>{formatPeso(quote?.reservationFee || 500)} reservation fee</strong> using any of our verified payment channels below.
+                  Send the <strong>{formatPeso(quote?.reservationFee || 1000)} reservation fee</strong> using any of our verified payment channels below.
                 </p>
               </div>
 
@@ -1508,7 +1508,7 @@ export const BookingWizardPage: React.FC = () => {
                         </p>
                       </div>
                       <span className="bg-brand-navy text-white font-extrabold text-xs px-3 py-1.5 rounded-lg">
-                        AMOUNT: {formatPeso(quote?.reservationFee || 500)}
+                        AMOUNT: {formatPeso(quote?.reservationFee || 1000)}
                       </span>
                     </div>
 
@@ -1531,7 +1531,7 @@ export const BookingWizardPage: React.FC = () => {
                             Scan this QR code using your {method.code === 'GCASH' ? 'GCash app' : 'BDO / banking app'}
                           </p>
                           <p className="text-slate-500 text-[11px] leading-relaxed">
-                            Open your app, choose &quot;Scan QR&quot;, and scan the code. Transfer <strong>{formatPeso(quote?.reservationFee || 500)}</strong>, then upload the receipt below.
+                            Open your app, choose &quot;Scan QR&quot;, and scan the code. Transfer <strong>{formatPeso(quote?.reservationFee || 1000)}</strong>, then upload the receipt below.
                           </p>
                           <a
                             href={method.qrImageUrl}
@@ -1566,7 +1566,7 @@ export const BookingWizardPage: React.FC = () => {
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Payment Receipt Proof ({formatPeso(quote?.reservationFee || 500)} Reservation Fee) *
+                    Payment Receipt Proof ({formatPeso(quote?.reservationFee || 1000)} Reservation Fee) *
                   </label>
                   {paymentReceiptFile ? (
                     <div className="bg-slate-50 p-3.5 rounded-xl border border-blue-200 flex flex-col sm:flex-row items-center gap-4">
@@ -1675,7 +1675,7 @@ export const BookingWizardPage: React.FC = () => {
               <div>
                 <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Reservation Successfully Submitted!</h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-lg mx-auto">
-                  Thank you! Your {formatPeso(quote?.reservationFee || 500)} reservation fee receipt and rental requirements have been received. No customer login or account needed!
+                  Thank you! Your {formatPeso(quote?.reservationFee || 1000)} reservation fee receipt and rental requirements have been received. No customer login or account needed!
                 </p>
               </div>
 
@@ -1735,7 +1735,7 @@ export const BookingWizardPage: React.FC = () => {
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 max-w-lg mx-auto text-left text-xs space-y-3">
                 <h4 className="font-extrabold text-slate-900 text-sm">What Happens Next?</h4>
                 <ol className="space-y-2 list-decimal list-inside text-slate-600">
-                  <li>Our Naga City dispatch team verifies your {formatPeso(quote?.reservationFee || 500)} reservation fee receipt.</li>
+                  <li>Our Naga City dispatch team verifies your {formatPeso(quote?.reservationFee || 1000)} reservation fee receipt.</li>
                   <li>Our team reviews your uploaded driver license & LTMS portal requirements.</li>
                   <li>Once approved, your reservation status will change to <strong>Confirmed</strong>.</li>
                   <li>Pay the remaining rental balance upon vehicle pickup in Naga City.</li>

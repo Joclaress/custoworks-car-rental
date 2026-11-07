@@ -200,7 +200,7 @@ export const VehicleDetailPage: React.FC = () => {
                   <span>Guaranteed Booking Policy</span>
                 </div>
                 <p className="text-slate-600 leading-relaxed text-[11px]">
-                  A <strong>₱500 reservation fee</strong> is required to lock your dates on the calendar. Remaining rental balance is collected upon vehicle pickup in Naga City.
+                  A <strong>₱1,000 reservation fee</strong> is required to lock your dates on the calendar. Reservation fees are strictly non-refundable upon cancellation (rescheduling permitted only), and the fee serves as your security deposit, refundable after returning the unit in clean condition.
                 </p>
               </div>
 

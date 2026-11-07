@@ -180,6 +180,7 @@ export interface Payment {
   rejectionReason?: string | null;
   paidAt?: string | null;
   verifiedAt?: string | null;
+  createdAt?: string;
   paymentMethod: PaymentMethod;
   verifiedBy?: { fullName: string } | null;
   booking?: {

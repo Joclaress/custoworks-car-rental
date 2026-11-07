@@ -72,8 +72,8 @@ export const QUOTATION_TEMPLATES = [
     driverFee: 0,
     deliveryFee: 0,
     discount: 0,
-    securityDeposit: 3000,
-    reservationFee: 500,
+    securityDeposit: 1000,
+    reservationFee: 1000,
     pickupLocation: 'Custoworks Garage, Naga City',
     dropoffLocation: 'Custoworks Garage, Naga City',
     inclusions: [
@@ -84,8 +84,9 @@ export const QUOTATION_TEMPLATES = [
     ],
     termsAndConditions: [
       'Valid Philippine Driver’s License and verified LTMS QR code required upon turnover.',
-      '₱500 reservation fee required to confirm and block calendar dates (GCash: 0961 722 5326 / 0995 382 7972).',
-      'Refundable security deposit of ₱3,000 returned on the spot upon inspection.',
+      '₱1,000 reservation fee required to confirm and block calendar dates (GCash: 0961 722 5326 / 0995 382 7972).',
+      'The reservation fee is non-refundable upon cancellation; bookings may be rescheduled only (subject to availability).',
+      'The ₱1,000 reservation fee serves as your security deposit, refunded on the spot upon clean return and matched fuel levels.',
       'Vehicle returned with equal fuel level and clean exterior (₱300 carwash deduction only if unwashed).',
     ],
   },
@@ -102,7 +103,7 @@ export const QUOTATION_TEMPLATES = [
     deliveryFee: 0,
     discount: 0,
     securityDeposit: 0,
-    reservationFee: 500,
+    reservationFee: 1000,
     pickupLocation: 'Hotel / Office Meetup in Naga City',
     dropoffLocation: 'Hotel / Office Dropoff in Naga City',
     inclusions: [
@@ -113,7 +114,7 @@ export const QUOTATION_TEMPLATES = [
       'Complimentary bottled water and sanitizers inside vehicle',
     ],
     termsAndConditions: [
-      '₱500 reservation fee blocks vehicle and chauffeur schedule (GCash: 0961 722 5326 / 0995 382 7972).',
+      '₱1,000 reservation fee blocks vehicle and chauffeur schedule (GCash: 0961 722 5326 / 0995 382 7972). Non-refundable upon cancellation (rescheduling permitted).',
       'Remaining balance settled upon vehicle pickup or completion of service.',
       'Overtime fee of ₱200/hour applies beyond the 12-hour booking window.',
     ],
@@ -131,7 +132,7 @@ export const QUOTATION_TEMPLATES = [
     deliveryFee: 0,
     discount: 500,
     securityDeposit: 0,
-    reservationFee: 500,
+    reservationFee: 1000,
     pickupLocation: 'Naga City Meetup / Terminal Pickup',
     dropoffLocation: 'Naga City Meetup / Terminal Dropoff',
     inclusions: [
@@ -143,7 +144,7 @@ export const QUOTATION_TEMPLATES = [
     ],
     termsAndConditions: [
       'Fuel, highway toll fees, and destination parking tickets are on passenger account.',
-      '₱500 reservation fee locks the van for declared dates (GCash: 0961 722 5326 / 0995 382 7972).',
+      '₱1,000 reservation fee locks the van for declared dates (GCash: 0961 722 5326 / 0995 382 7972). Non-refundable upon cancellation (rescheduling permitted).',
       'Driver lodging/meal allowance provided or shouldered if overnight outside Naga City.',
     ],
   },
@@ -160,7 +161,7 @@ export const QUOTATION_TEMPLATES = [
     deliveryFee: 0,
     discount: 0,
     securityDeposit: 0,
-    reservationFee: 500,
+    reservationFee: 1000,
     pickupLocation: 'Naga Airport (WNP - Pili, Camarines Sur)',
     dropoffLocation: 'Hotel / Residence in Naga City',
     inclusions: [
@@ -170,7 +171,7 @@ export const QUOTATION_TEMPLATES = [
     ],
     termsAndConditions: [
       'Flight details (Flight #, Airline, ETA) required upon reservation.',
-      'Advance ₱500 reservation fee ensures dedicated waiting vehicle (GCash: 0961 722 5326 / 0995 382 7972).',
+      'Advance ₱1,000 reservation fee ensures dedicated waiting vehicle (GCash: 0961 722 5326 / 0995 382 7972). Non-refundable upon cancellation (rescheduling permitted).',
     ],
   },
   {
@@ -185,8 +186,8 @@ export const QUOTATION_TEMPLATES = [
     driverFee: 0,
     deliveryFee: 0,
     discount: 0,
-    securityDeposit: 3000,
-    reservationFee: 500,
+    securityDeposit: 1000,
+    reservationFee: 1000,
     pickupLocation: 'Custoworks Garage, Naga City',
     dropoffLocation: 'Custoworks Garage, Naga City',
     inclusions: [
@@ -196,7 +197,8 @@ export const QUOTATION_TEMPLATES = [
     ],
     termsAndConditions: [
       'Valid IDs and driver license / LTMS required for self-drive.',
-      '₱500 reservation fee required to lock the calendar (GCash: 0961 722 5326 / 0995 382 7972).',
+      '₱1,000 reservation fee required to lock the calendar (GCash: 0961 722 5326 / 0995 382 7972). Non-refundable upon cancellation (rescheduling permitted).',
+      '₱1,000 reservation fee serves as security deposit, refundable upon unit return in clean condition.',
     ],
   },
 ];
@@ -287,9 +289,9 @@ export function getQuotations(): Quotation[] {
         deliveryFee: 0,
         discount: 400,
         securityDeposit: 0,
-        reservationFee: 500,
+        reservationFee: 1000,
         totalRentalAmount: 6200,
-        balanceUponRelease: 5700,
+        balanceUponRelease: 5200,
         validUntil: new Date(Date.now() + 86400000 * 7).toISOString(),
         inclusions: [
           'Professional courteous chauffeur',
@@ -298,7 +300,7 @@ export function getQuotations(): Quotation[] {
           'Sanitized cool interior',
         ],
         termsAndConditions: [
-          '₱500 reservation fee locks calendar dates and vehicle assignment.',
+          '₱1,000 reservation fee locks calendar dates and vehicle assignment. Non-refundable upon cancellation (rescheduling permitted).',
           'Balance payable upon meetup in Naga City.',
         ],
         notes: 'Requested pickup at SM City Naga main entrance by 8:00 AM.',

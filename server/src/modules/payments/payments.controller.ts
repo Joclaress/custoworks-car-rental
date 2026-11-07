@@ -60,6 +60,16 @@ export async function uploadPaymentMethodQr(req: Request, res: Response) {
   res.json({ method });
 }
 
+export async function deletePaymentMethod(req: Request, res: Response) {
+  const id = String(req.params.id);
+  const method = await prisma.paymentMethod.update({
+    where: { id },
+    data: { deletedAt: new Date(), isActive: false },
+  });
+  await audit({ actorId: req.user!.id, action: 'payment_method.delete', entityType: 'payment_method', entityId: method.id, req });
+  res.json({ success: true, method });
+}
+
 export async function submitPaymentProof(req: Request, res: Response) {
   const bookingId = String(req.params.bookingId);
   const data = parse(submitPaymentSchema, req.body);
@@ -186,7 +196,7 @@ export async function downloadReceipt(req: Request, res: Response) {
   });
   if (!payment) throw AppError.notFound('Payment not found');
 
-  if (req.user!.role === 'CUSTOMER' && payment.booking.customerId !== req.user!.id) {
+  if (req.user && req.user.role === 'CUSTOMER' && payment.booking.customerId !== req.user.id) {
     throw AppError.notFound('Payment not found');
   }
 

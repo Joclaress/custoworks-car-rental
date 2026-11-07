@@ -712,7 +712,9 @@ export const TrackBookingPage: React.FC = () => {
           <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 className="font-extrabold text-base text-slate-900">Upload Reservation Receipt (₱500)</h3>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  Upload Reservation Receipt ({formatPeso(booking?.reservationFee || 1000)})
+                </h3>
                 <button onClick={() => setShowPaymentModal(false)} className="text-slate-400 hover:text-slate-600">
                   <XCircle className="w-5 h-5" />
                 </button>
@@ -774,7 +776,7 @@ export const TrackBookingPage: React.FC = () => {
                               Scan with {method.code === 'GCASH' ? 'GCash' : 'BDO / Bank'} App
                             </p>
                             <p className="text-slate-500 text-[11px]">
-                              Send <strong>₱500.00</strong> reservation fee, then upload the receipt screenshot below.
+                              Send <strong>{formatPeso(booking?.reservationFee || 1000)}</strong> reservation fee, then upload the receipt screenshot below.
                             </p>
                             <a
                               href={method.qrImageUrl}
@@ -807,7 +809,7 @@ export const TrackBookingPage: React.FC = () => {
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Payment Receipt Proof (₱500 Reservation Fee) *
+                    Payment Receipt Proof ({formatPeso(booking?.reservationFee || 1000)} Reservation Fee) *
                   </label>
                   {paymentReceiptFile ? (
                     <div className="bg-slate-50 p-3 rounded-xl border border-blue-200 flex items-center gap-3">

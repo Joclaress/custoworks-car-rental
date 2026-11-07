@@ -23,5 +23,6 @@ paymentRoutes.post('/record-otc', authenticate, requireStaff, c.adminRecordPayme
 paymentRoutes.get('/admin/methods', authenticate, requireStaff, c.adminListPaymentMethods);
 paymentRoutes.post('/methods', authenticate, requireStaff, c.createPaymentMethod);
 paymentRoutes.patch('/methods/:id', authenticate, requireStaff, c.updatePaymentMethod);
+paymentRoutes.delete('/methods/:id', authenticate, requireStaff, c.deletePaymentMethod);
 paymentRoutes.post('/methods/:id/qr', authenticate, requireStaff, uploadImage, c.uploadPaymentMethodQr);
 

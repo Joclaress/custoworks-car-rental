@@ -37,6 +37,10 @@ import {
   RefreshCw,
   FileText,
   ExternalLink,
+  Shield,
+  CheckCircle2,
+  ArrowRight,
+  Info,
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
@@ -215,12 +219,197 @@ export const AdminDashboardPage: React.FC = () => {
   const [blockReason, setBlockReason] = useState('Scheduled Maintenance');
   const [blockVehicleId, setBlockVehicleId] = useState('');
 
-  // Record OTC Payment Modal
-  const [otcModalOpen, setOtcModalOpen] = useState(false);
-  const [otcType, setOtcType] = useState('RENTAL_BALANCE');
-  const [otcAmount, setOtcAmount] = useState('');
-  const [otcMethodId, setOtcMethodId] = useState('');
-  const [otcRef, setOtcRef] = useState('');
+  // Financial calculation helper for bookings
+  const getBookingFinancials = (b: Booking) => {
+    const approvedPayments = (b.payments || []).filter((p) => p.status === 'APPROVED');
+    const reservationFeePaid = approvedPayments
+      .filter((p) => p.type === 'RESERVATION_FEE')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const rentalBalancePaid = approvedPayments
+      .filter((p) => p.type === 'RENTAL_BALANCE')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const depositRefunded = approvedPayments.some((p) => p.type === 'SECURITY_DEPOSIT_REFUND');
+    const totalPaid = reservationFeePaid + rentalBalancePaid;
+    const balanceDue = Math.max(0, Number(b.totalAmount) - totalPaid);
+    const isBalancePaid = balanceDue <= 0;
+
+    return {
+      totalAmount: Number(b.totalAmount),
+      reservationFeePaid: reservationFeePaid > 0 ? reservationFeePaid : Number(b.reservationFee || 1000),
+      hasReservationPaid: reservationFeePaid > 0,
+      rentalBalancePaid,
+      totalPaid,
+      balanceDue,
+      isBalancePaid,
+      depositRefunded,
+    };
+  };
+
+  // Vehicle Release & Balance Settlement Modal State
+  const [releaseModalBooking, setReleaseModalBooking] = useState<Booking | null>(null);
+  const [releasePaymentMethodId, setReleasePaymentMethodId] = useState('');
+  const [releaseAmount, setReleaseAmount] = useState('');
+  const [releaseRefNumber, setReleaseRefNumber] = useState('CASH');
+  const [releaseNotes, setReleaseNotes] = useState('Remaining rental balance paid upon pickup');
+  const [releaseMarkOngoing, setReleaseMarkOngoing] = useState(true);
+  const [isSubmittingRelease, setIsSubmittingRelease] = useState(false);
+
+  // Vehicle Return & Rental Completion Modal State ("Done after rent")
+  const [completeModalBooking, setCompleteModalBooking] = useState<Booking | null>(null);
+  const [refundDepositMethodId, setRefundDepositMethodId] = useState('');
+  const [refundDepositAmount, setRefundDepositAmount] = useState('1000');
+  const [refundRefNumber, setRefundRefNumber] = useState('CASH_REFUND');
+  const [inspectClean, setInspectClean] = useState(true);
+  const [inspectFuel, setInspectFuel] = useState(true);
+  const [inspectDamageFree, setInspectDamageFree] = useState(true);
+  const [refundSecurityDeposit, setRefundSecurityDeposit] = useState(true);
+  const [isSubmittingComplete, setIsSubmittingComplete] = useState(false);
+
+  // Full Booking Details Inspector Modal
+  const [viewBookingModal, setViewBookingModal] = useState<Booking | null>(null);
+
+  const openReleaseModal = (b: Booking) => {
+    setReleaseModalBooking(b);
+    const fin = getBookingFinancials(b);
+    setReleaseAmount(fin.balanceDue > 0 ? fin.balanceDue.toString() : '0');
+    const cashMethod = paymentMethods.find((m) => m.kind === 'CASH' || m.code === 'CASH') || paymentMethods[0];
+    if (cashMethod) setReleasePaymentMethodId(cashMethod.id);
+    setReleaseRefNumber('CASH');
+    setReleaseNotes('Remaining rental balance paid upon vehicle release');
+    setReleaseMarkOngoing(true);
+  };
+
+  const handleSubmitRelease = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!releaseModalBooking) return;
+    setIsSubmittingRelease(true);
+    try {
+      const amountToPay = parseFloat(releaseAmount) || 0;
+      if (amountToPay > 0) {
+        if (!releasePaymentMethodId) {
+          alert('Please select a payment method for the balance.');
+          setIsSubmittingRelease(false);
+          return;
+        }
+        await api.post('/payments/record-otc', {
+          bookingId: releaseModalBooking.id,
+          paymentMethodId: releasePaymentMethodId,
+          type: 'RENTAL_BALANCE',
+          amount: amountToPay,
+          referenceNumber: releaseRefNumber.trim() || 'CASH',
+          notes: releaseNotes.trim() || 'Rental balance collected upon pickup',
+          paidAt: new Date().toISOString(),
+        });
+      }
+
+      if (releaseMarkOngoing) {
+        await api.post(`/bookings/${releaseModalBooking.id}/release`);
+      }
+
+      alert('Balance payment confirmed and vehicle marked as Released (Ongoing)!');
+      setReleaseModalBooking(null);
+      await fetchBookings();
+      await fetchPayments();
+      await fetchStats();
+      if (viewBookingModal?.id === releaseModalBooking.id) {
+        const updated = await api.get<{ booking: Booking }>(`/bookings/${releaseModalBooking.id}`);
+        setViewBookingModal(updated.booking);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to release vehicle or record payment');
+    } finally {
+      setIsSubmittingRelease(false);
+    }
+  };
+
+  const openCompleteModal = (b: Booking) => {
+    setCompleteModalBooking(b);
+    const cashMethod = paymentMethods.find((m) => m.kind === 'CASH' || m.code === 'CASH') || paymentMethods[0];
+    if (cashMethod) setRefundDepositMethodId(cashMethod.id);
+    setRefundDepositAmount('1000');
+    setRefundRefNumber('CASH_REFUND');
+    setInspectClean(true);
+    setInspectFuel(true);
+    setInspectDamageFree(true);
+    setRefundSecurityDeposit(true);
+  };
+
+  const handleSubmitComplete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!completeModalBooking) return;
+    setIsSubmittingComplete(true);
+    try {
+      if (refundSecurityDeposit) {
+        const refundAmt = parseFloat(refundDepositAmount) || 1000;
+        if (refundAmt > 0 && refundDepositMethodId) {
+          await api.post('/payments/record-otc', {
+            bookingId: completeModalBooking.id,
+            paymentMethodId: refundDepositMethodId,
+            type: 'SECURITY_DEPOSIT_REFUND',
+            amount: refundAmt,
+            referenceNumber: refundRefNumber.trim() || 'CASH_REFUND',
+            notes: 'Security deposit refunded upon clean vehicle return inspection',
+            paidAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      await api.post(`/bookings/${completeModalBooking.id}/complete`);
+
+      alert('Vehicle return inspection verified, deposit refunded, and rental marked as COMPLETED!');
+      setCompleteModalBooking(null);
+      await fetchBookings();
+      await fetchPayments();
+      await fetchStats();
+      if (viewBookingModal?.id === completeModalBooking.id) {
+        const updated = await api.get<{ booking: Booking }>(`/bookings/${completeModalBooking.id}`);
+        setViewBookingModal(updated.booking);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to complete rental');
+    } finally {
+      setIsSubmittingComplete(false);
+    }
+  };
+
+  const openViewBookingModal = async (b: Booking) => {
+    setViewBookingModal(b);
+    try {
+      const res = await api.get<{ booking: Booking }>(`/bookings/${b.id}`);
+      setViewBookingModal(res.booking);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Payment Method Modal State (Add/Edit/Delete)
+  const [pmModalOpen, setPmModalOpen] = useState(false);
+  const [editingPm, setEditingPm] = useState<PaymentMethod | null>(null);
+  const [pmForm, setPmForm] = useState<{
+    code: string;
+    name: string;
+    kind: 'BANK_TRANSFER' | 'E_WALLET' | 'CASH' | 'ONLINE_GATEWAY';
+    accountName: string;
+    accountNumber: string;
+    instructions: string;
+    isActive: boolean;
+    isCustomerSelectable: boolean;
+  }>({
+    code: '',
+    name: '',
+    kind: 'E_WALLET',
+    accountName: '',
+    accountNumber: '',
+    instructions: '',
+    isActive: true,
+    isCustomerSelectable: true,
+  });
+  const [pmQrFile, setPmQrFile] = useState<File | null>(null);
+  const [pmQrPreview, setPmQrPreview] = useState<string | null>(null);
+  const [submittingPm, setSubmittingPm] = useState(false);
+
+  // View Receipt Preview Lightbox State
+  const [viewingReceiptPayment, setViewingReceiptPayment] = useState<Payment | null>(null);
 
   const [loading, setLoading] = useState(true);
 
@@ -322,7 +511,7 @@ export const AdminDashboardPage: React.FC = () => {
         api.get<{ destinations: Destination[] }>('/pricing/admin/destinations'),
         api.get<{ fees: any[] }>('/pricing/admin/additional-fees'),
         api.get<{ settings: any }>('/admin/settings'),
-        api.get<{ methods: PaymentMethod[] }>('/payments/methods'),
+        api.get<{ methods: PaymentMethod[] }>('/payments/admin/methods'),
       ]);
       setVehicles(vRes.vehicles);
       setDestinations(dRes.destinations);
@@ -546,6 +735,97 @@ export const AdminDashboardPage: React.FC = () => {
       alert('Vehicle maintenance schedule added to calendar.');
     } catch (err: any) {
       alert(err.message || 'Failed to add maintenance block');
+    }
+  };
+
+  // Payment Methods Handlers (Add, Edit, Delete, QR Upload)
+  const handleOpenAddPm = () => {
+    setEditingPm(null);
+    setPmForm({
+      code: '',
+      name: '',
+      kind: 'E_WALLET',
+      accountName: '',
+      accountNumber: '',
+      instructions: 'Transfer the PHP 1,000 reservation fee via InstaPay / app. Take a screenshot of the receipt and upload below.',
+      isActive: true,
+      isCustomerSelectable: true,
+    });
+    setPmQrFile(null);
+    setPmQrPreview(null);
+    setPmModalOpen(true);
+  };
+
+  const handleOpenEditPm = (pm: PaymentMethod) => {
+    setEditingPm(pm);
+    setPmForm({
+      code: pm.code || '',
+      name: pm.name || '',
+      kind: pm.kind || 'E_WALLET',
+      accountName: pm.accountName || '',
+      accountNumber: pm.accountNumber || '',
+      instructions: pm.instructions || '',
+      isActive: pm.isActive ?? true,
+      isCustomerSelectable: pm.isCustomerSelectable ?? true,
+    });
+    setPmQrFile(null);
+    setPmQrPreview(pm.qrImageUrl || null);
+    setPmModalOpen(true);
+  };
+
+  const handleDeletePm = async (pm: PaymentMethod) => {
+    if (!window.confirm(`Are you sure you want to delete payment account "${pm.name}" (${pm.accountNumber || pm.code})?\n\nThis will remove it from the payment channels.`)) return;
+    try {
+      await api.delete(`/payments/methods/${pm.id}`);
+      setPaymentMethods((prev) => prev.filter((m) => m.id !== pm.id));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete payment account');
+    }
+  };
+
+  const handleSavePm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingPm(true);
+    try {
+      let savedMethod: PaymentMethod;
+      if (editingPm) {
+        const res = await api.patch<{ method: PaymentMethod }>(`/payments/methods/${editingPm.id}`, pmForm);
+        savedMethod = res.method;
+      } else {
+        const res = await api.post<{ method: PaymentMethod }>('/payments/methods', pmForm);
+        savedMethod = res.method;
+      }
+
+      // If user uploaded a new QR image, send to qr upload endpoint
+      if (pmQrFile) {
+        const formData = new FormData();
+        formData.append('file', pmQrFile);
+        const qrRes = await api.post<{ method: PaymentMethod }>(`/payments/methods/${savedMethod.id}/qr`, formData);
+        savedMethod = qrRes.method;
+      }
+
+      if (editingPm) {
+        setPaymentMethods((prev) => prev.map((m) => (m.id === savedMethod.id ? savedMethod : m)));
+      } else {
+        setPaymentMethods((prev) => [...prev, savedMethod]);
+      }
+      setPmModalOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save payment method');
+    } finally {
+      setSubmittingPm(false);
+    }
+  };
+
+  const handleUploadQrDirect = async (pm: PaymentMethod, file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post<{ method: PaymentMethod }>(`/payments/methods/${pm.id}/qr`, formData);
+      setPaymentMethods((prev) => prev.map((m) => (m.id === pm.id ? res.method : m)));
+      alert(`QR Code updated successfully for ${pm.name}`);
+    } catch (err: any) {
+      alert(err.message || 'Failed to upload QR code');
     }
   };
 
@@ -784,9 +1064,46 @@ export const AdminDashboardPage: React.FC = () => {
         {/* TAB 2: BOOKINGS MANAGEMENT */}
         {activeTab === 'BOOKINGS' && (
           <div className="space-y-6">
+            {/* Auto-Complete / Ended Rentals Banner */}
+            {(() => {
+              const endedOngoing = bookings.filter(
+                (b) => b.status === 'ONGOING' && new Date() >= new Date(b.returnAt)
+              );
+              if (endedOngoing.length === 0) return null;
+              return (
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                      ⏰
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-amber-950 text-sm">
+                        {endedOngoing.length} Rental(s) Scheduled Return Time Has Reached / Passed!
+                      </h4>
+                      <p className="text-xs text-amber-800">
+                        Vehicle return inspection and ₱1,000 security deposit refund is ready to be confirmed to mark them as completed.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {endedOngoing.slice(0, 3).map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => openCompleteModal(b)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition-colors flex items-center gap-1.5"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Complete #{b.reference}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Filter & Search Bar */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 justify-between items-center">
-              <div className="flex gap-2 w-full md:w-auto">
+              <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
                 <select
                   value={bookingFilterStatus}
                   onChange={(e) => setBookingFilterStatus(e.target.value)}
@@ -796,11 +1113,55 @@ export const AdminDashboardPage: React.FC = () => {
                   <option value="PENDING_PAYMENT">Pending Payment</option>
                   <option value="PAYMENT_VERIFICATION">Payment Verification</option>
                   <option value="REQUIREMENTS_REVIEW">Requirements Review</option>
-                  <option value="CONFIRMED">Confirmed</option>
-                  <option value="ONGOING">Ongoing</option>
+                  <option value="CONFIRMED">Confirmed (Ready for Pickup)</option>
+                  <option value="ONGOING">Ongoing (On the Road)</option>
                   <option value="COMPLETED">Completed</option>
                   <option value="CANCELLED">Cancelled</option>
                 </select>
+
+                {/* Quick Filter Buttons */}
+                <button
+                  type="button"
+                  onClick={() => setBookingFilterStatus('CONFIRMED')}
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                    bookingFilterStatus === 'CONFIRMED'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  🚗 Ready for Pickup ({bookings.filter((b) => b.status === 'CONFIRMED').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingFilterStatus('ONGOING')}
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                    bookingFilterStatus === 'ONGOING'
+                      ? 'bg-slate-800 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  🛣️ Ongoing ({bookings.filter((b) => b.status === 'ONGOING').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingFilterStatus('COMPLETED')}
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                    bookingFilterStatus === 'COMPLETED'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  }`}
+                >
+                  ✅ Completed
+                </button>
+                {bookingFilterStatus && (
+                  <button
+                    type="button"
+                    onClick={() => setBookingFilterStatus('')}
+                    className="text-xs text-slate-500 hover:text-slate-800 underline font-semibold px-1"
+                  >
+                    Clear Filter
+                  </button>
+                )}
               </div>
 
               <div className="relative w-full md:w-72">
@@ -826,55 +1187,105 @@ export const AdminDashboardPage: React.FC = () => {
                       <th className="p-3.5">Customer</th>
                       <th className="p-3.5">Vehicle</th>
                       <th className="p-3.5">Schedule</th>
-                      <th className="p-3.5">Total Amount</th>
+                      <th className="p-3.5">Payment & Balance</th>
                       <th className="p-3.5">Status</th>
                       <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {bookings.map((b) => (
-                      <tr key={b.id} className="hover:bg-slate-50">
-                        <td className="p-3.5 font-bold font-mono text-brand-navy">{b.reference}</td>
-                        <td className="p-3.5">
-                          <p className="font-bold text-slate-900">{b.customerName}</p>
-                          <p className="text-[10px] text-slate-400">{b.customerPhone}</p>
-                        </td>
-                        <td className="p-3.5 font-semibold text-slate-800">{b.vehicle?.name}</td>
-                        <td className="p-3.5">
-                          {formatDate(b.pickupAt, false)} → {formatDate(b.returnAt, false)}
-                        </td>
-                        <td className="p-3.5 font-bold text-slate-900">{formatPeso(b.totalAmount)}</td>
-                        <td className="p-3.5">
-                          <StatusBadge status={b.status} />
-                        </td>
-                        <td className="p-3.5 text-right space-x-1.5">
-                          {b.status === 'REQUIREMENTS_REVIEW' && (
+                    {bookings.map((b) => {
+                      const fin = getBookingFinancials(b);
+                      const isOverdue = b.status === 'ONGOING' && new Date() >= new Date(b.returnAt);
+
+                      return (
+                        <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3.5 font-bold font-mono text-brand-navy">
                             <button
-                              onClick={() => handleConfirmBooking(b.id)}
-                              className="bg-emerald-600 text-white font-bold px-2.5 py-1 rounded-lg text-[11px]"
+                              type="button"
+                              onClick={() => openViewBookingModal(b)}
+                              className="hover:underline text-brand-blue"
+                              title="Click to view full booking details"
                             >
-                              Confirm
+                              {b.reference}
                             </button>
-                          )}
-                          {b.status === 'CONFIRMED' && (
+                          </td>
+                          <td className="p-3.5">
+                            <p className="font-bold text-slate-900">{b.customerName}</p>
+                            <p className="text-[10px] text-slate-400">{b.customerPhone}</p>
+                          </td>
+                          <td className="p-3.5 font-semibold text-slate-800">{b.vehicle?.name}</td>
+                          <td className="p-3.5">
+                            <div>{formatDate(b.pickupAt, false)} → {formatDate(b.returnAt, false)}</div>
+                            {isOverdue && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded mt-1">
+                                ⏰ Return Time Reached
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3.5">
+                            <span className="font-extrabold text-slate-900 block">{formatPeso(fin.totalAmount)}</span>
+                            <div className="text-[10px] mt-0.5 space-y-0.5">
+                              <span className="text-slate-500 block">₱1,000 Reservation Fee</span>
+                              {fin.isBalancePaid ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">
+                                  <CheckCircle className="w-2.5 h-2.5" /> Balance Paid
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded font-bold">
+                                  <Clock className="w-2.5 h-2.5" /> Due: {formatPeso(fin.balanceDue)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3.5">
+                            <StatusBadge status={b.status} />
+                          </td>
+                          <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
                             <button
-                              onClick={() => handleReleaseVehicle(b.id)}
-                              className="bg-blue-600 text-white font-bold px-2.5 py-1 rounded-lg text-[11px]"
+                              type="button"
+                              onClick={() => openViewBookingModal(b)}
+                              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 transition-colors"
+                              title="View full booking & payment records"
                             >
-                              Release
+                              <Eye className="w-3 h-3" /> View
                             </button>
-                          )}
-                          {b.status === 'ONGOING' && (
-                            <button
-                              onClick={() => handleCompleteRental(b.id)}
-                              className="bg-slate-800 text-white font-bold px-2.5 py-1 rounded-lg text-[11px]"
-                            >
-                              Complete
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                            {b.status === 'REQUIREMENTS_REVIEW' && (
+                              <button
+                                type="button"
+                                onClick={() => handleConfirmBooking(b.id)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1.5 rounded-lg text-[11px] shadow-xs transition-colors"
+                              >
+                                Confirm
+                              </button>
+                            )}
+                            {b.status === 'CONFIRMED' && (
+                              <button
+                                type="button"
+                                onClick={() => openReleaseModal(b)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 shadow-xs transition-colors"
+                                title="Collect remaining rental balance and release vehicle"
+                              >
+                                <KeyRound className="w-3.5 h-3.5" /> Release & Collect Balance
+                              </button>
+                            )}
+                            {b.status === 'ONGOING' && (
+                              <button
+                                type="button"
+                                onClick={() => openCompleteModal(b)}
+                                className={`font-bold px-3 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 shadow-xs transition-colors text-white ${
+                                  isOverdue
+                                    ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
+                                    : 'bg-slate-900 hover:bg-black'
+                                }`}
+                                title="Inspect vehicle return, refund security deposit, and mark rental done"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5" /> Return & Complete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1159,15 +1570,28 @@ export const AdminDashboardPage: React.FC = () => {
                         <StatusBadge status={p.status} />
                       </td>
                       <td className="p-3.5 text-right space-x-2">
-                        {p.proofStorageKey && (
-                          <a
-                            href={`/api/files/payments/${p.id}/proof`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-brand-blue font-bold hover:underline"
-                          >
-                            View Receipt
-                          </a>
+                        {p.proofStorageKey ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setViewingReceiptPayment(p)}
+                              className="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-brand-blue font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              View Receipt
+                            </button>
+                            <a
+                              href={`/api/files/payments/${p.id}/proof?token=${encodeURIComponent(api.getToken() || '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-slate-400 hover:text-brand-blue p-1 rounded transition-colors"
+                              title="Open receipt in new tab"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">No proof</span>
                         )}
                         {p.status === 'PENDING_VERIFICATION' && (
                           <>
@@ -1361,7 +1785,7 @@ export const AdminDashboardPage: React.FC = () => {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <a
-                                      href={`/api/files/${latestDoc.storageKey}`}
+                                      href={`/api/files/requirements/${latestDoc.id}?token=${encodeURIComponent(api.getToken() || '')}`}
                                       target="_blank"
                                       rel="noreferrer"
                                       className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-blue hover:text-blue-700"
@@ -1601,62 +2025,402 @@ export const AdminDashboardPage: React.FC = () => {
 
             {/* OFFICIAL PAYMENT ACCOUNTS & QR CODES CARD */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs md:col-span-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wider">Official Payment Accounts & QR Codes</h3>
                   <p className="text-slate-500 text-[11px] mt-0.5">Payment accounts and InstaPay QR codes shown to customers upon checkout & booking tracking.</p>
                 </div>
-                <span className="self-start sm:self-auto bg-blue-50 text-brand-blue font-bold px-3 py-1 rounded-full text-[11px] border border-blue-100">
-                  Standard Reservation Fee: ₱500.00
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="self-start sm:self-auto bg-blue-50 text-brand-blue font-bold px-3 py-1.5 rounded-full text-[11px] border border-blue-100">
+                    Standard Reservation Fee: ₱1,000.00
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPm}
+                    className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-blue-600 text-white font-bold px-3.5 py-1.5 rounded-xl shadow-sm text-xs transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Payment Account
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-                {paymentMethods.map((pm) => (
-                  <div key={pm.id} className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-center bg-slate-50/60 shadow-xs">
-                    {pm.qrImageUrl ? (
-                      <div className="relative group shrink-0">
-                        <img
-                          src={pm.qrImageUrl}
-                          alt={`${pm.name} QR Code`}
-                          className="w-32 h-auto max-h-44 object-contain rounded-xl border border-slate-200 shadow-sm bg-white p-1"
-                        />
-                        <a
-                          href={pm.qrImageUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute inset-0 bg-slate-900/60 text-white font-bold text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl transition-opacity"
-                        >
-                          View Full Size ↗
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="w-32 h-32 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-center p-2 shrink-0">
-                        No QR Image
-                      </div>
-                    )}
-                    <div className="space-y-1.5 flex-1 min-w-0 text-center sm:text-left">
-                      <div className="flex items-center justify-center sm:justify-start gap-2">
-                        <h4 className="font-extrabold text-slate-900 text-sm">{pm.name}</h4>
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full">ACTIVE</span>
-                      </div>
-                      <p className="text-slate-600">
-                        Account Name: <strong className="text-slate-900">{pm.accountName || 'N/A'}</strong>
-                      </p>
-                      <p className="text-slate-600">
-                        Account Number: <strong className="font-mono text-brand-navy font-bold text-sm">{pm.accountNumber || 'N/A'}</strong>
-                      </p>
-                      <p className="text-slate-500 text-[11px] bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">
-                        {pm.instructions}
-                      </p>
-                    </div>
+                {paymentMethods.length === 0 ? (
+                  <div className="col-span-2 py-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <p className="font-semibold text-xs">No payment accounts configured yet.</p>
+                    <p className="text-[11px] mt-0.5">Click &quot;Add Payment Account&quot; to configure GCash, Maya, or Bank accounts.</p>
                   </div>
-                ))}
+                ) : (
+                  paymentMethods.map((pm) => (
+                    <div key={pm.id} className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-center sm:items-start bg-slate-50/60 shadow-xs relative hover:border-slate-300 transition-colors">
+                      {/* QR Image with Quick Change */}
+                      <div className="flex flex-col items-center gap-1.5 shrink-0">
+                        {pm.qrImageUrl ? (
+                          <div className="relative group shrink-0">
+                            <img
+                              src={pm.qrImageUrl}
+                              alt={`${pm.name} QR Code`}
+                              className="w-32 h-auto max-h-40 object-contain rounded-xl border border-slate-200 shadow-sm bg-white p-1"
+                            />
+                            <a
+                              href={pm.qrImageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="absolute inset-0 bg-slate-900/60 text-white font-bold text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl transition-opacity"
+                            >
+                              View Full Size ↗
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="w-32 h-32 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-center p-2 shrink-0 text-[11px]">
+                            No QR Image
+                          </div>
+                        )}
+                        <label className="cursor-pointer text-[10px] font-bold text-brand-blue hover:underline text-center">
+                          <span>{pm.qrImageUrl ? 'Change QR Image' : 'Upload QR Image'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleUploadQrDirect(pm, e.target.files[0]);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="space-y-1.5 flex-1 min-w-0 text-center sm:text-left w-full">
+                        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-200/60 pb-1.5">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-slate-900 text-sm">{pm.name}</h4>
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
+                              pm.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                            }`}>
+                              {pm.isActive ? 'ACTIVE' : 'INACTIVE'}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {pm.code}
+                            </span>
+                          </div>
+
+                          {/* Edit and Delete Actions */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditPm(pm)}
+                              className="p-1.5 text-slate-500 hover:text-brand-blue hover:bg-blue-50 rounded-lg transition-colors"
+                              title={`Edit ${pm.name}`}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePm(pm)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title={`Delete ${pm.name}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-slate-600">
+                          Account Name: <strong className="text-slate-900">{pm.accountName || 'N/A'}</strong>
+                        </p>
+                        <p className="text-slate-600">
+                          Account Number: <strong className="font-mono text-brand-navy font-bold text-sm">{pm.accountNumber || 'N/A'}</strong>
+                        </p>
+                        <p className="text-slate-500 text-[11px] bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">
+                          {pm.instructions || 'No instructions provided.'}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* View Receipt Proof Modal / Lightbox */}
+      {viewingReceiptPayment && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">
+                  Customer Payment Receipt Proof
+                </h3>
+                <p className="text-slate-500 text-[11px]">
+                  Booking <span className="font-mono font-bold text-brand-navy">{viewingReceiptPayment.booking?.reference}</span> • {viewingReceiptPayment.booking?.customerName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingReceiptPayment(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Payment Details Quick Summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Amount</span>
+                <span className="font-extrabold text-sm text-slate-900">{formatPeso(viewingReceiptPayment.amount)}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Type</span>
+                <span className="font-bold text-slate-800">{viewingReceiptPayment.type.replace(/_/g, ' ')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Channel</span>
+                <span className="font-bold text-slate-800">{viewingReceiptPayment.paymentMethod?.name || 'Manual'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Ref # / Slip</span>
+                <span className="font-mono font-bold text-brand-blue">{viewingReceiptPayment.referenceNumber || '-'}</span>
+              </div>
+            </div>
+
+            {/* Receipt Image / Document Preview */}
+            <div className="bg-slate-900 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[300px] border border-slate-800 relative">
+              <img
+                src={`/api/files/payments/${viewingReceiptPayment.id}/proof?token=${encodeURIComponent(api.getToken() || '')}`}
+                alt="Payment Receipt Slip"
+                className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-md"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                  const fallback = document.getElementById('receipt-error-fallback');
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <div id="receipt-error-fallback" style={{ display: 'none' }} className="flex-col items-center gap-2 text-slate-400 text-center py-10">
+                <FileText className="w-12 h-12 text-slate-500" />
+                <p className="font-bold text-sm text-white">Receipt Document Preview</p>
+                <p className="text-xs max-w-sm">This file is in document/PDF format or raw bytes.</p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/files/payments/${viewingReceiptPayment.id}/proof?token=${encodeURIComponent(api.getToken() || '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Open Full Resolution ↗
+                </a>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {viewingReceiptPayment.status === 'PENDING_VERIFICATION' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleRejectPayment(viewingReceiptPayment.id);
+                        setViewingReceiptPayment(null);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-colors"
+                    >
+                      Reject Payment
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleApprovePayment(viewingReceiptPayment.id);
+                        setViewingReceiptPayment(null);
+                      }}
+                      className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-colors"
+                    >
+                      Approve Payment
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setViewingReceiptPayment(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Method Add / Edit Modal */}
+      {pmModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 text-xs shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-bold text-base text-slate-900">
+                  {editingPm ? 'Edit Payment Method' : 'Add New Payment Method'}
+                </h3>
+                <p className="text-slate-500 text-[11px]">
+                  Configure account details and scan-to-pay QR codes shown to customers.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPmModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePm} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Method Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={pmForm.name}
+                    onChange={(e) => setPmForm({ ...pmForm, name: e.target.value })}
+                    placeholder="e.g. GCash, Maya, BDO"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Code / Identifier *</label>
+                  <input
+                    type="text"
+                    required
+                    value={pmForm.code}
+                    onChange={(e) => setPmForm({ ...pmForm, code: e.target.value.toUpperCase().replace(/\s+/g, '_') })}
+                    placeholder="e.g. GCASH, MAYA, BDO"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Account Kind *</label>
+                  <select
+                    value={pmForm.kind}
+                    onChange={(e) => setPmForm({ ...pmForm, kind: e.target.value as any })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium"
+                  >
+                    <option value="E_WALLET">E-Wallet (GCash, Maya, GrabPay)</option>
+                    <option value="BANK_TRANSFER">Bank Transfer (BPI, BDO, Metrobank, UnionBank)</option>
+                    <option value="CASH">Cash / Over-the-counter</option>
+                    <option value="ONLINE_GATEWAY">Online Payment Gateway</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Account Name</label>
+                  <input
+                    type="text"
+                    value={pmForm.accountName}
+                    onChange={(e) => setPmForm({ ...pmForm, accountName: e.target.value })}
+                    placeholder="e.g. Jericho Oclares / Custoworks"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Account / Mobile Number</label>
+                <input
+                  type="text"
+                  value={pmForm.accountNumber}
+                  onChange={(e) => setPmForm({ ...pmForm, accountNumber: e.target.value })}
+                  placeholder="e.g. 0961 722 5326 / 0995 382 7972 / 0051 6059 4036"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Instructions for Customer</label>
+                <textarea
+                  rows={3}
+                  value={pmForm.instructions}
+                  onChange={(e) => setPmForm({ ...pmForm, instructions: e.target.value })}
+                  placeholder="Instructions displayed to customers when paying via this method..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 leading-relaxed"
+                />
+              </div>
+
+              {/* QR Code Upload */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                <label className="block font-bold text-slate-700">InstaPay QR Code Image</label>
+                <div className="flex items-center gap-4">
+                  {pmQrPreview ? (
+                    <img
+                      src={pmQrPreview}
+                      alt="QR Preview"
+                      className="w-20 h-20 object-contain rounded-lg border border-slate-300 bg-white p-1 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-lg border border-dashed border-slate-300 bg-white flex items-center justify-center text-slate-400 text-[10px] text-center p-1 shrink-0">
+                      No QR
+                    </div>
+                  )}
+                  <div className="space-y-1 text-xs">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setPmQrFile(file);
+                          setPmQrPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                      className="text-xs text-slate-600 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-brand-blue hover:file:bg-blue-100"
+                    />
+                    <p className="text-[11px] text-slate-400">Upload a square InstaPay QR code image (JPG or PNG).</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 pt-1">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={pmForm.isActive}
+                    onChange={(e) => setPmForm({ ...pmForm, isActive: e.target.checked })}
+                    className="w-4 h-4 text-brand-blue rounded border-slate-300 focus:ring-brand-blue"
+                  />
+                  <span>Active (enabled for customer checkout)</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPmModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingPm}
+                  className="px-5 py-2 rounded-xl bg-brand-blue hover:bg-blue-700 text-white font-bold disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                >
+                  {submittingPm ? 'Saving...' : editingPm ? 'Save Changes' : 'Create Payment Method'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Maintenance Block Modal */}
       {blockModalOpen && (
@@ -2049,6 +2813,551 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 1. Release Vehicle & Balance Settlement Modal */}
+      {releaseModalBooking && (() => {
+        const fin = getBookingFinancials(releaseModalBooking);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+              <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                      <KeyRound className="w-4 h-4" />
+                    </span>
+                    <h3 className="font-extrabold text-base text-slate-900">
+                      Release Vehicle & Confirm Balance
+                    </h3>
+                  </div>
+                  <p className="text-slate-500 text-[11px] mt-1">
+                    Booking <span className="font-mono font-bold text-brand-navy">{releaseModalBooking.reference}</span> • {releaseModalBooking.customerName}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReleaseModalBooking(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Vehicle & Customer Summary */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-[11px]">
+                <div>
+                  <span className="text-slate-400 uppercase font-bold text-[9px] block">Vehicle</span>
+                  <span className="font-bold text-slate-800 text-xs block">{releaseModalBooking.vehicle?.name}</span>
+                  <span className="text-slate-500 text-[10px]">{releaseModalBooking.vehicle?.plateNumber}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 uppercase font-bold text-[9px] block">Customer Phone</span>
+                  <span className="font-bold text-slate-800 text-xs block">{releaseModalBooking.customerPhone}</span>
+                  <span className="text-slate-500 text-[10px]">{releaseModalBooking.customerEmail}</span>
+                </div>
+              </div>
+
+              {/* Financial Breakdown Card */}
+              <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-2.5">
+                <h4 className="font-bold text-brand-navy text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Receipt className="w-4 h-4 text-brand-blue" />
+                  Financial Settlement Breakdown
+                </h4>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between items-center text-slate-700">
+                    <span>Total Rental Amount:</span>
+                    <span className="font-mono font-extrabold text-slate-900">{formatPeso(fin.totalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-emerald-700">
+                    <span>Less: Reservation Fee Paid:</span>
+                    <span className="font-mono font-bold">- {formatPeso(fin.reservationFeePaid)}</span>
+                  </div>
+                  {fin.rentalBalancePaid > 0 && (
+                    <div className="flex justify-between items-center text-blue-700">
+                      <span>Rental Balance Previously Paid:</span>
+                      <span className="font-mono font-bold">- {formatPeso(fin.rentalBalancePaid)}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-blue-200 pt-2 flex justify-between items-center font-extrabold text-sm">
+                    <span className="text-slate-900">Remaining Balance Due Upon Pickup:</span>
+                    <span className="font-mono text-base text-blue-700">{formatPeso(fin.balanceDue)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-2 pt-2 border-t border-blue-100 flex items-start gap-2 text-[11px] text-blue-900/80 bg-white/60 p-2.5 rounded-xl">
+                  <Shield className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" />
+                  <p>
+                    <strong>Security Deposit Policy:</strong> The customer's ₱1,000 reservation fee serves as their security deposit. It is held during the rental and inspected & refunded immediately upon return of the vehicle.
+                  </p>
+                </div>
+              </div>
+
+              {/* Payment Collection Form */}
+              <form onSubmit={handleSubmitRelease} className="space-y-4">
+                {fin.balanceDue > 0 ? (
+                  <div className="space-y-3 bg-white p-3.5 rounded-2xl border border-slate-200">
+                    <h5 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                      <DollarSign className="w-4 h-4 text-emerald-600" />
+                      Record Pickup Balance Payment
+                    </h5>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Payment Method Received *</label>
+                        <select
+                          value={releasePaymentMethodId}
+                          onChange={(e) => setReleasePaymentMethodId(e.target.value)}
+                          required
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-semibold text-slate-900"
+                        >
+                          <option value="">Select Payment Method</option>
+                          {paymentMethods.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name} ({m.kind.replace('_', ' ')})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Amount to Confirm (PHP ₱) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="1"
+                          required
+                          value={releaseAmount}
+                          onChange={(e) => setReleaseAmount(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono font-bold text-slate-900 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Reference / Official Slip #</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. CASH or GCash Ref #"
+                          value={releaseRefNumber}
+                          onChange={(e) => setReleaseRefNumber(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Staff Pickup Notes</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Paid in cash OTC at Naga office"
+                          value={releaseNotes}
+                          onChange={(e) => setReleaseNotes(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3.5 rounded-2xl flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold text-xs">Total Balance Fully Paid!</p>
+                      <p className="text-[11px] text-emerald-700">No balance remaining to collect. The vehicle is ready for immediate release.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <input
+                    type="checkbox"
+                    id="releaseOngoingCheck"
+                    checked={releaseMarkOngoing}
+                    onChange={(e) => setReleaseMarkOngoing(e.target.checked)}
+                    className="w-4 h-4 text-brand-blue rounded border-slate-300 focus:ring-brand-blue"
+                  />
+                  <label htmlFor="releaseOngoingCheck" className="text-xs font-semibold text-slate-800 cursor-pointer">
+                    Hand over keys & mark booking status as <strong>ONGOING</strong> (Vehicle in Customer Possession)
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setReleaseModalBooking(null)}
+                    disabled={isSubmittingRelease}
+                    className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRelease}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    <span>
+                      {isSubmittingRelease
+                        ? 'Processing...'
+                        : fin.balanceDue > 0
+                        ? `Confirm ${formatPeso(parseFloat(releaseAmount) || 0)} Payment & Release`
+                        : 'Release Vehicle to Customer'}
+                    </span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 2. Vehicle Return & Rental Completion Modal */}
+      {completeModalBooking && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                    <CheckCircle className="w-4 h-4" />
+                  </span>
+                  <h3 className="font-extrabold text-base text-slate-900">
+                    Vehicle Return & Rental Completion
+                  </h3>
+                </div>
+                <p className="text-slate-500 text-[11px] mt-1">
+                  Booking <span className="font-mono font-bold text-brand-navy">{completeModalBooking.reference}</span> • {completeModalBooking.customerName} • {completeModalBooking.vehicle?.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompleteModalBooking(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Return Inspection Checklist */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                <Check className="w-4 h-4 text-emerald-600" />
+                Physical Return Inspection Checklist
+              </h4>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={inspectClean}
+                    onChange={(e) => setInspectClean(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 block text-xs">Vehicle Returned Clean & Washed</span>
+                    <span className="text-[10px] text-slate-500">Unit returned in clean condition. 100% security deposit is refunded with zero carwash deduction.</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={inspectFuel}
+                    onChange={(e) => setInspectFuel(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 block text-xs">Fuel Level Matches Departure</span>
+                    <span className="text-[10px] text-slate-500">Fuel gauge verified and matches the original release level.</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={inspectDamageFree}
+                    onChange={(e) => setInspectDamageFree(e.target.checked)}
+                    className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                  />
+                  <div>
+                    <span className="font-bold text-slate-800 block text-xs">Exterior & Interior Inspection Passed</span>
+                    <span className="text-[10px] text-slate-500">No new scratches, dents, or interior damages detected.</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* ₱1,000 Security Deposit Refund Settlement */}
+            <form onSubmit={handleSubmitComplete} className="space-y-4">
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-emerald-950 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    Refund ₱1,000 Security Deposit
+                  </h4>
+                  <span className="bg-emerald-600 text-white font-mono font-bold text-xs px-2.5 py-0.5 rounded-full">
+                    ₱1,000.00
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800">
+                  The customer's ₱1,000 reservation fee is now due for immediate refund on the spot since the unit was returned in good order.
+                </p>
+
+                <div className="space-y-2 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={refundSecurityDeposit}
+                      onChange={(e) => setRefundSecurityDeposit(e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                    />
+                    <span className="text-xs font-bold text-emerald-900">
+                      Record ₱1,000 Security Deposit Refund to Customer
+                    </span>
+                  </label>
+
+                  {refundSecurityDeposit && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Refund Channel / Method</label>
+                        <select
+                          value={refundDepositMethodId}
+                          onChange={(e) => setRefundDepositMethodId(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold"
+                        >
+                          {paymentMethods.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Refund Ref # / Voucher</label>
+                        <input
+                          type="text"
+                          value={refundRefNumber}
+                          onChange={(e) => setRefundRefNumber(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-mono"
+                          placeholder="e.g. CASH_REFUND or Ref #"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setCompleteModalBooking(null)}
+                  disabled={isSubmittingComplete}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingComplete}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>
+                    {isSubmittingComplete
+                      ? 'Completing Rental...'
+                      : 'Confirm Return, Refund ₱1,000 Deposit & Complete Rental'}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. View Full Booking Details Inspector Modal */}
+      {viewBookingModal && (() => {
+        const fin = getBookingFinancials(viewBookingModal);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+              <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-base font-black text-brand-navy">
+                      {viewBookingModal.reference}
+                    </span>
+                    <StatusBadge status={viewBookingModal.status} />
+                  </div>
+                  <p className="text-slate-500 text-[11px] mt-0.5">
+                    Created on {formatDate(viewBookingModal.createdAt || viewBookingModal.pickupAt)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setViewBookingModal(null)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Customer & Vehicle Info Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Customer Information</span>
+                  <p className="font-bold text-slate-900 text-sm">{viewBookingModal.customerName}</p>
+                  <p className="text-slate-600">Phone: <strong>{viewBookingModal.customerPhone}</strong></p>
+                  <p className="text-slate-500">Email: {viewBookingModal.customerEmail}</p>
+                  {viewBookingModal.customerAddress && (
+                    <p className="text-slate-500 truncate">Address: {viewBookingModal.customerAddress}</p>
+                  )}
+                </div>
+
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Rental Details</span>
+                  <p className="font-bold text-slate-900 text-sm">{viewBookingModal.vehicle?.name}</p>
+                  <p className="text-slate-600">
+                    Schedule: {formatDate(viewBookingModal.pickupAt, false)} → {formatDate(viewBookingModal.returnAt, false)}
+                  </p>
+                  <p className="text-slate-500">
+                    Type: <strong>{viewBookingModal.rentalType === 'SELF_DRIVE' ? 'Self-Drive' : 'With Driver'}</strong> • Destination: {viewBookingModal.destination?.name || 'Local'}
+                  </p>
+                  {viewBookingModal.pickupMethod === 'DELIVERY' && (
+                    <p className="text-blue-600 truncate">Delivery: {viewBookingModal.deliveryAddress || 'Requested'}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Financial Balance Summary Box */}
+              <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-2">
+                <h4 className="font-bold text-brand-navy text-xs uppercase tracking-wider flex items-center justify-between">
+                  <span>Payment & Balance Breakdown</span>
+                  <span className="text-xs font-mono font-bold text-slate-900">Total: {formatPeso(fin.totalAmount)}</span>
+                </h4>
+                <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                  <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Reservation Fee</span>
+                    <span className="font-bold text-slate-900 text-xs">₱1,000.00</span>
+                    <span className="text-[9px] text-emerald-600 font-bold block mt-0.5">Locks vehicle</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Balance Status</span>
+                    <span className={`font-bold text-xs ${fin.isBalancePaid ? 'text-emerald-700' : 'text-amber-700'}`}>
+                      {fin.isBalancePaid ? 'Fully Paid' : formatPeso(fin.balanceDue)}
+                    </span>
+                    <span className="text-[9px] text-slate-500 block mt-0.5">{fin.isBalancePaid ? 'Settled' : 'Due on Pickup'}</span>
+                  </div>
+                  <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block">Security Deposit</span>
+                    <span className="font-bold text-slate-900 text-xs">₱1,000.00</span>
+                    <span className="text-[9px] text-blue-600 font-bold block mt-0.5">Refundable on return</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Transactions & Receipts Table */}
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                  Payment History & Official Acknowledgement Receipts
+                </h4>
+                <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="bg-slate-100 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2.5">Date</th>
+                        <th className="p-2.5">Type</th>
+                        <th className="p-2.5">Method</th>
+                        <th className="p-2.5">Amount</th>
+                        <th className="p-2.5">Ref / OR #</th>
+                        <th className="p-2.5">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(viewBookingModal.payments || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-4 text-center text-slate-400">
+                            No payment records logged yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        viewBookingModal.payments?.map((p) => (
+                          <tr key={p.id} className="hover:bg-white/80">
+                            <td className="p-2.5 font-medium text-slate-600">
+                              {p.paidAt ? formatDate(p.paidAt, false) : formatDate(p.createdAt || new Date(), false)}
+                            </td>
+                            <td className="p-2.5 font-bold text-slate-800">
+                              {p.type.replace(/_/g, ' ')}
+                            </td>
+                            <td className="p-2.5 text-slate-600">{p.paymentMethod?.name || 'Manual'}</td>
+                            <td className="p-2.5 font-mono font-bold text-slate-900">{formatPeso(p.amount)}</td>
+                            <td className="p-2.5 font-mono text-[10px] text-brand-blue font-bold">
+                              {p.receiptNumber || p.referenceNumber || '-'}
+                            </td>
+                            <td className="p-2.5">
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  p.status === 'APPROVED'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : p.status === 'PENDING_VERIFICATION'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {p.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Action Buttons in Booking Inspector */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setViewBookingModal(null)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold"
+                >
+                  Close
+                </button>
+
+                <div className="flex items-center gap-2">
+                  {viewBookingModal.status === 'CONFIRMED' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const b = viewBookingModal;
+                        setViewBookingModal(null);
+                        openReleaseModal(b);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <KeyRound className="w-4 h-4" />
+                      Collect Balance & Release Vehicle
+                    </button>
+                  )}
+                  {viewBookingModal.status === 'ONGOING' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const b = viewBookingModal;
+                        setViewBookingModal(null);
+                        openCompleteModal(b);
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-colors"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Complete Return & Refund ₱1,000 Deposit
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

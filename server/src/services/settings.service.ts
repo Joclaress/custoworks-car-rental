@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS = {
     officeHours: '8:00 AM – 8:00 PM (24/7 Vehicle releases with reservation)',
   },
   booking: {
-    reservationFee: 500,
+    reservationFee: 1000,
     /** Minutes a DRAFT booking holds the vehicle while the customer completes the wizard. */
     draftHoldMinutes: 30,
     /** Hours a submitted booking waits for the reservation-fee payment before it expires. */
@@ -31,17 +31,16 @@ export const DEFAULT_SETTINGS = {
   },
   securityDeposit: {
     /** Recorded separately from the reservation fee – never combined. */
-    enabled: false,
-    amount: null as number | null,
-    notes: 'Security deposit (if required) is collected upon vehicle pick-up and refunded after the return inspection, subject to the rental agreement.',
+    enabled: true,
+    amount: 1000,
+    notes: 'The PHP 1,000 reservation fee serves as the refundable security deposit upon vehicle turnover, refunded immediately after return inspection in clean condition.',
   },
   policies: [
-    'PHP 500 reservation fee is required to block the selected date.',
+    'PHP 1,000 reservation fee is required to block the selected date and vehicle.',
     'Full payment of the remaining rental balance is required upon vehicle pick-up.',
-    'Cancellation and rescheduling are subject to company policy.',
-    'The reservation fee is non-refundable for customer-initiated cancellations, subject to applicable law and approved exceptions.',
+    'The reservation fee is strictly non-refundable upon cancellation; however, if you need to cancel, your booking may be rescheduled only (subject to availability).',
+    'The PHP 1,000 reservation fee serves as the security deposit upon turnover, which is refundable after return of the unit in clean condition and matched fuel levels.',
     'Rescheduling requests are subject to vehicle availability.',
-    'A security deposit, if collected, is recorded separately from the reservation fee and refunded according to the return inspection and rental agreement.',
   ],
   rentalTerms: [
     'The renter must present the original documents submitted online upon vehicle pick-up.',

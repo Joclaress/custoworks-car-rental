@@ -145,7 +145,7 @@ export const HomePage: React.FC = () => {
 
             <div className="pt-4 flex flex-wrap items-center gap-6 text-xs text-slate-300">
               <span className="flex items-center gap-1.5">
-                <CheckCircle className="w-4 h-4 text-emerald-400" /> ₱500 Reservation Fee
+                <CheckCircle className="w-4 h-4 text-emerald-400" /> ₱1,000 Reservation Fee
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckCircle className="w-4 h-4 text-emerald-400" /> Self-Drive & With-Driver
@@ -434,8 +434,8 @@ export const HomePage: React.FC = () => {
                   step: '02',
                   time: 'Instant Hold',
                   icon: <CreditCard className="w-6 h-6 text-brand-blue" />,
-                  title: 'Pay ₱500 Reservation Fee',
-                  desc: 'Lock in your vehicle and calendar dates immediately via GCash, Maya, BPI, or BDO. Deducted from your final balance.',
+                  title: 'Pay ₱1,000 Reservation Fee',
+                  desc: 'Lock in your vehicle & calendar dates immediately. Non-refundable on cancellation (rescheduling only). Serves as refundable security deposit after return.',
                   proTip: 'You receive an instant 2-hour hold window while your payment slip is verified.',
                 },
                 {
@@ -544,8 +544,8 @@ export const HomePage: React.FC = () => {
                     },
                     {
                       key: 'fee' as const,
-                      title: '₱500 Reservation Hold Fee',
-                      desc: 'Ready via GCash, Maya, BPI, or BDO to lock your vehicle calendar immediately.',
+                      title: '₱1,000 Reservation Hold Fee',
+                      desc: 'Ready via GCash or BDO to lock your vehicle calendar immediately (non-refundable; rescheduling only; refundable security deposit upon return).',
                       tag: 'Hold Fee',
                     },
                   ].map((item) => (
@@ -663,7 +663,7 @@ export const HomePage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <span><strong>Security Deposit:</strong> Refundable ₱3,000 (Sedan) / ₱5,000 (MPV/Van)</span>
+                    <span><strong>Security Deposit:</strong> ₱1,000 (covered by reservation fee, refundable after unit return)</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
@@ -742,9 +742,9 @@ export const HomePage: React.FC = () => {
                 <div className="w-10 h-10 rounded-xl bg-blue-100 text-brand-blue flex items-center justify-center mb-4">
                   <CreditCard className="w-5 h-5" />
                 </div>
-                <h4 className="font-bold text-base text-slate-900 mb-2">Deposit Refund Speed</h4>
+                <h4 className="font-bold text-base text-slate-900 mb-2">Deposit & Reschedule Policy</h4>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Your ₱3,000 or ₱5,000 security deposit is refunded <strong>on the spot</strong> upon vehicle return inspection via Cash, GCash, or Maya.
+                  Your ₱1,000 reservation fee serves as your security deposit. It cannot be refunded once cancelled (rescheduling only). Upon clean vehicle return, it is refunded <strong>on the spot</strong> via Cash, GCash, or Maya.
                 </p>
               </div>
 
@@ -932,7 +932,7 @@ export const HomePage: React.FC = () => {
           <div>
             <h2 className="text-2xl sm:text-3xl font-black">Ready to Book Your Rental Car?</h2>
             <p className="text-blue-100 text-sm mt-1">
-              Select your vehicle, lock your dates with ₱500 reservation fee, and upload your IDs online.
+              Select your vehicle, lock your dates with ₱1,000 reservation fee, and upload your IDs online.
             </p>
           </div>
           <div className="flex items-center gap-4">

@@ -17,7 +17,7 @@ Official online car rental reservation, fleet management, and quotation platform
 
 2. **Streamlined 8-Step Booking Wizard:**
    - Real-time availability check, destination pricing, delivery options, and driver selection.
-   - Low **PHP 500.00** reservation fee to secure vehicle dates on the calendar.
+   - **PHP 1,000.00** reservation fee to secure vehicle dates on the calendar (non-refundable upon cancellation; rescheduling permitted only; serves as refundable security deposit upon vehicle return).
 
 3. **InstaPay QR Code & Digital Payments:**
    - Integrated **GCash** (`0995 382 7972` - Jericho Oclares) and **BDO Unibank** (`0051 6059 4036` - Jericho Oclares) with scan-to-pay InstaPay QR code previews.

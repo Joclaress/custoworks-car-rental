@@ -29,6 +29,8 @@ interface AccessPayload {
 function readToken(req: Request) {
   const h = req.headers.authorization;
   if (h?.startsWith('Bearer ')) return h.slice(7);
+  if (req.query?.token && typeof req.query.token === 'string') return req.query.token;
+  if (req.cookies?.cw_access_token) return req.cookies.cw_access_token;
   return null;
 }
 

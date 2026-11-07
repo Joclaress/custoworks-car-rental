@@ -392,7 +392,7 @@ async function main() {
       kind: PaymentMethodKind.E_WALLET,
       accountName: 'Custoworks Car Rental',
       accountNumber: '0961 722 5326 / 0995 382 7972',
-      instructions: 'Send at least PHP 500 reservation fee to our GCash account: Primary 0961 722 5326 | Secondary 0995 382 7972. Take a screenshot of the confirmation receipt and upload it below.',
+      instructions: 'Send the PHP 1,000 reservation fee to our GCash account: Primary 0961 722 5326 | Secondary 0995 382 7972. Take a screenshot of the confirmation receipt and upload it below.',
       isCustomerSelectable: true,
       sortOrder: 1,
     },

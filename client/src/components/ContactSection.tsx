@@ -58,8 +58,8 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
 
   const faqs = [
     {
-      q: 'How does the ₱500 reservation fee work?',
-      a: 'The ₱500 reservation fee locks your chosen vehicle and selected dates instantly, preventing other renters from booking the same car. It is deducted from your total rental balance upon release.',
+      q: 'How does the ₱1,000 reservation fee work?',
+      a: 'The ₱1,000 reservation fee locks your chosen vehicle and selected dates instantly, preventing other renters from booking the same car. Please note that you cannot refund the reservation fee once you cancel it; however, if you need to cancel, your booking may be rescheduled only. The ₱1,000 reservation fee will then serve as your security deposit, which is refundable after you return the unit in clean condition.',
     },
     {
       q: 'What are the required documents for Self-Drive rentals?',
@@ -71,7 +71,11 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     },
     {
       q: 'When and how is the security deposit refunded?',
-      a: 'The security deposit (₱3,000 for Sedans, ₱5,000 for MPVs/Vans) is inspected and refunded immediately upon returning the vehicle in clean condition with matched fuel levels, via Cash, GCash, or instant bank transfer.',
+      a: 'The ₱1,000 reservation fee serves as your security deposit. You cannot refund the reservation fee once you cancel; however, if you need to cancel, your booking may be rescheduled only. Then, the ₱1,000 security deposit is inspected and refunded immediately upon returning the vehicle in clean condition with matched fuel levels, via Cash, GCash, or instant bank transfer.',
+    },
+    {
+      q: 'What is your cancellation and rescheduling policy?',
+      a: 'You cannot refund the reservation once you cancel it. However, if you need to cancel, your booking may be rescheduled only (subject to vehicle availability). The ₱1,000 reservation fee will then serve as your security deposit refundable after you return the unit.',
     },
     {
       q: 'Where can I pick up or receive the vehicle in Naga City?',

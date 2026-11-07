@@ -589,7 +589,9 @@ export const CustomerDashboardPage: React.FC = () => {
       {paymentModalOpen && selectedBooking && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl text-xs max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-base text-slate-900">Upload ₱500 Reservation Fee Proof</h3>
+            <h3 className="font-bold text-base text-slate-900">
+              Upload Reservation Fee Proof ({formatPeso(selectedBooking.reservationFee || 1000)})
+            </h3>
             <p className="text-slate-500">
               Booking Ref: <strong>{selectedBooking.reference}</strong>
             </p>
@@ -639,7 +641,7 @@ export const CustomerDashboardPage: React.FC = () => {
                             Scan with {method.code === 'GCASH' ? 'GCash' : 'BDO / Bank'} App
                           </p>
                           <p className="text-slate-500 text-[11px]">
-                            Transfer <strong>₱500.00</strong> reservation fee, then upload the receipt screenshot below.
+                            Transfer <strong>{formatPeso(selectedBooking.reservationFee || 1000)}</strong> reservation fee, then upload the receipt screenshot below.
                           </p>
                         </div>
                       </div>

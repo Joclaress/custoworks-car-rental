@@ -98,7 +98,10 @@ export async function sendPrivateFile(res: Response, provider: string, key: stri
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (mime) res.type(mime);
-  res.sendFile(abs);
+  const stat = await fs.promises.stat(abs);
+  res.setHeader('Content-Length', stat.size);
+  const stream = fs.createReadStream(abs);
+  stream.pipe(res);
 }
 
 export async function deleteFile(provider: string, key: string, visibility: 'public' | 'private') {
