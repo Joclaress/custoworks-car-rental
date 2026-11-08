@@ -29,3 +29,49 @@
   }
 }
 
+/* Ensure inputs, selects, and textareas on white or light backgrounds always have dark text */
+input:not([type='checkbox']):not([type='radio']):not([type='file']),
+select,
+textarea {
+  color: #0f172a;
+}
+
+/* Inputs on dark backgrounds keep light text */
+.bg-slate-950 input,
+.bg-slate-900 input,
+.bg-slate-850 input,
+.bg-slate-800 input,
+.bg-slate-950 select,
+.bg-slate-900 select,
+.bg-slate-850 select,
+.bg-slate-800 select,
+.bg-slate-950 textarea,
+.bg-slate-900 textarea,
+.bg-slate-850 textarea,
+.bg-slate-800 textarea {
+  color: #f8fafc;
+}
+
+/* When inside any white or light container or modal, inputs MUST have high-contrast black text */
+.bg-white input:not([type='checkbox']):not([type='radio']):not([type='file']),
+.bg-white select,
+.bg-white textarea,
+.bg-slate-50 input:not([type='checkbox']):not([type='radio']):not([type='file']),
+.bg-slate-50 select,
+.bg-slate-50 textarea,
+.bg-slate-100 input:not([type='checkbox']):not([type='radio']):not([type='file']),
+.bg-slate-100 select,
+.bg-slate-100 textarea {
+  color: #0f172a !important;
+}
+
+.bg-white input::placeholder,
+.bg-white textarea::placeholder,
+.bg-slate-50 input::placeholder,
+.bg-slate-50 textarea::placeholder,
+.bg-slate-100 input::placeholder,
+.bg-slate-100 textarea::placeholder {
+  color: #64748b !important;
+}
+
+

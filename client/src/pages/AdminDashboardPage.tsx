@@ -2681,7 +2681,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* Payment Method Add / Edit Modal */}
       {pmModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 text-xs shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white text-slate-900 rounded-2xl max-w-lg w-full p-6 space-y-4 text-xs shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-base text-slate-900">
@@ -2845,7 +2845,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* Maintenance Block Modal */}
       {blockModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 text-xs shadow-xl">
+          <div className="bg-white text-slate-900 rounded-2xl max-w-md w-full p-6 space-y-4 text-xs shadow-xl">
             <h3 className="font-bold text-base text-slate-900">Schedule Vehicle Maintenance Block</h3>
             <form onSubmit={handleCreateBlock} className="space-y-3">
               <div>
@@ -2916,7 +2916,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* Add Vehicle Modal */}
       {addVehicleModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 text-xs shadow-2xl my-8">
+          <div className="bg-white text-slate-900 rounded-3xl max-w-lg w-full p-6 space-y-4 text-xs shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900">Add New Rental Vehicle</h3>
@@ -3093,7 +3093,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* Add Destination Modal */}
       {addDestModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
+          <div className="bg-white text-slate-900 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-extrabold text-base text-slate-900">Add New Destination</h3>
@@ -3156,7 +3156,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* Additional Fee Modal (Add / Edit) */}
       {feeModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 text-xs shadow-xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white text-slate-900 rounded-2xl max-w-md w-full p-6 space-y-4 text-xs shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-base text-slate-900">
@@ -3239,7 +3239,7 @@ export const AdminDashboardPage: React.FC = () => {
         const fin = getBookingFinancials(releaseModalBooking);
         return (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+            <div className="bg-white text-slate-900 rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
               <div className="flex justify-between items-start border-b border-slate-100 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -3361,7 +3361,7 @@ export const AdminDashboardPage: React.FC = () => {
                           placeholder="e.g. CASH or GCash Ref #"
                           value={releaseRefNumber}
                           onChange={(e) => setReleaseRefNumber(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono text-slate-900 font-bold placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                       <div>
@@ -3371,7 +3371,7 @@ export const AdminDashboardPage: React.FC = () => {
                           placeholder="e.g. Paid in cash OTC at Naga office"
                           value={releaseNotes}
                           onChange={(e) => setReleaseNotes(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-semibold placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -3432,7 +3432,7 @@ export const AdminDashboardPage: React.FC = () => {
       {/* 2. Vehicle Return & Rental Completion Modal */}
       {completeModalBooking && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white text-slate-900 rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
             <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
                 <div className="flex items-center gap-2">
@@ -3541,10 +3541,10 @@ export const AdminDashboardPage: React.FC = () => {
                         <select
                           value={refundDepositMethodId}
                           onChange={(e) => setRefundDepositMethodId(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold"
+                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           {paymentMethods.map((m) => (
-                            <option key={m.id} value={m.id}>
+                            <option key={m.id} value={m.id} className="text-slate-900">
                               {m.name}
                             </option>
                           ))}
@@ -3557,7 +3557,7 @@ export const AdminDashboardPage: React.FC = () => {
                           type="text"
                           value={refundRefNumber}
                           onChange={(e) => setRefundRefNumber(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-mono"
+                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           placeholder="e.g. CASH_REFUND or Ref #"
                         />
                       </div>
@@ -3598,7 +3598,7 @@ export const AdminDashboardPage: React.FC = () => {
         const fin = getBookingFinancials(viewBookingModal);
         return (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+            <div className="bg-white text-slate-900 rounded-3xl max-w-2xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
               <div className="flex justify-between items-start border-b border-slate-100 pb-3">
                 <div>
                   <div className="flex items-center gap-2">
