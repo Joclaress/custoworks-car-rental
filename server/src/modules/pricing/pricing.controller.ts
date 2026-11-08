@@ -5,6 +5,7 @@ import { parse } from '../../middleware/error';
 import { slugify } from '../../lib/utils';
 import { audit } from '../../services/audit.service';
 import { calculateQuote, startingRates } from '../../services/pricing.service';
+import { getCached, setCached, invalidateCache } from '../../lib/cache';
 import {
   additionalFeeSchema,
   destinationSchema,
@@ -32,6 +33,10 @@ export async function getQuote(req: Request, res: Response) {
 }
 
 export async function getPricelist(_req: Request, res: Response) {
+  const cacheKey = 'pricing:pricelist';
+  const cached = getCached<any>(cacheKey);
+  if (cached) return res.json(cached);
+
   const [destinations, vehicles, rates, additionalFees] = await Promise.all([
     prisma.destination.findMany({
       where: { deletedAt: null, isActive: true },
@@ -67,7 +72,7 @@ export async function getPricelist(_req: Request, res: Response) {
     startingRates: ratesMap[v.id] || { SELF_DRIVE: null, WITH_DRIVER: null, SELF_DRIVE_12: null, WITH_DRIVER_12: null },
   }));
 
-  res.json({
+  const payload = {
     destinations,
     vehicles: formattedVehicles,
     rates,
@@ -84,15 +89,24 @@ export async function getPricelist(_req: Request, res: Response) {
       fuelPolicy: 'Same-to-Same: Vehicle is released with a specific fuel level (usually full tank) and must be returned with the same fuel level.',
       driverTerms: 'With-Driver rentals include professional chauffeur for up to 12h or 24h duty. Chauffeur meals and out-of-town overnight lodging (if applicable) are provided or reimbursed by renter.',
     },
-  });
+  };
+
+  setCached(cacheKey, payload, 300); // 5 min TTL
+  res.json(payload);
 }
 
 export async function listDestinations(_req: Request, res: Response) {
+  const cacheKey = 'pricing:destinations';
+  const cached = getCached<any>(cacheKey);
+  if (cached) return res.json(cached);
+
   const destinations = await prisma.destination.findMany({
     where: { deletedAt: null, isActive: true },
     orderBy: { sortOrder: 'asc' },
   });
-  res.json({ destinations });
+  const payload = { destinations };
+  setCached(cacheKey, payload, 600); // 10 min TTL
+  res.json(payload);
 }
 
 export async function adminListDestinations(_req: Request, res: Response) {
@@ -115,6 +129,7 @@ export async function createDestination(req: Request, res: Response) {
   });
 
   await audit({ actorId: req.user!.id, action: 'destination.create', entityType: 'destination', entityId: destination.id, req });
+  invalidateCache();
   res.status(201).json({ destination });
 }
 
@@ -128,6 +143,7 @@ export async function updateDestination(req: Request, res: Response) {
   });
 
   await audit({ actorId: req.user!.id, action: 'destination.update', entityType: 'destination', entityId: id, req });
+  invalidateCache();
   res.json({ destination: updated });
 }
 
@@ -194,6 +210,7 @@ export async function updateVehicleRateMatrix(req: Request, res: Response) {
     req,
   });
 
+  invalidateCache();
   res.json({ ok: true, rates: results });
 }
 

@@ -65,25 +65,44 @@ export const HomePage: React.FC = () => {
   });
 
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
       try {
-        const [vehiclesRes, pricelistRes] = await Promise.all([
-          api.get<{ data: Vehicle[] }>('/vehicles'),
-          api.get<{ destinations: Destination[]; vehicles: Vehicle[]; rates: any[] }>('/pricing/pricelist'),
-        ]);
-        setVehicles(vehiclesRes.data);
-        setDestinations(pricelistRes.destinations);
-        setRateGuideRates(pricelistRes.rates);
-        if (pricelistRes.destinations.length > 0) {
-          setDestinationId(pricelistRes.destinations[0].id);
-        }
+        // Fast decoupled fetch: fleet renders immediately as soon as vehicles arrive
+        const vehiclesPromise = api.get<{ data: Vehicle[] }>('/vehicles').then((res) => {
+          if (isMounted) {
+            setVehicles(res.data);
+            setLoading(false);
+          }
+          return res;
+        });
+
+        const pricelistPromise = api
+          .get<{ destinations: Destination[]; vehicles: Vehicle[]; rates: any[] }>('/pricing/pricelist')
+          .then((res) => {
+            if (isMounted) {
+              setDestinations(res.destinations);
+              setRateGuideRates(res.rates);
+              if (res.destinations.length > 0) {
+                setDestinationId((prev) => prev || res.destinations[0].id);
+              }
+            }
+            return res;
+          });
+
+        await Promise.allSettled([vehiclesPromise, pricelistPromise]);
       } catch (err) {
         console.error('Failed to load home page data:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {

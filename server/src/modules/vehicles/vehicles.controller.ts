@@ -4,13 +4,22 @@ import { AppError } from '../../lib/errors';
 import { parse } from '../../middleware/error';
 import { paginate, slugify } from '../../lib/utils';
 import { startingRates } from '../../services/pricing.service';
-import { isAvailable } from '../../services/availability.service';
+import { isAvailable, vehicleSchedule } from '../../services/availability.service';
 import { saveFile, deleteFile } from '../../services/storage.service';
+import { getCached, setCached, invalidateCache } from '../../lib/cache';
 import { createVehicleSchema, updateVehicleSchema, vehicleFilterSchema } from './vehicles.schema';
 
 export async function listVehicles(req: Request, res: Response) {
   const query = parse(vehicleFilterSchema, req.query);
   const { skip, take, page, pageSize } = paginate(query);
+
+  // If simple listing without real-time date filters, check memory cache
+  const isCacheable = !query.availableFrom && !query.availableTo;
+  const cacheKey = isCacheable ? `vehicles:list:${JSON.stringify(query)}` : null;
+  if (cacheKey) {
+    const cached = getCached<any>(cacheKey);
+    if (cached) return res.json(cached);
+  }
 
   const where: any = {
     deletedAt: null,
@@ -76,7 +85,7 @@ export async function listVehicles(req: Request, res: Response) {
     };
   });
 
-  res.json({
+  const payload = {
     data: result,
     pagination: {
       page,
@@ -84,11 +93,21 @@ export async function listVehicles(req: Request, res: Response) {
       total,
       totalPages: Math.ceil(total / pageSize),
     },
-  });
+  };
+
+  if (cacheKey) {
+    setCached(cacheKey, payload, 300); // 5 min TTL
+  }
+
+  res.json(payload);
 }
 
 export async function getVehicleBySlug(req: Request, res: Response) {
   const slug = String(req.params.slug);
+  const cacheKey = `vehicle:slug:${slug}`;
+  const cached = getCached<any>(cacheKey);
+  if (cached) return res.json(cached);
+
   const vehicle = await prisma.vehicle.findFirst({
     where: { slug, deletedAt: null },
     include: {
@@ -105,12 +124,45 @@ export async function getVehicleBySlug(req: Request, res: Response) {
 
   const [startingRate] = Object.values(await startingRates([vehicle.id]));
 
-  res.json({
+  // Pre-fetch calendar events for instant single-trip load
+  let calendarEvents: any[] = [];
+  try {
+    const startDate = new Date(Date.now() - 30 * 86_400_000);
+    const endDate = new Date(Date.now() + 90 * 86_400_000);
+    const siblingVehicles = vehicle.model
+      ? await prisma.vehicle.findMany({ where: { model: vehicle.model, deletedAt: null } })
+      : [vehicle];
+
+    calendarEvents = (
+      await Promise.all(
+        siblingVehicles.map(async (v) => {
+          const evs = await vehicleSchedule(v.id, startDate, endDate);
+          return evs.map((e) => ({
+            ...e,
+            resourceId: v.id,
+            extendedProps: {
+              vehicleName: v.name,
+              model: v.model,
+              plateNumber: v.plateNumber,
+            },
+          }));
+        })
+      )
+    ).flat();
+  } catch (err) {
+    console.error('Failed to pre-fetch calendar events for vehicle:', err);
+  }
+
+  const payload = {
     vehicle: {
       ...vehicle,
       startingRates: startingRate,
+      calendarEvents,
     },
-  });
+  };
+
+  setCached(cacheKey, payload, 180); // 3 min TTL
+  res.json(payload);
 }
 
 export async function adminListVehicles(req: Request, res: Response) {
@@ -153,6 +205,7 @@ export async function createVehicle(req: Request, res: Response) {
     include: { images: true },
   });
 
+  invalidateCache();
   res.status(201).json({ vehicle });
 }
 
@@ -169,6 +222,7 @@ export async function updateVehicle(req: Request, res: Response) {
     include: { images: true },
   });
 
+  invalidateCache();
   res.json({ vehicle: updated });
 }
 
@@ -182,6 +236,7 @@ export async function deleteVehicle(req: Request, res: Response) {
     data: { deletedAt: new Date(), isPublished: false },
   });
 
+  invalidateCache();
   res.json({ ok: true, message: 'Vehicle deleted' });
 }
 
@@ -205,6 +260,7 @@ export async function uploadVehiclePhoto(req: Request, res: Response) {
     },
   });
 
+  invalidateCache();
   res.status(201).json({ image });
 }
 
@@ -225,6 +281,7 @@ export async function deleteVehiclePhoto(req: Request, res: Response) {
     if (next) await prisma.vehicleImage.update({ where: { id: next.id }, data: { isPrimary: true } });
   }
 
+  invalidateCache();
   res.json({ ok: true });
 }
 
@@ -236,5 +293,6 @@ export async function setPrimaryPhoto(req: Request, res: Response) {
     await tx.vehicleImage.update({ where: { id: imageId, vehicleId: id }, data: { isPrimary: true } });
   });
 
+  invalidateCache();
   res.json({ ok: true });
 }

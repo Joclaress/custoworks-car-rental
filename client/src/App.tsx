@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ScrollToHash } from './components/ScrollToHash';
+import { CloudServerNotice } from './components/CloudServerNotice';
 
 import { HomePage } from './pages/HomePage';
 import { VehiclesPage } from './pages/VehiclesPage';
@@ -89,6 +90,7 @@ export const App: React.FC = () => {
             </Routes>
           </main>
           <Footer />
+          <CloudServerNotice />
         </div>
       </BrowserRouter>
     </AuthProvider>

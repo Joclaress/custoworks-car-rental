@@ -3,6 +3,7 @@ import { prisma, type Tx } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { fromCents, toCents } from '../lib/utils';
 import { getSettings } from './settings.service';
+import { getCached, setCached } from '../lib/cache';
 
 /**
  * PRICING ENGINE
@@ -254,11 +255,16 @@ async function findPromotion(
 const score = (p: { discountType: string; value: Prisma.Decimal }) =>
   p.discountType === 'PERCENT' ? Number(p.value) * 100 : Number(p.value);
 
-/** "Starting at" prices for cards: lowest published 24h rate per rental type. */
+/** "Starting at" prices for cards: lowest published 24h/12h rate per rental type. */
 export async function startingRates(vehicleIds: string[]) {
+  if (vehicleIds.length === 0) return {};
+  const cacheKey = `starting_rates:${[...vehicleIds].sort().join(',')}`;
+  const cached = getCached<Record<string, { SELF_DRIVE: number | null; WITH_DRIVER: number | null; SELF_DRIVE_12: number | null; WITH_DRIVER_12: number | null }>>(cacheKey);
+  if (cached) return cached;
+
   const rates = await prisma.vehicleRate.findMany({
     where: { vehicleId: { in: vehicleIds }, isPublished: true, amount: { not: null }, duration: { in: ['HOURS_24', 'HOURS_12'] } },
-    include: { destination: { select: { sortOrder: true, name: true } } },
+    select: { vehicleId: true, rentalType: true, duration: true, amount: true },
   });
   const out: Record<string, { SELF_DRIVE: number | null; WITH_DRIVER: number | null; SELF_DRIVE_12: number | null; WITH_DRIVER_12: number | null }> = {};
   for (const id of vehicleIds) out[id] = { SELF_DRIVE: null, WITH_DRIVER: null, SELF_DRIVE_12: null, WITH_DRIVER_12: null };
@@ -268,6 +274,7 @@ export async function startingRates(vehicleIds: string[]) {
     const amt = Number(r.amount);
     if (cur === null || amt < cur) out[r.vehicleId][key] = amt;
   }
+  setCached(cacheKey, out, 300); // Cache for 5 minutes
   return out;
 }
 

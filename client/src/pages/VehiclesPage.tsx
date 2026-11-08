@@ -233,7 +233,7 @@ export const VehiclesPage: React.FC = () => {
 
           {/* Vehicle Listing Grid */}
           <div className="lg:col-span-3">
-            {loading ? (
+            {loading && vehicles.length === 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-pulse">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="h-96 bg-slate-200 rounded-2xl" />
@@ -252,7 +252,7 @@ export const VehiclesPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-200 ${loading ? 'opacity-60' : 'opacity-100'}`}>
                 {vehicles.map((v) => (
                   <VehicleCard key={v.id} vehicle={v} />
                 ))}

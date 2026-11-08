@@ -31,33 +31,50 @@ export const VehicleDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchVehicle = async () => {
       try {
-        const res = await api.get<{ vehicle: Vehicle }>(`/vehicles/slug/${slug}`);
+        const res = await api.get<{ vehicle: Vehicle & { calendarEvents?: any[] } }>(`/vehicles/slug/${slug}`);
+        if (!isMounted) return;
         setVehicle(res.vehicle);
-        const primary = res.vehicle.images.find((i) => i.isPrimary)?.url || res.vehicle.images[0]?.url || '/images/hero.jpg';
+        const primary = res.vehicle.images?.find((i) => i.isPrimary)?.url || res.vehicle.images?.[0]?.url || '/images/hero.jpg';
         setSelectedImage(primary);
 
         if (!res.vehicle.allowSelfDrive && res.vehicle.allowWithDriver) {
           setActiveRentalType('WITH_DRIVER');
         }
 
-        // Fetch vehicle availability events
-        const calRes = await api.get<{ events: any[] }>(`/calendar/vehicle/${res.vehicle.id}`);
-        setCalendarEvents(calRes.events);
+        // Pre-loaded from single round-trip if available
+        if (res.vehicle.calendarEvents) {
+          setCalendarEvents(res.vehicle.calendarEvents);
+        } else {
+          // Fallback if older backend version
+          const calRes = await api.get<{ events: any[] }>(`/calendar/vehicle/${res.vehicle.id}`);
+          if (isMounted) setCalendarEvents(calRes.events);
+        }
       } catch (err) {
         console.error('Failed to load vehicle details:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     fetchVehicle();
+    return () => {
+      isMounted = false;
+    };
   }, [slug]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-blue" />
+      <div className="min-h-screen bg-slate-50 py-10 animate-pulse">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="h-6 w-48 bg-slate-200 rounded-md" />
+          <div className="h-10 w-96 bg-slate-200 rounded-lg" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 h-[420px] bg-slate-200 rounded-2xl" />
+            <div className="h-[420px] bg-slate-200 rounded-2xl" />
+          </div>
+        </div>
       </div>
     );
   }
