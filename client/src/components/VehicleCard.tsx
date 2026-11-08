@@ -8,7 +8,9 @@ export const VehicleCard: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
   const primaryImg = vehicle.images?.find((img) => img.isPrimary)?.url || vehicle.images?.[0]?.url || '/images/hero.jpg';
 
   const selfDriveRate = vehicle.startingRates?.SELF_DRIVE;
+  const selfDrive12Rate = (vehicle.startingRates as any)?.SELF_DRIVE_12;
   const withDriverRate = vehicle.startingRates?.WITH_DRIVER;
+  const withDriver12Rate = (vehicle.startingRates as any)?.WITH_DRIVER_12;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group">
@@ -92,11 +94,19 @@ export const VehicleCard: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4 flex justify-between items-center">
             {vehicle.allowSelfDrive ? (
               <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Self-Drive from</p>
-                <p className="text-base font-extrabold text-brand-navy">
-                  {selfDriveRate ? formatPeso(selfDriveRate) : 'Inquire'}
-                  <span className="text-xs font-normal text-slate-500"> /24h</span>
-                </p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Self-Drive</p>
+                <div className="flex flex-col">
+                  {selfDrive12Rate && (
+                    <p className="text-xs font-bold text-slate-600">
+                      {formatPeso(selfDrive12Rate)}
+                      <span className="text-[10px] font-normal text-slate-400"> /12h</span>
+                    </p>
+                  )}
+                  <p className="text-base font-extrabold text-brand-navy leading-tight">
+                    {selfDriveRate ? formatPeso(selfDriveRate) : 'Inquire'}
+                    <span className="text-xs font-normal text-slate-500"> /24h</span>
+                  </p>
+                </div>
               </div>
             ) : (
               <div>
@@ -107,11 +117,19 @@ export const VehicleCard: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
 
             {vehicle.allowWithDriver && (
               <div className="text-right">
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">With Driver from</p>
-                <p className="text-sm font-bold text-slate-800">
-                  {withDriverRate ? formatPeso(withDriverRate) : 'Inquire'}
-                  <span className="text-xs font-normal text-slate-500"> /24h</span>
-                </p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">With Driver</p>
+                <div className="flex flex-col items-end">
+                  {withDriver12Rate && (
+                    <p className="text-xs font-bold text-slate-600">
+                      {formatPeso(withDriver12Rate)}
+                      <span className="text-[10px] font-normal text-slate-400"> /12h</span>
+                    </p>
+                  )}
+                  <p className="text-sm font-extrabold text-slate-800 leading-tight">
+                    {withDriverRate ? formatPeso(withDriverRate) : 'Inquire'}
+                    <span className="text-xs font-normal text-slate-500"> /24h</span>
+                  </p>
+                </div>
               </div>
             )}
           </div>

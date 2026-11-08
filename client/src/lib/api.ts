@@ -1,5 +1,14 @@
 const API_BASE = (((import.meta as any).env?.VITE_API_URL as string) || '/api').replace(/\/+$/, '');
 
+const CACHE_VERSION = 'v2_catalog_sync_1500';
+try {
+  if (sessionStorage.getItem('cw_cache_version') !== CACHE_VERSION) {
+    const keys = Object.keys(sessionStorage).filter((k) => k.startsWith('cw_cache_'));
+    keys.forEach((k) => sessionStorage.removeItem(k));
+    sessionStorage.setItem('cw_cache_version', CACHE_VERSION);
+  }
+} catch {}
+
 interface CacheItem {
   data: any;
   timestamp: number;
