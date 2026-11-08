@@ -568,4 +568,85 @@ export async function deleteBooking(req: Request, res: Response) {
   res.json({ success: true, message: `Booking ${booking.reference} deleted successfully` });
 }
 
+export async function getAdminDispatchSchedule(req: Request, res: Response) {
+  const queryDate = req.query.date ? String(req.query.date) : new Date().toISOString().slice(0, 10);
+
+  const dayStart = new Date(`${queryDate}T00:00:00+08:00`);
+  const dayEnd = new Date(`${queryDate}T23:59:59.999+08:00`);
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      status: { notIn: ['CANCELLED', 'REJECTED', 'EXPIRED'] },
+      OR: [
+        { pickupAt: { gte: dayStart, lte: dayEnd } },
+        { returnAt: { gte: dayStart, lte: dayEnd } },
+        {
+          status: 'ONGOING',
+          pickupAt: { lte: dayEnd },
+          returnAt: { gte: dayStart },
+        },
+      ],
+    },
+    include: {
+      vehicle: {
+        select: {
+          id: true,
+          name: true,
+          model: true,
+          plateNumber: true,
+          category: true,
+          color: true,
+          transmission: true,
+          fuelType: true,
+          seats: true,
+          images: { select: { url: true, isPrimary: true }, take: 1 },
+        },
+      },
+      destination: {
+        select: { id: true, name: true, slug: true },
+      },
+      payments: {
+        where: { status: 'APPROVED' },
+        select: { id: true, amount: true, type: true, status: true, referenceNumber: true },
+      },
+    },
+    orderBy: { pickupAt: 'asc' },
+  });
+
+  const releases: any[] = [];
+  const returns: any[] = [];
+  const ongoing: any[] = [];
+
+  for (const b of bookings) {
+    const financials = await bookingFinancials(prisma, b);
+    const item = {
+      ...b,
+      financials,
+    };
+
+    const isPickup = b.pickupAt >= dayStart && b.pickupAt <= dayEnd;
+    const isReturn = b.returnAt >= dayStart && b.returnAt <= dayEnd;
+
+    if (isPickup) releases.push(item);
+    if (isReturn) returns.push(item);
+    if (b.status === 'ONGOING' && !isPickup && !isReturn) ongoing.push(item);
+  }
+
+  releases.sort((a, b) => new Date(a.pickupAt).getTime() - new Date(b.pickupAt).getTime());
+  returns.sort((a, b) => new Date(a.returnAt).getTime() - new Date(b.returnAt).getTime());
+
+  res.json({
+    date: queryDate,
+    releases,
+    returns,
+    ongoing,
+    stats: {
+      totalReleases: releases.length,
+      totalReturns: returns.length,
+      totalOngoing: ongoing.length,
+    },
+  });
+}
+
+
 

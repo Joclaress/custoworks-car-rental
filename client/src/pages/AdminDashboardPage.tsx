@@ -7,6 +7,7 @@ import { InteractiveCalendar } from '../components/InteractiveCalendar';
 import { AdminQuotationsTab } from '../components/admin/AdminQuotationsTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminPartnersTab } from '../components/admin/AdminPartnersTab';
+import { AdminDailyDispatchSchedule } from '../components/admin/AdminDailyDispatchSchedule';
 import { formatPeso, formatDate } from '../lib/utils';
 import {
   LayoutDashboard,
@@ -61,6 +62,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [bookingFilterStatus, setBookingFilterStatus] = useState<string>('');
   const [bookingSearch, setBookingSearch] = useState<string>('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [bookingSubTab, setBookingSubTab] = useState<'SCHEDULE' | 'ALL'>('ALL');
 
   // Calendar state
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
@@ -1017,8 +1019,8 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
                 <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
                   <span className="text-slate-400 text-[11px]">Today's schedule</span>
-                  <button onClick={() => setActiveTab('BOOKINGS')} className="text-blue-400 font-bold hover:underline">
-                    View list →
+                  <button onClick={() => { setActiveTab('BOOKINGS'); setBookingSubTab('SCHEDULE'); }} className="text-blue-400 font-bold hover:underline">
+                    View schedule →
                   </button>
                 </div>
               </div>
@@ -1085,6 +1087,13 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* DAILY VEHICLE RELEASE & DISPATCH SCHEDULE */}
+            <AdminDailyDispatchSchedule
+              onOpenBookingModal={openViewBookingModal}
+              onOpenReleaseModal={openReleaseModal}
+              onRefreshParent={fetchStats}
+            />
 
             {/* MONTHLY REVENUE & FINANCIAL PERFORMANCE */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1302,6 +1311,48 @@ export const AdminDashboardPage: React.FC = () => {
               );
             })()}
 
+            {/* Sub-view switcher for Bookings */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-2.5 rounded-2xl border border-slate-800">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBookingSubTab('ALL')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    bookingSubTab === 'ALL'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  All Bookings Records ({bookings.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingSubTab('SCHEDULE')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    bookingSubTab === 'SCHEDULE'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  📅 Daily Vehicle Release & Dispatch Schedule
+                </button>
+              </div>
+
+              <span className="text-[11px] text-slate-400 font-medium px-2">
+                Naga City Garage Operations
+              </span>
+            </div>
+
+            {bookingSubTab === 'SCHEDULE' ? (
+              <AdminDailyDispatchSchedule
+                onOpenBookingModal={openViewBookingModal}
+                onOpenReleaseModal={openReleaseModal}
+                onRefreshParent={fetchStats}
+              />
+            ) : (
+              <>
             {/* Filter & Search Bar */}
             <div className="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-md flex flex-col md:flex-row gap-3 justify-between items-center">
               <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
@@ -1509,6 +1560,8 @@ export const AdminDashboardPage: React.FC = () => {
                 </table>
               </div>
             </div>
+            </>
+            )}
           </div>
         )}
 

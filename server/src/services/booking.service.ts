@@ -3,7 +3,7 @@ import { prisma, type Tx } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { makeReference, toCents, fromCents, cleanWin1252 } from '../lib/utils';
 import { isOverlapViolation } from '../middleware/error';
-import { lockAndAssertAvailable, ACTIVE_STATUSES } from './availability.service';
+import { lockAndAssertAvailable } from './availability.service';
 import { calculateQuote, type Quote, type QuoteInput } from './pricing.service';
 import { getSettings } from './settings.service';
 
@@ -396,7 +396,8 @@ export async function rescheduleBooking(
     return await prisma.$transaction(
       async (tx) => {
         const b = await lockBooking(tx, bookingId);
-        if (!ACTIVE_STATUSES.includes(b.status)) throw AppError.conflict(`A ${b.status} booking cannot be rescheduled`);
+        const RESCHEDULABLE: BookingStatus[] = ['DRAFT', 'PENDING_PAYMENT', 'PAYMENT_VERIFICATION', 'PENDING_REQUIREMENTS', 'REQUIREMENTS_REVIEW', 'CONFIRMED', 'ONGOING'];
+        if (!RESCHEDULABLE.includes(b.status)) throw AppError.conflict(`A ${b.status} booking cannot be rescheduled`);
         await lockAndAssertAvailable(tx, {
           vehicleId: b.vehicleId,
           pickupAt,

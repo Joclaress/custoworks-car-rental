@@ -26,6 +26,7 @@ bookingRoutes.post('/:id/cancel', authenticate, c.cancelBooking);
 
 // Admin / Staff Booking Management
 bookingRoutes.get('/admin/all', authenticate, requireStaff, c.adminListBookings);
+bookingRoutes.get('/admin/dispatch-schedule', authenticate, requireStaff, c.getAdminDispatchSchedule);
 bookingRoutes.delete('/:id', authenticate, requireStaff, c.deleteBooking);
 bookingRoutes.post('/:id/confirm', authenticate, requireStaff, c.confirmBooking);
 bookingRoutes.post('/:id/release', authenticate, requireStaff, c.releaseVehicle);

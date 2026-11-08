@@ -2,13 +2,8 @@ import type { BookingStatus } from '@prisma/client';
 import { prisma, type Tx } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 
-/** Statuses that occupy the vehicle on the calendar (mirrors the DB exclusion constraint). */
+/** Statuses that occupy the vehicle on the calendar (mirrors the DB exclusion constraint). Only confirmed and ongoing bookings lock slots. */
 export const ACTIVE_STATUSES: BookingStatus[] = [
-  'DRAFT',
-  'PENDING_PAYMENT',
-  'PAYMENT_VERIFICATION',
-  'PENDING_REQUIREMENTS',
-  'REQUIREMENTS_REVIEW',
   'CONFIRMED',
   'ONGOING',
 ];

@@ -120,7 +120,16 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
     const dayStart = startOfDay(date);
 
     // Blocked vehicles map for this day
-    const blockedMap = new Map<string, { state: string; label: string }>();
+    const blockedMap = new Map<
+      string,
+      {
+        state: string;
+        label: string;
+        customerName?: string;
+        pickupTime?: string;
+        reference?: string;
+      }
+    >();
 
     for (const ev of events) {
       const s = startOfDay(new Date(ev.start));
@@ -130,6 +139,9 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
           blockedMap.set(ev.resourceId, {
             state: ev.state,
             label: ev.extendedProps?.vehicleName || ev.title || 'Reserved',
+            customerName: ev.extendedProps?.customerName,
+            pickupTime: ev.start ? format(new Date(ev.start), 'hh:mm a') : undefined,
+            reference: ev.extendedProps?.reference,
           });
         }
       }
@@ -865,6 +877,11 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                         <p className="text-[11px] text-slate-500 font-mono">
                           Plate: {u.plateNumber} • Color: {u.color || 'Silver'}
                         </p>
+                        {u.blockInfo?.customerName && (
+                          <p className="text-[11px] text-rose-700 font-bold mt-0.5 truncate">
+                            Booked: {u.blockInfo.customerName} {u.blockInfo.pickupTime ? `• Release: ${u.blockInfo.pickupTime}` : ''}
+                          </p>
+                        )}
                       </div>
                     </div>
 
