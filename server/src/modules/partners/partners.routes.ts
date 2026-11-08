@@ -179,3 +179,18 @@ partnerRoutes.patch('/applications/:id/status', authenticate, requireStaff, asyn
     application: updated,
   });
 });
+
+// 5. Admin: delete partner application
+partnerRoutes.delete('/applications/:id', authenticate, requireStaff, async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const existing = await prisma.partnerApplication.findUnique({ where: { id } });
+  if (!existing) throw AppError.notFound('Partner application not found');
+
+  await prisma.partnerApplication.delete({ where: { id } });
+
+  res.json({
+    ok: true,
+    message: 'Partner application deleted successfully',
+  });
+});
+

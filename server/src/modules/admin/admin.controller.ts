@@ -348,3 +348,27 @@ export async function deleteAdminUser(req: Request, res: Response) {
   res.json({ success: true, message: 'User account removed.' });
 }
 
+export async function resetTestData(req: Request, res: Response) {
+  await prisma.$transaction(async (tx) => {
+    await tx.bookingStatusHistory.deleteMany({});
+    await tx.bookingNote.deleteMany({});
+    await tx.bookingFee.deleteMany({});
+    await tx.requirementReview.deleteMany({});
+    await tx.requirementDocument.deleteMany({});
+    await tx.bookingRequirement.deleteMany({});
+    await tx.rentalAgreement.deleteMany({});
+    await tx.payment.deleteMany({});
+    await tx.booking.deleteMany({});
+    await tx.bookingRequest.deleteMany({});
+    await tx.partnerApplication.deleteMany({});
+    await tx.notification.deleteMany({});
+    await tx.auditLog.deleteMany({});
+    await tx.vehicleAvailability.deleteMany({});
+  });
+
+  await audit({ actorId: req.user!.id, action: 'system.reset_data', entityType: 'system', entityId: 'all', req });
+
+  res.json({ success: true, message: 'All sample/test transactional records have been purged.' });
+}
+
+

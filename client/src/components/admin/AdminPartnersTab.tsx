@@ -24,6 +24,7 @@ import {
   FileText,
   FileSignature,
   Printer,
+  Trash2,
 } from 'lucide-react';
 
 interface PartnerApplication {
@@ -116,6 +117,21 @@ export const AdminPartnersTab: React.FC = () => {
     } catch (err) {
       console.error('Failed to save notes:', err);
       alert('Failed to save notes.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleDeletePartner = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the partner application for "${name}"?`)) {
+      return;
+    }
+    setUpdatingId(id);
+    try {
+      await api.delete(`/partners/applications/${id}`);
+      setApplications((prev) => prev.filter((a) => a.id !== id));
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete partner application.');
     } finally {
       setUpdatingId(null);
     }
@@ -395,6 +411,15 @@ export const AdminPartnersTab: React.FC = () => {
                   >
                     <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                   </a>
+
+                  <button
+                    onClick={() => handleDeletePartner(app.id, app.fullName)}
+                    disabled={updatingId === app.id}
+                    className="bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-300 p-2 rounded-lg border border-slate-700 transition-colors"
+                    title="Delete Partner Application"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             </div>

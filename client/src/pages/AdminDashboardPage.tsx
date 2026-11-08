@@ -615,6 +615,38 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const handleDeleteBooking = async (id: string, reference?: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete booking ${reference || id}? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/bookings/${id}`);
+      alert(`Booking ${reference || ''} deleted successfully.`);
+      if (viewBookingModal?.id === id) {
+        setViewBookingModal(null);
+      }
+      await fetchBookings();
+      await fetchStats();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete booking');
+    }
+  };
+
+  const handleResetTestData = async () => {
+    const input = window.prompt("⚠️ CAUTION: This will permanently purge all test bookings, partner applications, quotation requests, and payments.\n\nType 'RESET' to confirm database wipe:");
+    if (input !== 'RESET') {
+      if (input !== null) alert('Database reset cancelled. You must type RESET exactly.');
+      return;
+    }
+    try {
+      await api.post('/admin/reset-test-data');
+      alert('All test records have been reset successfully! Your database is clean.');
+      await fetchBookings();
+      await fetchStats();
+      await fetchPayments();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reset test data.');
+    }
+  };
+
   const handleApprovePayment = async (id: string) => {
     try {
       await api.post(`/payments/${id}/approve`);
@@ -1427,6 +1459,14 @@ export const AdminDashboardPage: React.FC = () => {
                               title="View full booking & payment records"
                             >
                               <Eye className="w-3 h-3" /> View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteBooking(b.id, b.reference)}
+                              className="bg-slate-800 hover:bg-rose-900/60 text-slate-400 hover:text-rose-300 border border-slate-700 font-bold p-1.5 rounded-lg text-[11px] inline-flex items-center transition-colors"
+                              title="Delete booking record"
+                            >
+                              <Trash2 className="w-3 h-3" />
                             </button>
                             {b.status === 'REQUIREMENTS_REVIEW' && (
                               <button
@@ -2429,6 +2469,44 @@ export const AdminDashboardPage: React.FC = () => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+
+            {/* SYSTEM MAINTENANCE & DATA PURGE CARD */}
+            <div className="md:col-span-2 bg-slate-900/90 rounded-2xl border border-rose-900/40 p-6 shadow-lg space-y-4 text-xs">
+              <div className="flex items-center justify-between border-b border-rose-900/30 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                    <Trash2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-white uppercase tracking-wider">
+                      System Database Maintenance & Reset
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Purge sample/test transactional data before official public launch.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-200">
+                    Wipe Test Bookings, Partner Applications & Quotes
+                  </p>
+                  <p className="text-[11px] text-slate-400 max-w-xl">
+                    This permanently deletes all test bookings, customer quotation requests, partner applications, and payment records. Your vehicles, rate matrices, destinations, payment accounts, and administrator credentials remain safe and intact.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetTestData}
+                  className="bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md inline-flex items-center gap-2 shrink-0 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Reset All Test Data
+                </button>
               </div>
             </div>
           </div>
@@ -3604,13 +3682,27 @@ export const AdminDashboardPage: React.FC = () => {
 
               {/* Action Buttons in Booking Inspector */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setViewBookingModal(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold"
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setViewBookingModal(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const b = viewBookingModal;
+                      handleDeleteBooking(b.id, b.reference);
+                    }}
+                    className="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                    title="Permanently remove this booking record"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete Record
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-2">
                   {viewBookingModal.status === 'CONFIRMED' && (

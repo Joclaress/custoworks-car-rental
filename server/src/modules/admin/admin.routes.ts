@@ -7,6 +7,7 @@ export const adminRoutes = Router();
 adminRoutes.get('/stats', authenticate, requireStaff, c.getDashboardStats);
 adminRoutes.get('/settings', authenticate, requireStaff, c.getAdminSettings);
 adminRoutes.put('/settings', authenticate, requireAdmin, c.updateAdminSettings);
+adminRoutes.post('/reset-test-data', authenticate, requireAdmin, c.resetTestData);
 adminRoutes.get('/audit-logs', authenticate, requireAdmin, c.getAuditLogs);
 adminRoutes.get('/notifications', authenticate, requireStaff, c.getAdminNotifications);
 adminRoutes.patch('/notifications/:id/read', authenticate, requireStaff, c.markNotificationRead);

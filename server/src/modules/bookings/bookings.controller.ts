@@ -539,3 +539,33 @@ export async function downloadAgreement(req: Request, res: Response) {
   await streamRentalAgreement(res, id);
 }
 
+export async function deleteBooking(req: Request, res: Response) {
+  const id = String(req.params.id);
+  const booking = await prisma.booking.findUnique({ where: { id } });
+  if (!booking) throw AppError.notFound('Booking not found');
+
+  await prisma.$transaction(async (tx) => {
+    await tx.bookingStatusHistory.deleteMany({ where: { bookingId: id } });
+    await tx.bookingNote.deleteMany({ where: { bookingId: id } });
+    await tx.bookingFee.deleteMany({ where: { bookingId: id } });
+    await tx.requirementReview.deleteMany({ where: { bookingRequirement: { bookingId: id } } });
+    await tx.requirementDocument.deleteMany({ where: { bookingRequirement: { bookingId: id } } });
+    await tx.bookingRequirement.deleteMany({ where: { bookingId: id } });
+    await tx.rentalAgreement.deleteMany({ where: { bookingId: id } });
+    await tx.payment.deleteMany({ where: { bookingId: id } });
+    await tx.bookingRequest.deleteMany({ where: { bookingId: id } });
+    await tx.booking.delete({ where: { id } });
+  });
+
+  await audit({
+    actorId: req.user!.id,
+    action: 'booking.delete',
+    entityType: 'booking',
+    entityId: id,
+    details: { reference: booking.reference },
+  });
+
+  res.json({ success: true, message: `Booking ${booking.reference} deleted successfully` });
+}
+
+
