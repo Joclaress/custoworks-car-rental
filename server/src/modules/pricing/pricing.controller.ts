@@ -4,7 +4,7 @@ import { AppError } from '../../lib/errors';
 import { parse } from '../../middleware/error';
 import { slugify } from '../../lib/utils';
 import { audit } from '../../services/audit.service';
-import { calculateQuote } from '../../services/pricing.service';
+import { calculateQuote, startingRates } from '../../services/pricing.service';
 import {
   additionalFeeSchema,
   destinationSchema,
@@ -29,6 +29,62 @@ export async function getQuote(req: Request, res: Response) {
   });
 
   res.json({ quote });
+}
+
+export async function getPricelist(_req: Request, res: Response) {
+  const [destinations, vehicles, rates, additionalFees] = await Promise.all([
+    prisma.destination.findMany({
+      where: { deletedAt: null, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    }),
+    prisma.vehicle.findMany({
+      where: { deletedAt: null, isPublished: true },
+      include: {
+        images: { orderBy: { isPrimary: 'desc' } },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    }),
+    prisma.vehicleRate.findMany({
+      where: {
+        isPublished: true,
+        amount: { not: null },
+      },
+      include: {
+        destination: { select: { id: true, name: true, slug: true, sortOrder: true } },
+      },
+    }),
+    prisma.additionalFee.findMany({
+      where: { deletedAt: null, isActive: true },
+      orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
+    }),
+  ]);
+
+  const vehicleIds = vehicles.map((v) => v.id);
+  const ratesMap = await startingRates(vehicleIds);
+
+  const formattedVehicles = vehicles.map((v) => ({
+    ...v,
+    startingRates: ratesMap[v.id] || { SELF_DRIVE: null, WITH_DRIVER: null, SELF_DRIVE_12: null, WITH_DRIVER_12: null },
+  }));
+
+  res.json({
+    destinations,
+    vehicles: formattedVehicles,
+    rates,
+    additionalFees,
+    policies: {
+      reservationFee: 1000,
+      reservationFeeNote: 'Locks dates on calendar, strictly non-refundable upon cancellation (rescheduling permitted), and doubles as refundable security deposit upon vehicle return.',
+      cleanlinessPolicy: 'Return unit clean for 100% security deposit refund. If returned unwashed, standard carwash fee is deducted: ₱300 (Sedan) / ₱400 (SUV/MPV/Van).',
+      overtimePerHour: {
+        SEDAN: 150,
+        SUV_MPV: 200,
+        VAN: 250,
+      },
+      fuelPolicy: 'Same-to-Same: Vehicle is released with a specific fuel level (usually full tank) and must be returned with the same fuel level.',
+      driverTerms: 'With-Driver rentals include professional chauffeur for up to 12h or 24h duty. Chauffeur meals and out-of-town overnight lodging (if applicable) are provided or reimbursed by renter.',
+    },
+  });
 }
 
 export async function listDestinations(_req: Request, res: Response) {

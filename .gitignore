@@ -18,6 +18,10 @@ server/.pgdata/
 *.db
 *.dll
 
+# Private customer uploads
+server/uploads/private/
+uploads/private/
+
 # Build outputs
 client/dist/
 server/dist/

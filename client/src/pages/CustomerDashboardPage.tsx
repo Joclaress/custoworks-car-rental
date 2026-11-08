@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { Booking, BookingRequirement } from '../types';
@@ -530,10 +531,14 @@ export const CustomerDashboardPage: React.FC = () => {
               {requestType === 'RESCHEDULE' && (
                 <div className="space-y-2">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">New Requested Pick-up</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block font-bold text-slate-700">New Requested Pick-up</label>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded">Today onwards</span>
+                    </div>
                     <input
                       type="datetime-local"
                       required
+                      min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                       value={reqPickup}
                       onChange={(e) => setReqPickup(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs"
@@ -544,6 +549,7 @@ export const CustomerDashboardPage: React.FC = () => {
                     <input
                       type="datetime-local"
                       required
+                      min={reqPickup || format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                       value={reqReturn}
                       onChange={(e) => setReqReturn(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-xs"

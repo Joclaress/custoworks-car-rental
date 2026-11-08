@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Vehicle } from '../types';
 import { VehicleCard } from '../components/VehicleCard';
-import { Search, Filter, RotateCcw, Car } from 'lucide-react';
+import { Search, Filter, RotateCcw, Car, Calculator, ArrowRight } from 'lucide-react';
 
 export const VehiclesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -61,14 +61,24 @@ export const VehiclesPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <span className="text-xs font-extrabold uppercase tracking-widest text-brand-blue">
-            Naga City Fleet
-          </span>
-          <h1 className="text-3xl font-black text-slate-900 mt-1">Rental Vehicles & Fleet</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Choose from our clean, modern sedans, 7-seater MPVs, and 15-passenger vans.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+          <div>
+            <span className="text-xs font-extrabold uppercase tracking-widest text-brand-blue">
+              Naga City Fleet
+            </span>
+            <h1 className="text-3xl font-black text-slate-900 mt-1">Rental Vehicles & Fleet</h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Choose from our clean, modern sedans, 7-seater MPVs, and 15-passenger vans.
+            </p>
+          </div>
+          <Link
+            to="/rates"
+            className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 px-4 py-2.5 rounded-xl font-bold text-xs shadow-sm transition-all"
+          >
+            <Calculator className="w-4 h-4 text-brand-blue" />
+            <span>Official Pricelist & Calculator</span>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+          </Link>
         </div>
 
         {/* Layout: Sidebar + Grid */}

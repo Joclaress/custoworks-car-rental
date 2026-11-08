@@ -29,8 +29,14 @@ import {
   Loader2,
   Sparkles,
   CalendarCheck2,
+  Zap,
+  Calculator,
+  HeartHandshake,
+  PhoneCall,
+  Plane,
 } from 'lucide-react';
 import { format, addDays, differenceInCalendarDays } from 'date-fns';
+import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
 
 export const BookingWizardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -77,6 +83,7 @@ export const BookingWizardPage: React.FC = () => {
   const [emergencyName, setEmergencyName] = useState<string>('');
   const [emergencyPhone, setEmergencyPhone] = useState<string>('');
   const [purpose, setPurpose] = useState<string>('Personal Vacation / Travel');
+  const [flightNumber, setFlightNumber] = useState<string>('');
 
   // Server Quote & Created Draft
   const [quote, setQuote] = useState<PricingQuote | null>(null);
@@ -114,7 +121,28 @@ export const BookingWizardPage: React.FC = () => {
         setPaymentMethods(pRes.methods);
         setAdditionalFees(fRes.fees);
 
-        if (dRes.destinations.length > 0) {
+        // URL Search Params pre-selection
+        const paramDest = searchParams.get('destinationId');
+        const paramRentalType = searchParams.get('rentalType');
+        const paramCategory = searchParams.get('category');
+        const paramTransfer = searchParams.get('transfer') || searchParams.get('serviceType');
+
+        if (paramRentalType === 'WITH_DRIVER' || paramRentalType === 'SELF_DRIVE') {
+          setSelectedRentalType(paramRentalType);
+        }
+
+        if (paramTransfer?.toLowerCase().includes('bia') || paramTransfer?.toLowerCase().includes('airport')) {
+          setSelectedRentalType('WITH_DRIVER');
+          const biaDest = dRes.destinations.find((d) => d.slug === 'bicol-intl-airport');
+          if (biaDest) setSelectedDestinationId(biaDest.id);
+          if (paramCategory) {
+            const matchVeh = vRes.data.find((v) => v.category === paramCategory);
+            if (matchVeh) setSelectedVehicleId(matchVeh.id);
+          }
+        } else if (paramDest) {
+          const matchDest = dRes.destinations.find((d) => d.id === paramDest || d.slug === paramDest);
+          if (matchDest) setSelectedDestinationId(matchDest.id);
+        } else if (dRes.destinations.length > 0) {
           setSelectedDestinationId(dRes.destinations[0].id);
         }
 
@@ -270,10 +298,28 @@ export const BookingWizardPage: React.FC = () => {
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
   const selectedDestination = destinations.find((d) => d.id === selectedDestinationId);
+  const isAirportTransfer = selectedDestination?.slug === 'bicol-intl-airport' || selectedDestination?.slug === 'naga-airport';
 
   // STEP 4 -> 5: Proceed to Customer Information (no customer account required)
   const handleProceedToCustomerInfo = () => {
     setError(null);
+    if (!pickupAt || !returnAt) {
+      setError('Please select both pick-up and return schedule.');
+      return;
+    }
+    const pickupDate = new Date(pickupAt);
+    const returnDate = new Date(returnAt);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    if (pickupDate < todayStart) {
+      setError('You cannot book previous dates. Pick-up schedule is available today onwards only.');
+      return;
+    }
+    if (returnDate <= pickupDate) {
+      setError('Return schedule must be after the pick-up schedule.');
+      return;
+    }
     setStep(5);
   };
 
@@ -286,8 +332,19 @@ export const BookingWizardPage: React.FC = () => {
     }
     setError(null);
     setSubmitting(true);
+
+    const finalPurpose = flightNumber
+      ? `${purpose || 'Airport Transfer'} (Flight: ${flightNumber})`
+      : purpose;
+    const finalDeliveryAddress =
+      pickupMethod === 'DELIVERY'
+        ? deliveryAddress
+        : isAirportTransfer && flightNumber
+        ? `Airport Meetup - Flight ${flightNumber}`
+        : null;
+
     try {
-      if (!createdBooking) {
+      if (!createdBooking || createdBooking.status !== 'DRAFT') {
         const res = await api.post<{ booking: any }>('/bookings/draft', {
           vehicleId: selectedVehicleId,
           destinationId: selectedDestinationId,
@@ -296,7 +353,7 @@ export const BookingWizardPage: React.FC = () => {
           returnAt: new Date(returnAt).toISOString(),
           pickupMethod,
           deliveryZoneId: pickupMethod === 'DELIVERY' ? deliveryZoneId : null,
-          deliveryAddress: pickupMethod === 'DELIVERY' ? deliveryAddress : null,
+          deliveryAddress: finalDeliveryAddress,
           surchargeIds,
           promoCode: promoCode || null,
           customer: {
@@ -306,7 +363,7 @@ export const BookingWizardPage: React.FC = () => {
             customerAddress,
             emergencyContactName: emergencyName,
             emergencyContactPhone: emergencyPhone,
-            purpose,
+            purpose: finalPurpose,
           },
         });
         setCreatedBooking(res.booking);
@@ -318,7 +375,7 @@ export const BookingWizardPage: React.FC = () => {
           returnAt: new Date(returnAt).toISOString(),
           pickupMethod,
           deliveryZoneId: pickupMethod === 'DELIVERY' ? deliveryZoneId : null,
-          deliveryAddress: pickupMethod === 'DELIVERY' ? deliveryAddress : null,
+          deliveryAddress: finalDeliveryAddress,
           surchargeIds,
           promoCode: promoCode || null,
           customer: {
@@ -328,47 +385,54 @@ export const BookingWizardPage: React.FC = () => {
             customerAddress,
             emergencyContactName: emergencyName,
             emergencyContactPhone: emergencyPhone,
-            purpose,
+            purpose: finalPurpose,
           },
         });
         setCreatedBooking(res.booking);
       }
       setStep(6);
     } catch (err: any) {
-      setError(err.message || 'Failed to place vehicle on hold and save reservation');
+      if (err?.message?.includes('Only draft bookings can be edited') || err?.message?.includes('NOT_EDITABLE')) {
+        try {
+          const res = await api.post<{ booking: any }>('/bookings/draft', {
+            vehicleId: selectedVehicleId,
+            destinationId: selectedDestinationId,
+            rentalType: selectedRentalType,
+            pickupAt: new Date(pickupAt).toISOString(),
+            returnAt: new Date(returnAt).toISOString(),
+            pickupMethod,
+            deliveryZoneId: pickupMethod === 'DELIVERY' ? deliveryZoneId : null,
+            deliveryAddress: finalDeliveryAddress,
+            surchargeIds,
+            promoCode: promoCode || null,
+            customer: {
+              customerName,
+              customerEmail,
+              customerPhone,
+              customerAddress,
+              emergencyContactName: emergencyName,
+              emergencyContactPhone: emergencyPhone,
+              purpose: finalPurpose,
+            },
+          });
+          setCreatedBooking(res.booking);
+          setError(null);
+          setStep(6);
+          return;
+        } catch (retryErr: any) {
+          setError(retryErr.message || 'Failed to place vehicle on hold and save reservation');
+        }
+      } else {
+        setError(err.message || 'Failed to place vehicle on hold and save reservation');
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleSelectRequirementFile = (requirementId: string, file: File) => {
-    setRequirementFiles((prev) => ({ ...prev, [requirementId]: file }));
-    if (file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setRequirementPreviews((prev) => ({ ...prev, [requirementId]: url }));
-    }
-  };
-
-  const handleClearRequirementFile = (requirementId: string) => {
-    setRequirementFiles((prev) => {
-      const copy = { ...prev };
-      delete copy[requirementId];
-      return copy;
-    });
-    setRequirementPreviews((prev) => {
-      const copy = { ...prev };
-      delete copy[requirementId];
-      return copy;
-    });
-  };
-
-  // STEP 6: Upload individual requirement document
-  const handleUploadRequirement = async (requirementId: string) => {
-    const file = requirementFiles[requirementId];
-    if (!file) {
-      setError('Please choose a file to upload');
-      return;
-    }
+  // STEP 6: Direct Auto-Upload of Requirement Document
+  const handleUploadRequirementDirect = async (requirementId: string, file: File) => {
+    if (!createdBooking?.id || !file) return;
     setError(null);
     setUploadProgress((prev) => ({ ...prev, [requirementId]: true }));
     try {
@@ -389,13 +453,81 @@ export const BookingWizardPage: React.FC = () => {
         const bRes = await api.get<{ booking: any }>(`/bookings/${createdBooking.id}`);
         if (bRes.booking) setCreatedBooking(bRes.booking);
       }
-      // Clear current file draft for this requirement on successful upload
-      handleClearRequirementFile(requirementId);
     } catch (err: any) {
-      setError(err.message || 'Failed to upload document');
+      console.error('Document upload error:', err);
+      setError(err.message || 'Failed to upload document. Please check file format and size.');
     } finally {
       setUploadProgress((prev) => ({ ...prev, [requirementId]: false }));
     }
+  };
+
+  const handleSelectRequirementFile = async (requirementId: string, file: File) => {
+    setRequirementFiles((prev) => ({ ...prev, [requirementId]: file }));
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setRequirementPreviews((prev) => ({ ...prev, [requirementId]: url }));
+    }
+    // Automatically upload immediately upon photo selection!
+    await handleUploadRequirementDirect(requirementId, file);
+  };
+
+  const handleClearRequirementFile = (requirementId: string) => {
+    setRequirementFiles((prev) => {
+      const copy = { ...prev };
+      delete copy[requirementId];
+      return copy;
+    });
+    setRequirementPreviews((prev) => {
+      const copy = { ...prev };
+      delete copy[requirementId];
+      return copy;
+    });
+  };
+
+  // STEP 6: Upload individual requirement document (fallback manual retry)
+  const handleUploadRequirement = async (requirementId: string) => {
+    const file = requirementFiles[requirementId];
+    if (!file) {
+      setError('Please choose a file to upload');
+      return;
+    }
+    await handleUploadRequirementDirect(requirementId, file);
+  };
+
+  // Safe navigation from Step 6 to Step 7 (ensures all pending files are uploaded)
+  const handleProceedToSummary = async () => {
+    const isAnyUploading = Object.values(uploadProgress).some(Boolean);
+    if (isAnyUploading) {
+      setError('Please wait a moment while your document upload finishes.');
+      return;
+    }
+
+    // Check if any selected files are still waiting to be uploaded
+    const pendingReqIds = Object.keys(requirementFiles).filter((reqId) => {
+      const slot = createdBooking?.requirements?.find((r: any) => r.id === reqId);
+      return !slot?.documents?.length && slot?.status !== 'SUBMITTED' && slot?.status !== 'APPROVED';
+    });
+
+    if (pendingReqIds.length > 0) {
+      setSubmitting(true);
+      try {
+        for (const reqId of pendingReqIds) {
+          const file = requirementFiles[reqId];
+          if (file) {
+            await handleUploadRequirementDirect(reqId, file);
+          }
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to upload document');
+        setSubmitting(false);
+        return;
+      } finally {
+        setSubmitting(false);
+      }
+    }
+
+    setError(null);
+    setStep(7);
   };
 
   // STEP 7 -> 8: Submit Draft to Pending Payment
@@ -554,6 +686,108 @@ export const BookingWizardPage: React.FC = () => {
                 })}
               </div>
 
+              {/* Selected Vehicle Rate Features & Smart Suggestions */}
+              {(() => {
+                const selVeh = vehicles.find((v) => v.id === selectedVehicleId);
+                if (!selVeh) return null;
+
+                const s12 = selVeh.startingRates?.SELF_DRIVE_12 || (selVeh.category === 'SEDAN' ? 1500 : selVeh.category === 'SUV_MPV' ? 2000 : 4000);
+                const s24 = selVeh.startingRates?.SELF_DRIVE || (selVeh.category === 'SEDAN' ? 2000 : selVeh.category === 'SUV_MPV' ? 2500 : 5000);
+
+                return (
+                  <div className="bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 border border-blue-200/80 rounded-2xl p-4 sm:p-5 space-y-3 mt-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-blue-200/60">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-brand-blue text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                            <span>Pricelist Features & Suggestions for {selVeh.name}</span>
+                            {(selVeh as any).fleetCount > 1 && (
+                              <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
+                                {(selVeh as any).fleetCount} Units in Fleet
+                              </span>
+                            )}
+                          </h4>
+                          <p className="text-[11px] text-slate-500">
+                            {selVeh.category.replace('_', '/')} • {selVeh.transmission} • {selVeh.seats} Seats • {selVeh.fuelType || 'Gasoline'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <a
+                        href={`/rates?vehicleId=${selVeh.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-brand-blue hover:text-blue-700 flex items-center gap-1 self-start sm:self-auto"
+                      >
+                        <Calculator className="w-3.5 h-3.5" />
+                        <span>Interactive Rate Calculator</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </a>
+                    </div>
+
+                    {/* Rate Tier Badges */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">12-Hour Flat</span>
+                        <span className="font-extrabold text-slate-900 text-sm">
+                          {formatPeso(s12)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">Naga Area quick errands</span>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">24-Hour Whole Day</span>
+                        <span className="font-extrabold text-brand-blue text-sm">
+                          {formatPeso(s24)}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">Full 24h flexibility</span>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
+                        <span className="text-[10px] text-amber-600 font-bold uppercase block">Weekly Saver</span>
+                        <span className="font-extrabold text-amber-600 text-sm">
+                          Discounted
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">Automatic on 7+ days</span>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
+                        <span className="text-[10px] text-emerald-600 font-bold uppercase block">Monthly Package</span>
+                        <span className="font-extrabold text-emerald-600 text-sm">
+                          Unli Mileage
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">30+ days lease plan</span>
+                      </div>
+                    </div>
+
+                    {/* Destination Rates Pill Row */}
+                    <div className="pt-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 block mb-1.5 flex items-center gap-1">
+                        <Zap className="w-3 h-3 text-amber-500" />
+                        Reference Destination Rates (Self-Drive):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 text-[11px]">
+                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
+                          📍 <strong>Naga:</strong> {formatPeso(s12)} (12h) / {formatPeso(s24)} (24h)
+                        </span>
+                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
+                          📍 <strong>CamSur:</strong> {formatPeso(s12 + 200)} (12h) / {formatPeso(s24 + 200)} (24h)
+                        </span>
+                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
+                          📍 <strong>Albay / Daet:</strong> {formatPeso(s12 + 500)} (12h) / {formatPeso(s24 + 500)} (24h)
+                        </span>
+                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
+                          📍 <strong>Sorsogon / Labo:</strong> {formatPeso(s12 + 1000)} (12h) / {formatPeso(s24 + 1000)} (24h)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button
                   onClick={() => {
@@ -580,14 +814,14 @@ export const BookingWizardPage: React.FC = () => {
                 <p className="text-xs text-slate-500 mt-1">Choose between self-drive or executive with-driver service.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {selectedVehicle?.allowSelfDrive && (
                   <div
                     onClick={() => setSelectedRentalType('SELF_DRIVE')}
                     className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${
                       selectedRentalType === 'SELF_DRIVE'
-                        ? 'border-brand-blue bg-blue-50/50 shadow-md'
-                        : 'border-slate-200 hover:border-slate-300'
+                        ? 'border-brand-blue bg-blue-50/50 shadow-md ring-1 ring-brand-blue'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
                     <div className="flex justify-between items-center mb-3">
@@ -598,11 +832,11 @@ export const BookingWizardPage: React.FC = () => {
                     </div>
                     <h3 className="font-extrabold text-lg text-slate-900 mb-1">Drive Yourself</h3>
                     <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                      Complete freedom and privacy. Requires valid driver's license & verified LTMS Portal QR code.
+                      Complete freedom and privacy. Requires valid driver's license & secondary valid ID.
                     </p>
                     <div className="text-xs text-slate-700 space-y-1.5 border-t border-slate-200/60 pt-3">
                       <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> 12h, 24h, weekly, monthly rates</div>
-                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Full digital document submission</div>
+                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Upload physical ID & selfie online</div>
                     </div>
                   </div>
                 )}
@@ -611,24 +845,69 @@ export const BookingWizardPage: React.FC = () => {
                   <div
                     onClick={() => setSelectedRentalType('WITH_DRIVER')}
                     className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedRentalType === 'WITH_DRIVER'
-                        ? 'border-brand-blue bg-blue-50/50 shadow-md'
-                        : 'border-slate-200 hover:border-slate-300'
+                      selectedRentalType === 'WITH_DRIVER' && !isAirportTransfer
+                        ? 'border-brand-blue bg-blue-50/50 shadow-md ring-1 ring-brand-blue'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
                     <div className="flex justify-between items-center mb-3">
                       <span className="p-2 rounded-xl bg-blue-100 text-brand-blue font-bold text-xs uppercase tracking-wider">
                         With Driver
                       </span>
-                      {selectedRentalType === 'WITH_DRIVER' && <CheckCircle className="w-5 h-5 text-brand-blue" />}
+                      {selectedRentalType === 'WITH_DRIVER' && !isAirportTransfer && <CheckCircle className="w-5 h-5 text-brand-blue" />}
                     </div>
-                    <h3 className="font-extrabold text-lg text-slate-900 mb-1">Professional Chauffeur</h3>
+                    <h3 className="font-extrabold text-lg text-slate-900 mb-1">Chauffeur Service</h3>
                     <p className="text-xs text-slate-500 leading-relaxed mb-4">
                       Relax and let our courteous, route-familiar driver handle Bicol or long-haul highway traffic.
                     </p>
                     <div className="text-xs text-slate-700 space-y-1.5 border-t border-slate-200/60 pt-3">
                       <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Stress-free for out-of-town trips</div>
-                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Simplified identification requirements</div>
+                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> 12h, 24h & regional tour rates</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3rd Option: Airport Pickup & Drop */}
+                {selectedVehicle?.allowWithDriver && (
+                  <div
+                    onClick={() => {
+                      setSelectedRentalType('WITH_DRIVER');
+                      const biaDest = destinations.find((d) => d.slug === 'bicol-intl-airport');
+                      if (biaDest) setSelectedDestinationId(biaDest.id);
+                    }}
+                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all relative ${
+                      selectedRentalType === 'WITH_DRIVER' && isAirportTransfer
+                        ? 'border-amber-400 bg-amber-50/50 shadow-md ring-2 ring-amber-300'
+                        : 'border-amber-200 hover:border-amber-300 bg-gradient-to-b from-amber-50/30 to-white'
+                    }`}
+                  >
+                    <span className="absolute -top-2.5 right-4 text-[9px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full uppercase">
+                      Fixed Airport Rate
+                    </span>
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="p-2 rounded-xl bg-amber-100 text-amber-900 font-bold text-xs uppercase tracking-wider flex items-center gap-1">
+                        <Plane className="w-3.5 h-3.5" /> Airport Transfer
+                      </span>
+                      {selectedRentalType === 'WITH_DRIVER' && isAirportTransfer && <CheckCircle className="w-5 h-5 text-amber-600" />}
+                    </div>
+                    <h3 className="font-extrabold text-lg text-slate-900 mb-1">Airport Pickup & Drop</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed mb-4">
+                      Direct terminal pickup & drop for <strong>Bicol International Airport (BIA / Daraga)</strong> or <strong>Naga Airport</strong>.
+                    </p>
+                    <div className="text-xs text-slate-800 space-y-1.5 border-t border-amber-200/60 pt-3 font-semibold">
+                      <div className="flex items-center justify-between text-brand-blue">
+                        <span>BIA Airport Rate:</span>
+                        <strong className="text-slate-900">
+                          {selectedVehicle?.category === 'VAN'
+                            ? '₱7,500'
+                            : selectedVehicle?.category === 'SUV_MPV'
+                            ? '₱6,000'
+                            : '₱4,500'}
+                        </strong>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-emerald-700 text-[11px]">
+                        <Check className="w-3 h-3 shrink-0" /> Chauffeur & flight tracking included
+                      </div>
                     </div>
                   </div>
                 )}
@@ -663,19 +942,35 @@ export const BookingWizardPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {destinations.map((d) => {
                   const isSelected = selectedDestinationId === d.id;
+                  const isBia = d.slug === 'bicol-intl-airport';
+                  const isNagaAirport = d.slug === 'naga-airport';
+                  const isAirport = isBia || isNagaAirport;
+
                   return (
                     <div
                       key={d.id}
                       onClick={() => setSelectedDestinationId(d.id)}
                       className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
                         isSelected
-                          ? 'border-brand-blue bg-blue-50/50 shadow-sm'
+                          ? 'border-brand-blue bg-blue-50/50 shadow-sm ring-1 ring-brand-blue'
+                          : isAirport
+                          ? 'border-blue-200 bg-gradient-to-b from-blue-50/40 to-white hover:border-brand-blue'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
+                      {isBia && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2">
+                          ✈️ BIA Airport · Van ₱7.5k • Innova ₱6k • Sedan ₱4.5k
+                        </span>
+                      )}
+                      {isNagaAirport && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black bg-blue-100 text-blue-900 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2">
+                          🛬 Naga Airport · Van ₱3.5k • Innova ₱2.5k • Sedan ₱1.8k
+                        </span>
+                      )}
                       <div className="flex justify-between items-center mb-1">
                         <h4 className="font-extrabold text-base text-slate-900">{d.name}</h4>
-                        {isSelected && <CheckCircle className="w-5 h-5 text-brand-blue" />}
+                        {isSelected && <CheckCircle className="w-5 h-5 text-brand-blue shrink-0" />}
                       </div>
                       <p className="text-xs text-slate-500">
                         {d.description || `Applicable for travels within ${d.name} and neighboring areas.`}
@@ -741,7 +1036,12 @@ export const BookingWizardPage: React.FC = () => {
                         key={btn.days}
                         type="button"
                         onClick={() => {
-                          const start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
+                          let start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
+                          const todayStart = new Date();
+                          todayStart.setHours(0, 0, 0, 0);
+                          if (start < todayStart) {
+                            start = new Date();
+                          }
                           const end = addDays(start, btn.days);
                           setPickupAt(format(start, "yyyy-MM-dd'T'HH:mm"));
                           setReturnAt(format(end, "yyyy-MM-dd'T'HH:mm"));
@@ -762,24 +1062,61 @@ export const BookingWizardPage: React.FC = () => {
               {/* Date Pickers */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Pick-up Date & Time
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Pick-up Date & Time
+                    </label>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.2 rounded-full">
+                      Today Onwards Only
+                    </span>
+                  </div>
                   <input
                     type="datetime-local"
                     value={pickupAt}
-                    onChange={(e) => setPickupAt(e.target.value)}
+                    min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      const d = new Date(val);
+                      const todayStart = new Date();
+                      todayStart.setHours(0, 0, 0, 0);
+                      if (d < todayStart) {
+                        setError('Previous dates cannot be selected. Pick-up is available today onwards only.');
+                        return;
+                      }
+                      setError(null);
+                      setPickupAt(val);
+                      if (returnAt && new Date(returnAt) <= d) {
+                        setReturnAt(format(addDays(d, 1), "yyyy-MM-dd'T'HH:mm"));
+                      }
+                    }}
                     className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Return Date & Time
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Return Date & Time
+                    </label>
+                    <span className="text-[10px] font-bold text-slate-500">
+                      Must be after pick-up
+                    </span>
+                  </div>
                   <input
                     type="datetime-local"
                     value={returnAt}
-                    onChange={(e) => setReturnAt(e.target.value)}
+                    min={pickupAt || format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      const d = new Date(val);
+                      if (pickupAt && d <= new Date(pickupAt)) {
+                        setError('Return date and time must be after the pick-up schedule.');
+                        return;
+                      }
+                      setError(null);
+                      setReturnAt(val);
+                    }}
                     className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
                   />
                 </div>
@@ -793,6 +1130,13 @@ export const BookingWizardPage: React.FC = () => {
                 selectedPickup={new Date(pickupAt)}
                 selectedReturn={new Date(returnAt)}
                 onSelectRange={(p, r) => {
+                  const todayStart = new Date();
+                  todayStart.setHours(0, 0, 0, 0);
+                  if (p < todayStart) {
+                    setError('You cannot book previous dates. Pick-up is available today onwards only.');
+                    return;
+                  }
+                  setError(null);
                   setPickupAt(format(p, "yyyy-MM-dd'T'HH:mm"));
                   setReturnAt(format(r, "yyyy-MM-dd'T'HH:mm"));
                 }}
@@ -854,6 +1198,45 @@ export const BookingWizardPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Airport Flight Details & Meetup */}
+              {isAirportTransfer && (
+                <div className="bg-gradient-to-r from-blue-50/90 to-indigo-50/70 border-2 border-blue-200/90 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-black text-brand-blue uppercase tracking-wider">
+                    <Plane className="w-4 h-4 text-brand-blue" />
+                    <span>Airport Meetup & Flight Tracking Details</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 mb-1">
+                        Airline & Flight Number (e.g. 5J 327 / PR 2923)
+                      </label>
+                      <input
+                        type="text"
+                        value={flightNumber}
+                        onChange={(e) => setFlightNumber(e.target.value)}
+                        placeholder="e.g. Cebu Pacific 5J 327"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-800 mb-1">
+                        Terminal Meetup / Passenger Sign Name
+                      </label>
+                      <input
+                        type="text"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        placeholder="e.g. BIA Arrival Exit Gate (Name on signboard)"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    💡 Our chauffeur monitors your flight arrival in real-time. Delayed flights are accommodated without extra fee.
+                  </p>
+                </div>
+              )}
 
               {/* Instant Quote Preview */}
               {quote && (
@@ -1213,8 +1596,8 @@ export const BookingWizardPage: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Upload & Camera Controls */}
-                      {requirementFiles[req.id] ? (
+                      {/* Upload & Camera Controls with Automatic Immediate Upload */}
+                      {requirementFiles[req.id] || hasUploaded ? (
                         <div className="bg-white p-3.5 rounded-xl border border-blue-200 flex flex-col sm:flex-row items-center gap-4">
                           {requirementPreviews[req.id] ? (
                             <img
@@ -1227,32 +1610,41 @@ export const BookingWizardPage: React.FC = () => {
                               <ImageIcon className="w-8 h-8" />
                             </div>
                           )}
-                          <div className="flex-1 min-w-0 text-left w-full sm:w-auto">
+                          <div className="flex-1 min-w-0 text-left w-full sm:w-auto space-y-1">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 truncate">
-                              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                              <span className="truncate">{requirementFiles[req.id].name}</span>
+                              {isUploading ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
+                                  <span className="text-blue-700">Uploading & Verifying Document...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                                  <span className="text-emerald-800 font-extrabold truncate">
+                                    {requirementFiles[req.id]?.name || 'Document Saved & Verified on File'}
+                                  </span>
+                                </>
+                              )}
                             </div>
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              {(requirementFiles[req.id].size / 1024).toFixed(1)} KB • Image captured & ready to save
+                            <p className="text-[11px] text-slate-500">
+                              {isUploading
+                                ? 'Sending to secure server and running authenticity scan...'
+                                : '✓ Successfully uploaded and attached to your reservation.'}
                             </p>
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <button
-                                type="button"
-                                disabled={isUploading}
-                                onClick={() => handleUploadRequirement(req.id)}
-                                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all"
-                              >
-                                <Upload className="w-3.5 h-3.5" />
-                                {isUploading ? 'Uploading...' : 'Save & Confirm Upload'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={isUploading}
-                                onClick={() => handleClearRequirementFile(req.id)}
-                                className="border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                              >
-                                Retake / Change
-                              </button>
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              <label className="cursor-pointer border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+                                <Camera className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Replace / Re-take</span>
+                                <input
+                                  type="file"
+                                  accept="image/*,application/pdf"
+                                  capture={req.name.toLowerCase().includes('selfie') ? 'user' : 'environment'}
+                                  onChange={(e) => {
+                                    if (e.target.files?.[0]) handleSelectRequirementFile(req.id, e.target.files[0]);
+                                  }}
+                                  className="hidden"
+                                />
+                              </label>
                             </div>
                           </div>
                         </div>
@@ -1260,9 +1652,9 @@ export const BookingWizardPage: React.FC = () => {
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2.5">
                             {/* Tap to Picture / Camera */}
-                            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all">
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all hover:scale-[1.02] active:scale-95">
                               <Camera className="w-4 h-4 text-blue-200" />
-                              <span>Tap to Picture Image</span>
+                              <span>Take Picture with Camera</span>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -1275,9 +1667,9 @@ export const BookingWizardPage: React.FC = () => {
                             </label>
 
                             {/* Upload Image / File */}
-                            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-300 shadow-sm transition-all">
+                            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-300 shadow-sm transition-all hover:scale-[1.02] active:scale-95">
                               <ImageIcon className="w-4 h-4 text-slate-500" />
-                              <span>Upload Image from Gallery</span>
+                              <span>Upload from Gallery / Files</span>
                               <input
                                 type="file"
                                 accept="image/*,application/pdf"
@@ -1287,12 +1679,6 @@ export const BookingWizardPage: React.FC = () => {
                                 className="hidden"
                               />
                             </label>
-
-                            {hasUploaded && (
-                              <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1 ml-auto">
-                                <CheckCircle className="w-3.5 h-3.5" /> Already saved on file
-                              </span>
-                            )}
                           </div>
                         </div>
                       )}
@@ -1304,7 +1690,7 @@ export const BookingWizardPage: React.FC = () => {
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
                 <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <span>
-                  You can proceed to review the booking summary now. You may also upload or update missing documents anytime from the <strong>Track Booking</strong> page using your Tracking Number.
+                  Documents are automatically saved and verified upon capture. You can also update documents anytime from the <strong>Track Booking</strong> page using your Tracking Number.
                 </span>
               </div>
 
@@ -1316,7 +1702,7 @@ export const BookingWizardPage: React.FC = () => {
                   <ArrowLeft className="w-4 h-4" /> Back
                 </button>
                 <button
-                  onClick={() => setStep(7)}
+                  onClick={handleProceedToSummary}
                   className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
                 >
                   Next: Booking Summary <ArrowRight className="w-4 h-4" />
@@ -1347,11 +1733,16 @@ export const BookingWizardPage: React.FC = () => {
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block uppercase font-bold text-[10px]">Destination</span>
+                    <span className="text-slate-400 block uppercase font-bold text-[10px]">Destination & Service</span>
                     <span className="text-base font-extrabold text-slate-900">{selectedDestination?.name}</span>
                     <span className="text-slate-500 block">
                       Handover: {pickupMethod === 'DELIVERY' ? `Delivery (${deliveryAddress || 'Selected Zone'})` : 'Office Pick-up'}
                     </span>
+                    {flightNumber && (
+                      <span className="text-[11px] font-bold text-brand-blue block mt-0.5">
+                        ✈️ Flight Tracked: {flightNumber}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1365,6 +1756,43 @@ export const BookingWizardPage: React.FC = () => {
                     <span className="font-bold text-slate-900">{formatDate(returnAt)}</span>
                   </div>
                 </div>
+
+                {/* Uploaded Requirements Confirmation in Summary */}
+                {createdBooking?.requirements && createdBooking.requirements.length > 0 && (
+                  <div className="p-3 bg-white rounded-xl border border-slate-200/90 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                        Driver Requirements Verification
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        Saved in Database
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {createdBooking.requirements.map((r: any) => {
+                        const isSaved =
+                          r.status === 'SUBMITTED' ||
+                          r.status === 'APPROVED' ||
+                          (r.documents && r.documents.length > 0);
+                        return (
+                          <div key={r.id} className="flex items-center gap-1.5 truncate">
+                            {isSaved ? (
+                              <span className="text-emerald-700 font-bold flex items-center gap-1 truncate">
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span className="truncate">{r.name}</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 flex items-center gap-1 truncate">
+                                <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <span className="truncate">{r.name} (Upload anytime)</span>
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Financial Breakdown Table */}
                 <div className="space-y-2 pt-2">
@@ -1408,9 +1836,9 @@ export const BookingWizardPage: React.FC = () => {
                   Important Rental Notices & Policies:
                 </span>
                 <div className="space-y-1.5 leading-relaxed">
-                  <p>• <strong>{formatPeso(quote?.reservationFee || 1000)} Reservation Fee:</strong> Deducted from your rental total and locks your vehicle schedule immediately. Strictly non-refundable upon cancellation; however, if you need to cancel, your booking may be rescheduled only.</p>
-                  <p>• <strong>Refundable Security Deposit:</strong> Your {formatPeso(quote?.reservationFee || 1000)} reservation fee serves as your security deposit, which is fully refundable after return inspection in clean condition with matched fuel levels.</p>
-                  <p>• <strong>Remaining Balance:</strong> Settled upon vehicle pick-up at our Naga City office (or handover upon delivery).</p>
+                  <p>• <strong>{formatPeso(quote?.reservationFee || 1000)} Reservation Fee / Security Deposit:</strong> Paid now to lock your vehicle schedule immediately. This amount serves as your <strong>Refundable Security Deposit</strong>, which is 100% refunded to you after return inspection in clean condition with matched fuel levels.</p>
+                  <p>• <strong>Full Rental Balance ({formatPeso(quote?.totalAmount || 2500)}):</strong> Paid upon vehicle pick-up at our Naga City office (or handover upon delivery).</p>
+                  <p>• <strong>Security Deposit Refund:</strong> Your {formatPeso(quote?.reservationFee || 1000)} deposit is refunded immediately upon vehicle return.</p>
                 </div>
 
                 {/* Carwash & Cleanliness Highlight */}
@@ -1667,7 +2095,7 @@ export const BookingWizardPage: React.FC = () => {
 
           {/* STEP 9: SUCCESS & TRACKING SCREEN */}
           {step === 9 && (
-            <div className="text-center py-8 space-y-6">
+            <div className="text-center py-6 space-y-6">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
                 <CheckCircle className="w-8 h-8" />
               </div>
@@ -1679,76 +2107,39 @@ export const BookingWizardPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* Big Booking Reference / Tracking Number Card */}
-              <div className="bg-gradient-to-br from-brand-navy via-slate-900 to-brand-navy-dark text-white p-6 rounded-2xl shadow-xl max-w-lg mx-auto border border-blue-900/50 text-left space-y-4">
-                <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                  <div>
-                    <span className="text-[11px] text-blue-300 uppercase tracking-widest font-bold block">
-                      Booking Tracking Number
-                    </span>
-                    <span className="text-2xl font-black font-mono tracking-wider text-amber-300">
-                      {createdBooking?.reference}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (createdBooking?.reference) {
-                        navigator.clipboard.writeText(createdBooking.reference);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }
-                    }}
-                    className="text-xs bg-white/10 hover:bg-white/20 text-white font-bold px-3 py-2 rounded-xl border border-white/20 flex items-center gap-1.5 transition-colors"
-                  >
-                    <Copy className="w-3.5 h-3.5 text-blue-300" /> {copied ? 'Copied!' : 'Copy Number'}
-                  </button>
-                </div>
+              {/* Official Confirmation Card with 1-Click Screenshot, Senior Guide & Direct Dispatch Chat */}
+              <ReservationConfirmationCard
+                reference={createdBooking?.reference || 'CW-PENDING'}
+                vehicleName={selectedVehicle?.name}
+                rentalType={selectedRentalType}
+                destinationName={selectedDestination?.name}
+                pickupAt={pickupAt}
+                returnAt={returnAt}
+                status={createdBooking?.status || 'PAYMENT_VERIFICATION'}
+                reservationFee={quote?.reservationFee || 1000}
+                customerName={customerName}
+                customerPhone={customerPhone}
+                onTrackClick={() => navigate(`/track?ref=${createdBooking?.reference}`)}
+              />
 
-                <div className="grid grid-cols-2 gap-3 text-xs text-slate-300">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Vehicle</span>
-                    <span className="font-bold text-white">{selectedVehicle?.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Rental Type</span>
-                    <span className="font-bold text-white">
-                      {selectedRentalType === 'SELF_DRIVE' ? 'Self Drive' : 'With Driver'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Destination</span>
-                    <span className="font-bold text-white">{selectedDestination?.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Status</span>
-                    <span className="font-bold text-amber-300">Payment Verification</span>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 rounded-xl p-3 text-[11px] text-slate-300 border border-white/10 leading-relaxed">
-                  💡 <strong>Save this tracking number.</strong> You can track your reservation status, check document review approvals, or download your official rental agreement anytime using this tracking number.
-                </div>
-              </div>
-
-              {/* What Happens Next */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 max-w-lg mx-auto text-left text-xs space-y-3">
+              {/* What Happens Next Checklist */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 max-w-xl mx-auto text-left text-xs space-y-3">
                 <h4 className="font-extrabold text-slate-900 text-sm">What Happens Next?</h4>
                 <ol className="space-y-2 list-decimal list-inside text-slate-600">
                   <li>Our Naga City dispatch team verifies your {formatPeso(quote?.reservationFee || 1000)} reservation fee receipt.</li>
                   <li>Our team reviews your uploaded driver license & LTMS portal requirements.</li>
-                  <li>Once approved, your reservation status will change to <strong>Confirmed</strong>.</li>
-                  <li>Pay the remaining rental balance upon vehicle pickup in Naga City.</li>
+                  <li>Once approved, your reservation status will automatically change to <strong>Confirmed & Accepted</strong>.</li>
+                  <li>Pay the remaining rental balance upon vehicle pickup at our office beside SM City Naga.</li>
                 </ol>
               </div>
 
               {/* Navigation Action Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2 max-w-lg mx-auto">
+              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2 max-w-xl mx-auto">
                 <button
                   onClick={() => navigate(`/track?ref=${createdBooking?.reference}`)}
                   className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all"
                 >
-                  <Search className="w-4 h-4" /> Track This Booking Now
+                  <Search className="w-4 h-4" /> Track Status & Approvals Now
                 </button>
                 <button
                   onClick={() => navigate('/')}

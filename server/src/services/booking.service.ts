@@ -120,8 +120,9 @@ export async function bookingFinancials(db: Tx | typeof prisma, booking: Pick<Bo
     rentalPaymentsPaid: fromCents(rental),
     additionalChargesPaid: fromCents(additional),
     refunds: fromCents(refunds),
-    amountPaidTowardsRental: fromCents(reservation + rental - refunds),
-    balanceDue: fromCents(Math.max(0, total - reservation - rental + refunds)),
+    amountPaidTowardsRental: fromCents(rental - refunds),
+    // The PHP 1,000 reservation fee serves as the refundable security deposit, so the rental balance due upon pickup is the FULL rental amount
+    balanceDue: fromCents(Math.max(0, total - rental)),
     securityDeposit: {
       collected: fromCents(depositIn),
       refunded: fromCents(depositOut),
@@ -191,8 +192,15 @@ async function writeFees(tx: Tx, bookingId: string, q: Quote) {
 
 function assertSchedule(pickupAt: Date, returnAt: Date, minLeadHours: number) {
   if (Number.isNaN(pickupAt.getTime()) || Number.isNaN(returnAt.getTime())) throw AppError.badRequest('Invalid dates');
-  if (pickupAt.getTime() < Date.now() + minLeadHours * 3_600_000)
-    throw AppError.badRequest(`Pick-up must be at least ${minLeadHours} hour(s) from now`);
+  // Allow same-day / immediate booking today (with 15 minutes tolerance for form completion)
+  const minTime = minLeadHours > 0 ? Date.now() + minLeadHours * 3_600_000 : Date.now() - 15 * 60_000;
+  if (pickupAt.getTime() < minTime) {
+    if (minLeadHours > 0) {
+      throw AppError.badRequest(`Pick-up must be at least ${minLeadHours} hour(s) from now`);
+    } else {
+      throw AppError.badRequest('Pick-up schedule cannot be in the past');
+    }
+  }
   if (returnAt <= pickupAt) throw AppError.badRequest('Return must be after pick-up');
 }
 
@@ -418,7 +426,8 @@ export async function rescheduleBooking(
             q = await calculateQuote({ ...base, unliMileage: false }, tx);
           }
           q.reservationFee = Number(b.reservationFee); // reservation fee already agreed
-          q.balanceDue = Math.max(0, q.totalAmount - q.reservationFee);
+          // Full rental amount payable upon pickup; reservation fee is held as refundable security deposit
+          q.balanceDue = q.totalAmount;
           pricing = pricingData(q);
           await writeFees(tx, b.id, q);
         }

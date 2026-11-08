@@ -28,6 +28,8 @@ import {
   Wrench,
   HelpCircle,
   Info,
+  HeartHandshake,
+  Plane,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -35,6 +37,7 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [rateGuideRates, setRateGuideRates] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
 
@@ -64,14 +67,15 @@ export const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [vehiclesRes, destRes] = await Promise.all([
+        const [vehiclesRes, pricelistRes] = await Promise.all([
           api.get<{ data: Vehicle[] }>('/vehicles'),
-          api.get<{ destinations: Destination[] }>('/pricing/destinations'),
+          api.get<{ destinations: Destination[]; vehicles: Vehicle[]; rates: any[] }>('/pricing/pricelist'),
         ]);
         setVehicles(vehiclesRes.data);
-        setDestinations(destRes.destinations);
-        if (destRes.destinations.length > 0) {
-          setDestinationId(destRes.destinations[0].id);
+        setDestinations(pricelistRes.destinations);
+        setRateGuideRates(pricelistRes.rates);
+        if (pricelistRes.destinations.length > 0) {
+          setDestinationId(pricelistRes.destinations[0].id);
         }
       } catch (err) {
         console.error('Failed to load home page data:', err);
@@ -97,6 +101,68 @@ export const HomePage: React.FC = () => {
     selectedCategory === 'ALL'
       ? vehicles
       : vehicles.filter((v) => v.category === selectedCategory);
+
+  const getDynamicRatesForDestination = (destId: string) => {
+    // Sedans
+    const sedanIds = vehicles.filter((v) => v.category === 'SEDAN').map((v) => v.id);
+    const sedan12 = rateGuideRates.filter(
+      (r) => sedanIds.includes(r.vehicleId) && r.destinationId === destId && r.rentalType === 'SELF_DRIVE' && r.duration === 'HOURS_12' && r.amount != null
+    );
+    const sedan24 = rateGuideRates.filter(
+      (r) => sedanIds.includes(r.vehicleId) && r.destinationId === destId && r.rentalType === 'SELF_DRIVE' && r.duration === 'HOURS_24' && r.amount != null
+    );
+
+    // SUV / MPV
+    const suvIds = vehicles.filter((v) => v.category === 'SUV_MPV').map((v) => v.id);
+    const suv12 = rateGuideRates.filter(
+      (r) => suvIds.includes(r.vehicleId) && r.destinationId === destId && r.rentalType === 'SELF_DRIVE' && r.duration === 'HOURS_12' && r.amount != null
+    );
+    const suv24 = rateGuideRates.filter(
+      (r) => suvIds.includes(r.vehicleId) && r.destinationId === destId && r.rentalType === 'SELF_DRIVE' && r.duration === 'HOURS_24' && r.amount != null
+    );
+
+    // Van (NV350)
+    const vanIds = vehicles.filter((v) => v.category === 'VAN').map((v) => v.id);
+    const van12 = rateGuideRates.filter(
+      (r) => vanIds.includes(r.vehicleId) && r.destinationId === destId && r.rentalType === 'WITH_DRIVER' && r.duration === 'HOURS_12' && r.amount != null
+    );
+    const van24 = rateGuideRates.filter(
+      (r) => vanIds.includes(r.vehicleId) && r.destinationId === destId && r.rentalType === 'WITH_DRIVER' && r.duration === 'HOURS_24' && r.amount != null
+    );
+
+    const formatTier = (rList: any[]): string => {
+      const amounts = rList.map((r) => Number(r.amount)).filter((a) => !isNaN(a) && a > 0);
+      if (amounts.length === 0) return '-';
+      const min = Math.min(...amounts);
+      const max = Math.max(...amounts);
+      if (min === max) {
+        return `₱${Math.round(min).toLocaleString('en-PH')}`;
+      }
+      return `₱${Math.round(min).toLocaleString('en-PH')} - ₱${Math.round(max).toLocaleString('en-PH')}`;
+    };
+
+    const v12Amounts = van12.map((r) => Number(r.amount)).filter((a) => !isNaN(a) && a > 0);
+    const v24Amounts = van24.map((r) => Number(r.amount)).filter((a) => !isNaN(a) && a > 0);
+    const v12 = v12Amounts.length > 0 ? Math.min(...v12Amounts) : null;
+    const v24 = v24Amounts.length > 0 ? Math.min(...v24Amounts) : null;
+
+    let vanText = '-';
+    if (v12 && v24) {
+      vanText = `₱${Math.round(v12).toLocaleString('en-PH')} (12h) / ₱${Math.round(v24).toLocaleString('en-PH')} (24h)`;
+    } else if (v24) {
+      vanText = `₱${Math.round(v24).toLocaleString('en-PH')} (24h)`;
+    } else if (v12) {
+      vanText = `₱${Math.round(v12).toLocaleString('en-PH')} (12h)`;
+    }
+
+    return {
+      sedan12: formatTier(sedan12),
+      sedan24: formatTier(sedan24),
+      suv12: formatTier(suv12),
+      suv24: formatTier(suv24),
+      van: vanText,
+    };
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -712,7 +778,11 @@ export const HomePage: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Ideal for:</strong> Weddings, Naga airport transfers, tours to Mayon & Caramoan</span>
+                    <span><strong>Bicol International Airport (BIA):</strong> Official pickup & drop rates: Van ₱7,500 • Innova ₱6,000 • Sedan ₱4,500</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span><strong>Ideal for:</strong> Airport transfers, weddings, family tours to Mayon, and Manila direct charters</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -721,12 +791,18 @@ export const HomePage: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="pt-6 mt-6 border-t border-slate-700/60">
+              <div className="pt-6 mt-6 border-t border-slate-700/60 flex flex-col sm:flex-row gap-2.5">
+                <Link
+                  to="/rates?mode=airport#calculator"
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs py-3 px-4 rounded-xl transition-all shadow-md active:scale-95"
+                >
+                  <Plane className="w-4 h-4" /> BIA Airport Calculator
+                </Link>
                 <Link
                   to="/vehicles?rentalType=WITH_DRIVER"
-                  className="w-full inline-flex items-center justify-center gap-2 bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs py-3 px-4 rounded-xl transition-all shadow-md"
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs py-3 px-4 rounded-xl transition-all shadow-md active:scale-95"
                 >
-                  Browse With-Driver Vehicles <ArrowRight className="w-4 h-4" />
+                  Browse Vehicles <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -790,14 +866,23 @@ export const HomePage: React.FC = () => {
       {/* 6. Official Rate Card Summary Section */}
       <section id="rates" className="bg-slate-100/70 border-y border-slate-200 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-brand-blue">
-              Official Reference Pricing
-            </span>
-            <h2 className="text-3xl font-black text-slate-900 mt-2">Custoworks Rental Rate Guide</h2>
-            <p className="text-sm text-slate-600 mt-2">
-              Official rates based on destination, duration, and rental type. Rates are managed by Custoworks administration.
-            </p>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <span className="text-xs font-extrabold uppercase tracking-widest text-brand-blue">
+                Official Reference Pricing
+              </span>
+              <h2 className="text-3xl font-black text-slate-900 mt-2">Custoworks Rental Rate Guide</h2>
+              <p className="text-sm text-slate-600 mt-2 max-w-2xl">
+                Official rates based on destination, duration, and rental type. Transparent pricing with zero hidden surcharges.
+              </p>
+            </div>
+            <Link
+              to="/rates"
+              className="inline-flex items-center gap-2 bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs px-5 py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all self-start md:self-auto"
+            >
+              <span>Explore Interactive Pricelist & Calculator</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
 
           <div className="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
@@ -813,60 +898,43 @@ export const HomePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                <tr>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">Naga City</td>
-                  <td className="py-3.5 px-4">₱1,200</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱1,800</td>
-                  <td className="py-3.5 px-4">₱1,800</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱2,500</td>
-                  <td className="py-3.5 px-4">₱3,500 (12h) / ₱4,500 (24h)</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">Camarines Sur</td>
-                  <td className="py-3.5 px-4">₱1,500</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱2,000</td>
-                  <td className="py-3.5 px-4">₱2,000</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱2,800</td>
-                  <td className="py-3.5 px-4">₱3,800 (12h) / ₱4,800 (24h)</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">Albay / Daet</td>
-                  <td className="py-3.5 px-4">₱1,800</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱2,300</td>
-                  <td className="py-3.5 px-4">₱2,400</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱3,100</td>
-                  <td className="py-3.5 px-4">₱4,200 (12h) / ₱5,200 (24h)</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">Sorsogon / Labo</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱2,600</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱3,500</td>
-                  <td className="py-3.5 px-4">₱5,800 (24h)</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">Manila</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱3,200</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱4,200</td>
-                  <td className="py-3.5 px-4">₱7,500 (24h)</td>
-                </tr>
-                <tr>
-                  <td className="py-3.5 px-4 font-bold text-slate-900">Baguio</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4">-</td>
-                  <td className="py-3.5 px-4 font-semibold text-brand-navy">₱9,000 (24h)</td>
-                </tr>
+                {destinations.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-xs text-slate-400">
+                      Loading official rates from fleet database...
+                    </td>
+                  </tr>
+                ) : (
+                  destinations.map((d) => {
+                    const r = getDynamicRatesForDestination(d.id);
+                    return (
+                      <tr key={d.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-slate-900">{d.name}</td>
+                        <td className="py-3.5 px-4">{r.sedan12}</td>
+                        <td className="py-3.5 px-4 font-semibold text-brand-navy">{r.sedan24}</td>
+                        <td className="py-3.5 px-4">{r.suv12}</td>
+                        <td className="py-3.5 px-4 font-semibold text-brand-navy">{r.suv24}</td>
+                        <td className="py-3.5 px-4">{r.van}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-slate-500 mt-3 text-right">
-            * Weekly (7+ days) & monthly discounts apply automatically during checkout. Cleanliness policy: Return clean to receive full security deposit refund; if returned unwashed, ₱300 (Sedan) or ₱400 (MPV / Van) is deducted from deposit.
-          </p>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-4">
+            <p className="text-xs text-slate-500">
+              * Cleanliness policy: Return clean to receive full ₱1,000 deposit refund; if unwashed, ₱300 (Sedan) or ₱400 (MPV/Van) is deducted.
+            </p>
+            <Link
+              to="/rates#calculator"
+              className="text-xs font-bold text-brand-blue hover:text-blue-700 flex items-center gap-1 transition-colors shrink-0"
+            >
+              <span>Calculate exact cost for your trip</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
       </section>
 

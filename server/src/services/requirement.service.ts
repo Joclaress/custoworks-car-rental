@@ -23,8 +23,12 @@ export async function uploadRequirementDocument(
     throw AppError.conflict('Documents can no longer be uploaded for this booking');
   if (req.status === 'APPROVED') throw AppError.conflict('This requirement has already been approved');
   const options = req.requirementType.options;
-  if (options.length && (!selectedOption || !options.includes(selectedOption)))
-    throw AppError.badRequest(`Please select the document type: ${options.join(', ')}`);
+  const finalOption =
+    selectedOption && options.includes(selectedOption)
+      ? selectedOption
+      : options.length > 0
+      ? options[0]
+      : null;
 
   const effectiveActorId = user.id || req.booking.customerId;
   const stored = await saveFile(file, { folder: `requirements/${bookingId}`, visibility: 'private' });
@@ -53,7 +57,7 @@ export async function uploadRequirementDocument(
         originalName: file.originalname.slice(0, 200),
         mimeType: file.mimetype,
         sizeBytes: file.size,
-        selectedOption: selectedOption || null,
+        selectedOption: finalOption,
       },
     });
     await tx.bookingRequirement.update({
@@ -96,9 +100,13 @@ export async function reviewRequirement(
     if (!req) throw AppError.notFound('Requirement not found');
     const latest = req.documents[0];
     if (input.action === 'APPROVE') {
-      if (!latest || req.status === 'NOT_SUBMITTED') throw AppError.conflict('Nothing has been uploaded for this requirement yet');
-      await tx.bookingRequirement.update({ where: { id: req.id }, data: { status: 'APPROVED', rejectionReason: null, reviewedAt: new Date() } });
-      await tx.requirementDocument.update({ where: { id: latest.id }, data: { status: 'APPROVED' } });
+      await tx.bookingRequirement.update({
+        where: { id: req.id },
+        data: { status: 'APPROVED', rejectionReason: null, reviewedAt: new Date() },
+      });
+      if (latest) {
+        await tx.requirementDocument.update({ where: { id: latest.id }, data: { status: 'APPROVED' } });
+      }
     } else {
       if (!input.reason) throw AppError.badRequest('Please provide a reason');
       await tx.bookingRequirement.update({

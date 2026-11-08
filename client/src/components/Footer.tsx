@@ -44,8 +44,17 @@ export const Footer: React.FC = () => {
               <li className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-white font-medium">Carnation Street CBD II, Brgy. Triangulo (Beside SM)</p>
-                  <p className="text-slate-400 text-xs">Naga City, Philippines, 4400</p>
+                  <a
+                    href="https://maps.app.goo.gl/4TTUTX5HJfwdNfdW7"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group"
+                  >
+                    <p className="text-white font-medium group-hover:text-blue-300 group-hover:underline transition-colors">
+                      Carnation Street CBD II, Brgy. Triangulo (Beside SM)
+                    </p>
+                    <p className="text-slate-400 text-xs group-hover:text-slate-300">Naga City, Philippines, 4400 (View on Google Maps)</p>
+                  </a>
                 </div>
               </li>
               <li className="flex items-start gap-2.5">
@@ -77,8 +86,8 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/#rates" className="hover:text-blue-400 transition-colors">
-                  Official Rate Cards
+                <Link to="/rates" className="hover:text-blue-400 transition-colors">
+                  Official Rate Cards & Pricelist
                 </Link>
               </li>
               <li>

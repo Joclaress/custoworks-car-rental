@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search } from 'lucide-react';
+import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search, MapPin } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -20,9 +20,8 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { label: 'Home', path: '/' },
     { label: 'Vehicles & Fleet', path: '/vehicles' },
-    { label: 'Rental Rates', path: '/#rates' },
+    { label: 'Rates & Pricelist', path: '/rates' },
     { label: 'How It Works', path: '/#process' },
-    { label: 'Track Booking', path: '/track' },
     { label: 'Contact', path: '/#contact' },
   ];
 
@@ -67,7 +66,16 @@ export const Navbar: React.FC = () => {
               0961 722 5326 / 0995 382 7972
             </span>
             <span className="text-slate-400">|</span>
-            <span>Carnation St. CBD II Brgy. Triangulo (Beside SM), Naga City</span>
+            <a
+              href="https://maps.app.goo.gl/4TTUTX5HJfwdNfdW7"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-blue-300 transition-colors flex items-center gap-1 text-slate-300 hover:underline"
+              title="Open Custoworks Garage in Google Maps"
+            >
+              <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
+              <span>Carnation St. CBD II Brgy. Triangulo (Beside SM), Naga City</span>
+            </a>
           </div>
           <div className="flex items-center gap-4">
             <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
@@ -77,34 +85,34 @@ export const Navbar: React.FC = () => {
         </div>
       </div>
 
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4 flex-nowrap">
         {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-3 group">
+        <Link to="/" className="flex items-center gap-2.5 sm:gap-3 group shrink-0">
           <img
             src="/logo.jpg"
             alt="Custoworks Car Rental Logo"
-            className="w-12 h-12 rounded-xl object-contain bg-slate-900 border border-blue-400/40 p-0.5 shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain bg-slate-900 border border-blue-400/40 p-0.5 shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform shrink-0"
           />
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-xl tracking-wider text-white">CUSTOWORKS</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-semibold tracking-wider border border-blue-400/30">
+              <span className="font-extrabold text-lg sm:text-xl tracking-wider text-white">CUSTOWORKS</span>
+              <span className="hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-semibold tracking-wider border border-blue-400/30">
                 NAGA CITY
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 tracking-wider uppercase font-medium">Car Rental Services</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-300 tracking-wider uppercase font-medium">Car Rental Services</p>
           </div>
         </Link>
 
         {/* Desktop Navigation Links */}
-        <div className="hidden lg:flex items-center gap-8 text-sm font-medium">
+        <div className="hidden lg:flex items-center gap-3.5 xl:gap-6 text-xs xl:text-sm font-semibold whitespace-nowrap">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               to={link.path}
               onClick={(e) => handleLinkClick(link.path, e)}
-              className={`transition-colors hover:text-blue-300 ${
-                isLinkActive(link.path) ? 'text-blue-400 font-semibold' : 'text-slate-200'
+              className={`transition-colors hover:text-blue-300 py-1 ${
+                isLinkActive(link.path) ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-slate-200'
               }`}
             >
               {link.label}
@@ -113,7 +121,7 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* User CTA & Auth Buttons */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-2.5 sm:gap-3 shrink-0">
           {user ? (
             <div className="flex items-center gap-3">
               {isStaff ? (

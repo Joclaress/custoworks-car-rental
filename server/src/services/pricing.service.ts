@@ -223,7 +223,8 @@ export async function calculateQuote(input: QuoteInput, db: Tx | typeof prisma =
     promotion: promo ? { id: promo.id, name: promo.name, code: promo.code } : null,
     totalAmount: fromCents(totalCents),
     reservationFee: fromCents(reservationCents),
-    balanceDue: fromCents(Math.max(0, totalCents - reservationCents)),
+    // Full rental amount payable upon pickup; reservation fee is held as refundable security deposit
+    balanceDue: fromCents(totalCents),
   };
 }
 

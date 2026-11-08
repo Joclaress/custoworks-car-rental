@@ -26,7 +26,13 @@ import {
   Check,
   Camera,
   Image as ImageIcon,
+  MessageCircle,
+  ExternalLink,
+  Printer,
+  Sparkles,
 } from 'lucide-react';
+import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
+import { downloadElementAsImage } from '../lib/screenshot';
 
 export const TrackBookingPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,6 +71,11 @@ export const TrackBookingPage: React.FC = () => {
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
 
+  // Official Slip View & Screenshot State
+  const [showSlip, setShowSlip] = useState(false);
+  const [slipDownloading, setSlipDownloading] = useState(false);
+  const [slipSaved, setSlipSaved] = useState(false);
+
   const handleSearch = async (ref: string) => {
     const cleanRef = ref.trim().toUpperCase();
     if (!cleanRef) {
@@ -93,13 +104,14 @@ export const TrackBookingPage: React.FC = () => {
     }
   }, []);
 
-  const handleUploadRequirement = async (requirementId: string) => {
-    if (!selectedReqFile || !booking) return;
+  const handleUploadRequirement = async (requirementId: string, customFile?: File) => {
+    const fileToUpload = customFile || selectedReqFile;
+    if (!fileToUpload || !booking) return;
     setUploadError(null);
     setUploadSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('file', selectedReqFile);
+      formData.append('file', fileToUpload);
       await api.post(`/requirements/booking/${booking.id}/upload/${requirementId}`, formData);
       // Refresh booking data
       const res = await api.get<{ booking: Booking; financials: any }>(`/bookings/track/${booking.reference}`);
@@ -107,6 +119,7 @@ export const TrackBookingPage: React.FC = () => {
       setFinancials(res.financials);
       setUploadingReqId(null);
       setSelectedReqFile(null);
+      setSelectedReqPreview(null);
     } catch (err: any) {
       setUploadError(err.message || 'Failed to upload document');
     } finally {
@@ -274,7 +287,7 @@ export const TrackBookingPage: React.FC = () => {
                 )}
                 {booking.status === 'PAYMENT_VERIFICATION' && (
                   <p>
-                    🔍 <strong>Payment Under Verification:</strong> Your ₱500 payment receipt was uploaded and is currently being verified by the Custoworks Naga City team.
+                    🔍 <strong>Payment Under Verification:</strong> Your payment receipt was uploaded and is currently being verified by the Custoworks Naga City team.
                   </p>
                 )}
                 {booking.status === 'PENDING_REQUIREMENTS' && (
@@ -288,8 +301,9 @@ export const TrackBookingPage: React.FC = () => {
                   </p>
                 )}
                 {booking.status === 'CONFIRMED' && (
-                  <p className="text-emerald-700 font-semibold">
-                    ✅ <strong>Reservation Confirmed!</strong> Your vehicle is locked and ready for release on your pickup date. Full remaining balance is collected upon vehicle pickup.
+                  <p className="text-emerald-700 font-bold text-sm flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <span>Reservation Confirmed & Accepted! Your vehicle is locked and ready for release.</span>
                   </p>
                 )}
                 {booking.status === 'ONGOING' && (
@@ -303,6 +317,104 @@ export const TrackBookingPage: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              {/* AUTOMATIC CHAT / DISPATCH MESSAGING BAR (USER REQUEST) */}
+              <div
+                className={`mt-4 p-4 sm:p-5 rounded-2xl border transition-all ${
+                  booking.status === 'CONFIRMED'
+                    ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/70 border-emerald-300 ring-2 ring-emerald-500/20'
+                    : 'bg-gradient-to-r from-blue-50 via-slate-50 to-indigo-50/70 border-blue-200'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                        booking.status === 'CONFIRMED'
+                          ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                          : 'bg-brand-blue text-white shadow-md shadow-blue-600/30'
+                      }`}
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                        {booking.status === 'CONFIRMED'
+                          ? '🎉 Reservation Accepted! Connect with Naga Dispatch'
+                          : '💬 Have Questions? Chat with Naga Dispatch'}
+                        {booking.status === 'CONFIRMED' && (
+                          <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full uppercase">
+                            Confirmed
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        {booking.status === 'CONFIRMED'
+                          ? 'Coordinate vehicle pickup, send flight arrival info, or request delivery via live chat.'
+                          : 'Our staff in Naga City is ready to assist you. Tracking reference is included automatically.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <a
+                      href="https://m.me/CustoWorkss"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-[#0084FF] hover:bg-[#0073e6] text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105"
+                    >
+                      <svg className="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24">
+                        <path d="M12 2C6.477 2 2 6.145 2 11.258c0 2.91 1.455 5.512 3.734 7.207V22l3.398-1.865c.91.252 1.874.388 2.868.388 5.523 0 10-4.145 10-9.258C22 6.145 17.523 2 12 2zm1.066 12.443l-2.556-2.727-4.992 2.727 5.492-5.83 2.62 2.727 4.928-2.727-5.492 5.83z"/>
+                      </svg>
+                      <span>Messenger</span>
+                      <ExternalLink className="w-3 h-3 opacity-70" />
+                    </a>
+
+                    <a
+                      href={`https://wa.me/639617225326?text=${encodeURIComponent(
+                        `Hi Custoworks! My booking reference is ${booking.reference} (${booking.vehicle.name}). Status: ${booking.status}. I'd like to coordinate pickup.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm transition-transform hover:scale-105"
+                    >
+                      <svg className="w-3.5 h-3.5 fill-current shrink-0" viewBox="0 0 24 24">
+                        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.18-2.586-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.007c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.303-.058.116-.087.188-.173.289l-.26.302c-.087.086-.177.18-.076.353.101.173.45 0.742.965 1.201.662.591 1.221.774 1.394.86.173.086.275.072.376-.044.101-.116.433-.506.549-.679.116-.173.231-.144.39-.086s1.011.477 1.184.564c.173.086.289.13.332.202.043.072.043.419-.101.824z"/>
+                      </svg>
+                      <span>WhatsApp</span>
+                      <ExternalLink className="w-3 h-3 opacity-70" />
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowSlip(!showSlip)}
+                      className="border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs px-3 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{showSlip ? 'Hide Slip' : '📸 View & Save Slip'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLLAPSIBLE OFFICIAL RESERVATION CONFIRMATION CARD & SCREENSHOT */}
+              {showSlip && (
+                <div className="mt-5 pt-5 border-t border-slate-200">
+                  <ReservationConfirmationCard
+                    reference={booking.reference}
+                    vehicleName={booking.vehicle.name}
+                    rentalType={booking.rentalType}
+                    destinationName={booking.destination?.name}
+                    pickupAt={booking.pickupAt}
+                    returnAt={booking.returnAt}
+                    status={booking.status}
+                    reservationFee={500}
+                    customerName={booking.customerName}
+                    customerPhone={booking.customerPhone}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Vehicle & Schedule Grid */}
@@ -447,7 +559,7 @@ export const TrackBookingPage: React.FC = () => {
                     <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-slate-700">
                       <span>Remaining Balance Due:</span>
                       <span className="font-extrabold text-slate-900">
-                        {financials ? formatPeso(financials.balanceDue) : formatPeso(Number(booking.totalAmount) - 500)}
+                        {financials ? formatPeso(financials.balanceDue) : formatPeso(Number(booking.totalAmount))}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-400">
@@ -582,8 +694,12 @@ export const TrackBookingPage: React.FC = () => {
                                         capture={req.name.toLowerCase().includes('selfie') ? 'user' : 'environment'}
                                         onChange={(e) => {
                                           if (e.target.files?.[0]) {
-                                            setSelectedReqFile(e.target.files[0]);
-                                            setSelectedReqPreview(URL.createObjectURL(e.target.files[0]));
+                                            const f = e.target.files[0];
+                                            setSelectedReqFile(f);
+                                            if (f.type.startsWith('image/')) {
+                                              setSelectedReqPreview(URL.createObjectURL(f));
+                                            }
+                                            handleUploadRequirement(req.id, f);
                                           }
                                         }}
                                         className="hidden"
@@ -599,10 +715,12 @@ export const TrackBookingPage: React.FC = () => {
                                         accept="image/*,application/pdf"
                                         onChange={(e) => {
                                           if (e.target.files?.[0]) {
-                                            setSelectedReqFile(e.target.files[0]);
-                                            if (e.target.files[0].type.startsWith('image/')) {
-                                              setSelectedReqPreview(URL.createObjectURL(e.target.files[0]));
+                                            const f = e.target.files[0];
+                                            setSelectedReqFile(f);
+                                            if (f.type.startsWith('image/')) {
+                                              setSelectedReqPreview(URL.createObjectURL(f));
                                             }
+                                            handleUploadRequirement(req.id, f);
                                           }
                                         }}
                                         className="hidden"

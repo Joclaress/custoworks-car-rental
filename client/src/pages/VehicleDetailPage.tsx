@@ -16,6 +16,9 @@ import {
   AlertCircle,
   Clock,
   Sparkles,
+  Calculator,
+  Zap,
+  Tag,
 } from 'lucide-react';
 
 export const VehicleDetailPage: React.FC = () => {
@@ -24,6 +27,7 @@ export const VehicleDetailPage: React.FC = () => {
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [activeRentalType, setActiveRentalType] = useState<'SELF_DRIVE' | 'WITH_DRIVER'>('SELF_DRIVE');
+  const [selectedDestSlug, setSelectedDestSlug] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -243,16 +247,114 @@ export const VehicleDetailPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Smart Rate Suggestions & Duration Plans */}
+        <div className="bg-gradient-to-r from-slate-900 via-brand-navy to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-xs font-extrabold text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4" /> Smart Pricelist Suggestions
+              </span>
+              <h3 className="text-xl sm:text-2xl font-black mt-1">Recommended Duration Plans for {vehicle.name}</h3>
+              <p className="text-xs text-slate-300 mt-1">
+                Choose the best rental package based on your travel itinerary and get the best value for your trip.
+              </p>
+            </div>
+            <Link
+              to={`/rates?vehicleId=${vehicle.id}`}
+              className="inline-flex items-center gap-2 bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition-all self-start sm:self-auto"
+            >
+              <Calculator className="w-4 h-4" />
+              <span>Open Interactive Calculator</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Plan 1 */}
+            <div className="bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col justify-between hover:bg-white/15 transition-all">
+              <div>
+                <span className="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider block">Best for Errands</span>
+                <h4 className="font-bold text-base text-white mt-1">12-Hour Flat Tier</h4>
+                <p className="text-2xl font-black text-white mt-2">
+                  {formatPeso(vehicle.startingRates?.SELF_DRIVE_12 || 1500)}
+                </p>
+                <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">
+                  Ideal for medical checkups, official city errands, airport pick-ups, or same-day local round-trips.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/10 text-[10px] text-emerald-400 font-semibold">
+                ✓ Flat 12h rate • Zero overnight fee
+              </div>
+            </div>
+
+            {/* Plan 2 */}
+            <div className="bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col justify-between hover:bg-white/15 transition-all">
+              <div>
+                <span className="text-[10px] font-extrabold text-blue-300 uppercase tracking-wider block">Most Popular</span>
+                <h4 className="font-bold text-base text-white mt-1">24-Hour Whole Day</h4>
+                <p className="text-2xl font-black text-white mt-2">
+                  {formatPeso(vehicle.startingRates?.SELF_DRIVE || 2000)} <span className="text-xs font-normal text-slate-300">/day</span>
+                </p>
+                <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">
+                  Full 24-hour flexibility from pick-up time. Perfect for Albay Mayon sightseeing, CamSur tours, or family trips.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/10 text-[10px] text-emerald-400 font-semibold">
+                ✓ Full 24-Hour Clock • 24/7 Roadside Included
+              </div>
+            </div>
+
+            {/* Plan 3 */}
+            <div className="bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col justify-between hover:bg-white/15 transition-all">
+              <div>
+                <span className="text-[10px] font-extrabold text-amber-300 uppercase tracking-wider block">Weekly Discount</span>
+                <h4 className="font-bold text-base text-white mt-1">7+ Days Saver</h4>
+                <p className="text-2xl font-black text-amber-400 mt-2">
+                  Discounted <span className="text-xs font-normal text-slate-300">Daily Rate</span>
+                </p>
+                <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">
+                  Save on every single day when renting for a week or more. Ideal for Bicol vacations, holidays, and extended family stays.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/10 text-[10px] text-amber-300 font-semibold">
+                ⭐ Automatic weekly tier savings
+              </div>
+            </div>
+
+            {/* Plan 4 */}
+            <div className="bg-white/10 border border-white/10 rounded-2xl p-4 flex flex-col justify-between hover:bg-white/15 transition-all">
+              <div>
+                <span className="text-[10px] font-extrabold text-emerald-300 uppercase tracking-wider block">Best Long-Term Value</span>
+                <h4 className="font-bold text-base text-white mt-1">Monthly Package</h4>
+                <p className="text-2xl font-black text-emerald-400 mt-2">
+                  Unli Mileage
+                </p>
+                <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">
+                  Flat monthly package for 30+ days. Includes routine maintenance, oil changes, and full fleet replacement guarantee.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-white/10 text-[10px] text-emerald-300 font-semibold">
+                🏆 Unlimited mileage • Corporate billing
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Official Rate Matrix Table */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
             <div>
-              <h3 className="font-bold text-lg text-slate-900">Official Rental Rates</h3>
+              <h3 className="font-bold text-lg text-slate-900">Official Rental Rates Matrix</h3>
               <p className="text-xs text-slate-500">Official reference rate cards for {vehicle.name}</p>
             </div>
 
-            {/* Rental Type Switcher */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to={`/rates?vehicleId=${vehicle.id}`}
+                className="px-3 py-2 rounded-xl text-xs font-bold bg-blue-50 text-brand-blue hover:bg-blue-100 flex items-center gap-1.5 transition-all"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>Estimate Trip Cost</span>
+              </Link>
               {vehicle.allowSelfDrive && (
                 <button
                   onClick={() => setActiveRentalType('SELF_DRIVE')}
@@ -280,6 +382,52 @@ export const VehicleDetailPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Destination Filter Pills */}
+          {(() => {
+            const dests = Array.from(
+              new Map(
+                currentRates
+                  .filter((r) => r.destination)
+                  .map((r) => [r.destination!.slug, r.destination!])
+              ).values()
+            );
+
+            if (dests.length === 0) return null;
+
+            return (
+              <div className="flex flex-wrap items-center gap-1.5 mb-5">
+                <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5" /> Filter Route:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDestSlug('ALL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    selectedDestSlug === 'ALL'
+                      ? 'bg-brand-navy text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All Routes ({dests.length})
+                </button>
+                {dests.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setSelectedDestSlug(d.slug)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      selectedDestSlug === d.slug
+                        ? 'bg-brand-blue text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {d.name}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+
           {currentRates.length === 0 ? (
             <p className="text-xs text-slate-500 py-6 text-center">No published rates for this option yet. Inquire directly.</p>
           ) : (
@@ -295,17 +443,19 @@ export const VehicleDetailPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {currentRates.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 font-bold text-slate-900">{r.destination?.name || '-'}</td>
-                      <td className="py-3 px-4 font-medium text-brand-blue">{r.duration.replace(/_/g, ' ')}</td>
-                      <td className="py-3 px-4 font-extrabold text-slate-900 text-sm">
-                        {r.amount ? formatPeso(r.amount) : 'Inquire'}
-                      </td>
-                      <td className="py-3 px-4 text-slate-500">{r.duration === 'HOURS_12' ? 'Flat 12 Hours' : 'Per 24h Day'}</td>
-                      <td className="py-3 px-4 text-slate-400">{r.notes || '-'}</td>
-                    </tr>
-                  ))}
+                  {currentRates
+                    .filter((r) => selectedDestSlug === 'ALL' || r.destination?.slug === selectedDestSlug)
+                    .map((r) => (
+                      <tr key={r.id} className="hover:bg-slate-50">
+                        <td className="py-3 px-4 font-bold text-slate-900">{r.destination?.name || '-'}</td>
+                        <td className="py-3 px-4 font-medium text-brand-blue">{r.duration.replace(/_/g, ' ')}</td>
+                        <td className="py-3 px-4 font-extrabold text-slate-900 text-sm">
+                          {r.amount ? formatPeso(r.amount) : 'Inquire'}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500">{r.duration === 'HOURS_12' ? 'Flat 12 Hours' : 'Per 24h Day'}</td>
+                        <td className="py-3 px-4 text-slate-400">{r.notes || '-'}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

@@ -245,7 +245,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
             </div>
             <div className="mt-4 pt-3 border-t border-slate-700/60">
               <a
-                href="https://maps.google.com/?q=Carnation+Street+CBD+II+Triangulo+Naga+City"
+                href="https://maps.app.goo.gl/4TTUTX5HJfwdNfdW7"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 px-3 rounded-lg transition-colors"
@@ -455,7 +455,17 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               <ul className="space-y-2.5 text-xs text-slate-300">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span><strong>Custoworks Garage</strong> – Carnation St. CBD II Brgy. Triangulo (Beside SM), Naga City</span>
+                  <span>
+                    <strong>Custoworks Garage</strong> – Carnation St. CBD II Brgy. Triangulo (Beside SM), Naga City{' '}
+                    <a
+                      href="https://maps.app.goo.gl/4TTUTX5HJfwdNfdW7"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 font-semibold underline ml-1"
+                    >
+                      (Google Maps <ExternalLink className="w-3 h-3 inline" />)
+                    </a>
+                  </span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />

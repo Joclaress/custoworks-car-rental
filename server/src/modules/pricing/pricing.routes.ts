@@ -6,6 +6,7 @@ export const pricingRoutes = Router();
 
 // Public quote & master data
 pricingRoutes.get('/quote', c.getQuote);
+pricingRoutes.get('/pricelist', c.getPricelist);
 pricingRoutes.get('/destinations', c.listDestinations);
 pricingRoutes.get('/additional-fees', c.listAdditionalFees);
 

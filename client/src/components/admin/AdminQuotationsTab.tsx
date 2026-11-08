@@ -388,15 +388,15 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
       )}
 
       {/* Header & Main Controls */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-slate-900/90 p-6 rounded-2xl border border-slate-800 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
               <FileText className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900">Official Quotations & Customer Inquiries</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-lg font-black text-white">Official Quotations & Customer Inquiries</h2>
+              <p className="text-xs text-slate-400">
                 Generate professional customer quotations, choose from pre-built templates, and manage direct inquiries.
               </p>
             </div>
@@ -410,7 +410,7 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
               if (templates.length > 0) applyTemplate(templates[0]);
               setBuilderOpen(true);
             }}
-            className="inline-flex items-center gap-2 bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all"
           >
             <Plus className="w-4 h-4" /> Create New Quotation
           </button>
@@ -418,14 +418,14 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
       </div>
 
       {/* Sub Tabs Switcher */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold">
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs font-bold">
         <button
           type="button"
           onClick={() => setSubTab('QUOTATIONS')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all border ${
             subTab === 'QUOTATIONS'
-              ? 'bg-brand-navy text-white shadow-sm'
-              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+              : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850'
           }`}
         >
           <FileText className="w-4 h-4" />
@@ -435,10 +435,10 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
         <button
           type="button"
           onClick={() => setSubTab('INQUIRIES')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all relative ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all border relative ${
             subTab === 'INQUIRIES'
-              ? 'bg-brand-navy text-white shadow-sm'
-              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+              : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850'
           }`}
         >
           <MessageSquare className="w-4 h-4" />
@@ -453,10 +453,10 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
         <button
           type="button"
           onClick={() => setSubTab('TEMPLATES')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all border ${
             subTab === 'TEMPLATES'
-              ? 'bg-brand-navy text-white shadow-sm'
-              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+              : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850'
           }`}
         >
           <Sparkles className="w-4 h-4" />

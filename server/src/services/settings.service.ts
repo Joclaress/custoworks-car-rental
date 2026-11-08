@@ -20,8 +20,8 @@ export const DEFAULT_SETTINGS = {
     draftHoldMinutes: 30,
     /** Hours a submitted booking waits for the reservation-fee payment before it expires. */
     paymentHoldHours: 24,
-    /** Minimum hours between "now" and pick-up. */
-    minLeadHours: 2,
+    /** Minimum hours between "now" and pick-up. Set to 0 to allow same-day / immediate booking. */
+    minLeadHours: 0,
     /** Maximum number of unpaid holds (draft / pending payment) per customer. */
     maxActiveHoldsPerCustomer: 3,
     /** Maximum rental length in days. */

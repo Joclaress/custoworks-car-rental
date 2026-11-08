@@ -12,6 +12,7 @@ import { BookingWizardPage } from './pages/BookingWizardPage';
 import { CustomerDashboardPage } from './pages/CustomerDashboardPage';
 import { TrackBookingPage } from './pages/TrackBookingPage';
 import { ContactPage } from './pages/ContactPage';
+import { PriceListPage } from './pages/PriceListPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -53,6 +54,8 @@ export const App: React.FC = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/vehicles" element={<VehiclesPage />} />
               <Route path="/vehicles/:slug" element={<VehicleDetailPage />} />
+              <Route path="/rates" element={<PriceListPage />} />
+              <Route path="/pricelist" element={<PriceListPage />} />
               <Route path="/book" element={<BookingWizardPage />} />
               <Route path="/track" element={<TrackBookingPage />} />
               <Route path="/contact" element={<ContactPage />} />

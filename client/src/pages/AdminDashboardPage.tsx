@@ -33,14 +33,17 @@ import {
   Trash2,
   Save,
   X,
+  Plane,
   Sparkles,
   RefreshCw,
   FileText,
   ExternalLink,
+  MapPin,
   Shield,
   CheckCircle2,
   ArrowRight,
   Info,
+  Upload,
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
@@ -230,7 +233,8 @@ export const AdminDashboardPage: React.FC = () => {
       .reduce((sum, p) => sum + Number(p.amount), 0);
     const depositRefunded = approvedPayments.some((p) => p.type === 'SECURITY_DEPOSIT_REFUND');
     const totalPaid = reservationFeePaid + rentalBalancePaid;
-    const balanceDue = Math.max(0, Number(b.totalAmount) - totalPaid);
+    // The ₱1,000 reservation fee serves as the refundable security deposit, so the remaining rental balance due upon pickup is the FULL rental amount minus any rental payments made
+    const balanceDue = Math.max(0, Number(b.totalAmount) - rentalBalancePaid);
     const isBalancePaid = balanceDue <= 0;
 
     return {
@@ -459,6 +463,19 @@ export const AdminDashboardPage: React.FC = () => {
       fetchBookings();
     } catch (err: any) {
       alert(err.message || 'Failed to update requirement status');
+    }
+  };
+
+  const handleAdminUploadDoc = async (bookingId: string, requirementId: string, file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/requirements/booking/${bookingId}/upload/${requirementId}`, formData);
+      await loadReqBookingDetail(bookingId);
+      await fetchBookings();
+      alert('Document attached and uploaded successfully!');
+    } catch (err: any) {
+      alert(err.message || 'Failed to attach document');
     }
   };
 
@@ -830,37 +847,89 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
-      {/* Top Admin Sub-bar */}
-      <div className="bg-slate-900 text-white px-4 sm:px-8 py-3.5 flex flex-wrap justify-between items-center border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <span className="bg-amber-500 text-slate-950 text-xs font-black px-2.5 py-0.5 rounded tracking-wider uppercase">
-            ADMIN CONSOLE
-          </span>
-          <span className="text-sm font-bold text-slate-200">Custoworks Car Rental Operations</span>
-        </div>
+    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
+      {/* Top Executive Command Header */}
+      <header className="bg-slate-900/95 border-b border-slate-800/90 backdrop-blur-md sticky top-0 z-40 shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-500 text-white flex items-center justify-center font-black shadow-lg shadow-blue-500/30">
+              <Car className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-black text-sm tracking-tight text-white uppercase">CUSTOWORKS</span>
+                <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[10px] font-black px-2 py-0.5 rounded tracking-wider uppercase">
+                  ADMIN CONSOLE
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[11px] font-medium text-slate-300">Live Operations · Naga City Garage (Beside SM)</span>
+              </div>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-3 text-xs">
-          <span className="text-slate-400">Operator:</span>
-          <span className="font-bold text-white">{user?.fullName}</span>
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => {
+                fetchStats();
+                fetchBookings();
+                fetchVehiclesAndMaster();
+              }}
+              title="Refresh live operations data"
+              className="bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Live Website</span>
+            </a>
+
+            <button
+              onClick={() => setAddVehicleModalOpen(true)}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/25 transition-all flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Vehicle</span>
+            </button>
+
+            {/* Operator Avatar */}
+            <div className="flex items-center gap-2 pl-3 border-l border-slate-800 text-xs">
+              <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 text-blue-400 font-bold flex items-center justify-center text-xs shadow-inner">
+                {user?.fullName?.charAt(0) || 'A'}
+              </div>
+              <div className="hidden md:block leading-tight">
+                <p className="font-bold text-white text-xs truncate max-w-[120px]">{user?.fullName}</p>
+                <p className="text-[10px] text-slate-400 capitalize">{user?.role?.toLowerCase() || 'Administrator'}</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* Main Admin Content */}
-      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-200 text-xs font-bold">
+      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-7 space-y-6">
+        {/* Modern Navigation Tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-800/80 text-xs font-bold">
           {[
-            { id: 'OVERVIEW', label: 'Dashboard Overview', icon: LayoutDashboard },
-            { id: 'BOOKINGS', label: 'Bookings Management', icon: Clock },
-            { id: 'CALENDAR', label: 'Availability Calendar', icon: Calendar },
-            { id: 'VEHICLES', label: 'Vehicle Fleet', icon: Car },
-            { id: 'PRICING', label: 'Rates & Pricing Matrix', icon: DollarSign },
-            { id: 'PAYMENTS', label: 'Payment Verification', icon: Receipt },
-            { id: 'REQUIREMENTS', label: 'Requirements Review', icon: FileCheck2 },
-            { id: 'QUOTATIONS', label: 'Quotations & Inquiries', icon: FileText },
-            { id: 'USERS', label: 'Admin & Staff Accounts', icon: Users },
-            { id: 'SETTINGS', label: 'Company Settings & Fees', icon: Settings },
+            { id: 'OVERVIEW', label: 'Overview', icon: LayoutDashboard },
+            { id: 'BOOKINGS', label: 'Bookings', icon: Clock, badge: bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'ONGOING').length },
+            { id: 'CALENDAR', label: 'Calendar', icon: Calendar },
+            { id: 'VEHICLES', label: 'Fleet', icon: Car, badge: vehicles.length },
+            { id: 'PRICING', label: 'Pricing Matrix', icon: DollarSign },
+            { id: 'PAYMENTS', label: 'Payments', icon: Receipt, badge: stats?.pendingPayments, badgeAmber: true },
+            { id: 'REQUIREMENTS', label: 'Requirements', icon: FileCheck2 },
+            { id: 'QUOTATIONS', label: 'Quotations', icon: FileText },
+            { id: 'USERS', label: 'Staff Accounts', icon: Users },
+            { id: 'SETTINGS', label: 'Settings', icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -868,14 +937,27 @@ export const AdminDashboardPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all shrink-0 ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all shrink-0 border ${
                   isActive
-                    ? 'bg-brand-navy text-white shadow-md'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500/80 shadow-lg shadow-blue-600/25'
+                    : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850 hover:border-slate-700'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span
+                    className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                      tab.badgeAmber
+                        ? 'bg-amber-400 text-slate-950 font-bold'
+                        : isActive
+                        ? 'bg-white/25 text-white'
+                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                    }`}
+                  >
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -883,35 +965,98 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* TAB 1: OVERVIEW METRICS */}
         {activeTab === 'OVERVIEW' && stats && (
-          <div className="space-y-8">
-            {/* Top Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <span className="text-slate-400 font-bold text-[10px] uppercase block">Today's Bookings</span>
-                <span className="text-2xl font-black text-slate-900 mt-1 block">{stats.todaysBookings}</span>
+          <div className="space-y-6">
+            {/* Top Stat Cards (Using Modern UI Aesthetic) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Card 1: Today's Dispatch */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm flex flex-col justify-between hover:border-blue-500/50 transition-all shadow-md group">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Today's Dispatch</p>
+                    <p className="text-2xl sm:text-3xl font-black text-white mt-0.5">{stats.todaysBookings}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Pickups scheduled today</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                  <span className="text-slate-400 text-[11px]">Today's schedule</span>
+                  <button onClick={() => setActiveTab('BOOKINGS')} className="text-blue-400 font-bold hover:underline">
+                    View list →
+                  </button>
+                </div>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <span className="text-slate-400 font-bold text-[10px] uppercase block">Pending Payment / Verif.</span>
-                <span className="text-2xl font-black text-amber-600 mt-1 block">{stats.pendingPayments}</span>
+
+              {/* Card 2: Pending Payment / Verification */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm flex flex-col justify-between hover:border-amber-500/50 transition-all shadow-md group">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Receipt className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Pending Payments</p>
+                    <p className="text-2xl sm:text-3xl font-black text-amber-400 mt-0.5">{stats.pendingPayments}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Receipts awaiting review</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                  <span className="text-slate-400 text-[11px]">GCash & Bank slips</span>
+                  <button onClick={() => setActiveTab('PAYMENTS')} className="text-amber-400 font-bold hover:underline">
+                    Verify now →
+                  </button>
+                </div>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <span className="text-slate-400 font-bold text-[10px] uppercase block">Ongoing Rentals</span>
-                <span className="text-2xl font-black text-blue-600 mt-1 block">{stats.ongoingRentals}</span>
+
+              {/* Card 3: Ongoing Rentals */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm flex flex-col justify-between hover:border-indigo-500/50 transition-all shadow-md group">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Car className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Ongoing Rentals</p>
+                    <p className="text-2xl sm:text-3xl font-black text-blue-400 mt-0.5">{stats.ongoingRentals}</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Vehicles currently on road</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                  <span className="text-slate-400 text-[11px]">Customer trips active</span>
+                  <button onClick={() => { setActiveTab('BOOKINGS'); setBookingFilterStatus('ONGOING'); }} className="text-blue-400 font-bold hover:underline">
+                    Track trips →
+                  </button>
+                </div>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <span className="text-slate-400 font-bold text-[10px] uppercase block">Available Fleet</span>
-                <span className="text-2xl font-black text-emerald-600 mt-1 block">
-                  {stats.availableVehicles} / {stats.totalVehicles}
-                </span>
+
+              {/* Card 4: Available Fleet */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 backdrop-blur-sm flex flex-col justify-between hover:border-emerald-500/50 transition-all shadow-md group">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Available Fleet</p>
+                    <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-0.5">
+                      {stats.availableVehicles} <span className="text-sm font-semibold text-slate-400">/ {stats.totalVehicles}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1">{stats.totalVehicles - stats.availableVehicles} units currently dispatched</p>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                  <span className="text-slate-400 text-[11px]">Garage readiness</span>
+                  <button onClick={() => setActiveTab('VEHICLES')} className="text-emerald-400 font-bold hover:underline">
+                    Manage fleet →
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* MONTHLY REVENUE & FINANCIAL PERFORMANCE */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Primary This Month Card */}
-              <div className="lg:col-span-2 bg-gradient-to-br from-brand-navy via-slate-900 to-blue-950 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
-                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-                <div className="space-y-4 relative z-10">
+              <div className="lg:col-span-2 bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950/90 text-white rounded-3xl p-6 sm:p-7 shadow-xl border border-slate-800/90 relative overflow-hidden flex flex-col justify-between">
+                <div className="absolute top-0 right-0 -mt-8 -mr-8 w-56 h-56 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="space-y-5 relative z-10">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <span className="bg-emerald-500/20 text-emerald-300 font-extrabold text-[11px] px-3 py-1 rounded-full uppercase tracking-wider border border-emerald-500/30">
@@ -923,7 +1068,7 @@ export const AdminDashboardPage: React.FC = () => {
                     </div>
                     <button
                       onClick={() => setActiveTab('PAYMENTS')}
-                      className="bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition-all"
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md transition-all"
                     >
                       Inspect All Payments →
                     </button>
@@ -933,14 +1078,14 @@ export const AdminDashboardPage: React.FC = () => {
                     <span className="text-4xl sm:text-5xl font-black text-white tracking-tight block">
                       {formatPeso(stats.thisMonthRevenue ?? stats.totalRevenue)}
                     </span>
-                    <p className="text-xs text-blue-200/80 mt-1">
+                    <p className="text-xs text-slate-300 mt-1.5">
                       Gross collected this month from reservation fees (₱500) and vehicle rental balances.
                     </p>
                   </div>
 
                   {/* Monthly Fleet Breakdown */}
                   {stats.revenueByVehicle && stats.revenueByVehicle.length > 0 && (
-                    <div className="pt-3 border-t border-white/10 space-y-2">
+                    <div className="pt-4 border-t border-slate-800 space-y-2.5">
                       <span className="text-[11px] uppercase font-bold tracking-wider text-blue-300 block">
                         Monthly Gross by Vehicle Fleet:
                       </span>
@@ -952,7 +1097,7 @@ export const AdminDashboardPage: React.FC = () => {
                           return (
                             <div
                               key={v.id}
-                              className="bg-white/10 hover:bg-white/15 backdrop-blur-sm p-3 rounded-xl border border-white/10 transition-all"
+                              className="bg-slate-800/70 hover:bg-slate-800 p-3 rounded-xl border border-slate-700/70 transition-all"
                             >
                               <div className="flex justify-between items-start">
                                 <span className="font-extrabold text-xs text-white truncate max-w-[130px]" title={v.name}>
@@ -968,7 +1113,7 @@ export const AdminDashboardPage: React.FC = () => {
                                   {percent}% share
                                 </span>
                               </div>
-                              <div className="w-full bg-white/10 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                              <div className="w-full bg-slate-700/60 h-1.5 rounded-full mt-1.5 overflow-hidden">
                                 <div
                                   className="bg-gradient-to-r from-blue-400 to-emerald-400 h-full rounded-full"
                                   style={{ width: `${percent}%` }}
@@ -983,55 +1128,68 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Side Financial Summary Cards */}
+              {/* Right Side Cards */}
               <div className="flex flex-col gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col justify-between">
+                {/* Lifetime Revenue Card */}
+                <div className="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-between">
                   <div>
                     <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider block">
                       All-Time Lifetime Revenue
                     </span>
-                    <span className="text-2xl font-black text-slate-900 mt-1 block">
+                    <span className="text-2xl font-black text-white mt-1 block">
                       {formatPeso(stats.totalRevenue)}
                     </span>
-                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
                       Cumulative verified cash & digital payments received via GCash, BDO, and Cash.
                     </p>
                   </div>
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Monthly Active Bookings:</span>
-                    <strong className="text-brand-navy font-bold">{stats.thisMonthBookingsCount || 0} Bookings</strong>
+                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs mt-3">
+                    <span className="text-slate-400 font-medium">Monthly Active Bookings:</span>
+                    <strong className="text-blue-400 font-bold">{stats.thisMonthBookingsCount || 0} Bookings</strong>
                   </div>
                 </div>
 
-                <div className="bg-blue-50/70 border border-blue-200/70 p-5 rounded-2xl flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <span className="text-brand-blue font-extrabold text-[10px] uppercase tracking-wider block">
-                      Fleet Yield Benchmark
-                    </span>
-                    <h4 className="font-extrabold text-slate-900 text-xs">Sedan Mirage G4 Performance</h4>
-                    <p className="text-[11px] text-slate-600 leading-relaxed mt-1">
-                      At <strong>₱2,500 / 24hrs</strong>, renting 10 days/month yields <strong>₱25,000 gross</strong>. 20 days yields <strong>₱50,000 gross</strong>.
-                    </p>
+                {/* Naga City Location & Garage Card (Matching uploaded user style) */}
+                <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-5 backdrop-blur-sm flex flex-col justify-between hover:border-blue-500/50 transition-all shadow-md">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Location & Garage</p>
+                      <p className="text-sm font-bold text-white mt-0.5">Carnation St. CBD II (Beside SM)</p>
+                      <p className="text-[11px] text-slate-300 mt-0.5">Brgy. Triangulo, Naga City 4400</p>
+                      <p className="text-[11px] text-slate-400 mt-1">Pickups 24/7 with reservation</p>
+                    </div>
                   </div>
-                  <div className="pt-2 text-[10px] text-blue-800 font-semibold flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-brand-blue" />
-                    <span>Real-time calculation updated on payment approval</span>
+                  <div className="mt-4 pt-3 border-t border-slate-700/60">
+                    <a
+                      href="https://maps.app.goo.gl/4TTUTX5HJfwdNfdW7"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold py-2 px-3 rounded-lg transition-colors"
+                    >
+                      View Map Location <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Recent Bookings Activity Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-bold text-base text-slate-900">Recent Customer Bookings</h3>
-                <button onClick={() => setActiveTab('BOOKINGS')} className="text-brand-blue text-xs font-bold hover:underline">
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+              <div className="p-5 border-b border-slate-800 flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-400" />
+                  <h3 className="font-bold text-base text-white">Recent Customer Bookings</h3>
+                </div>
+                <button onClick={() => setActiveTab('BOOKINGS')} className="text-blue-400 text-xs font-bold hover:underline">
                   View All Bookings →
                 </button>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase">
+                  <thead className="bg-slate-850 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="p-3.5">Reference</th>
                       <th className="p-3.5">Vehicle</th>
@@ -1041,14 +1199,22 @@ export const AdminDashboardPage: React.FC = () => {
                       <th className="p-3.5">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  <tbody className="divide-y divide-slate-800/80 font-medium text-slate-300">
                     {recentBookings.map((b) => (
-                      <tr key={b.id} className="hover:bg-slate-50">
-                        <td className="p-3.5 font-bold font-mono text-brand-navy">{b.reference}</td>
-                        <td className="p-3.5">{b.vehicle?.name}</td>
-                        <td className="p-3.5 font-semibold text-slate-900">{b.customerName}</td>
-                        <td className="p-3.5">{formatDate(b.pickupAt)}</td>
-                        <td className="p-3.5">{b.destination?.name}</td>
+                      <tr key={b.id} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="p-3.5 font-bold font-mono text-blue-400">
+                          <button
+                            type="button"
+                            onClick={() => openViewBookingModal(b)}
+                            className="hover:underline text-blue-400"
+                          >
+                            {b.reference}
+                          </button>
+                        </td>
+                        <td className="p-3.5 text-white font-medium">{b.vehicle?.name}</td>
+                        <td className="p-3.5 font-semibold text-white">{b.customerName}</td>
+                        <td className="p-3.5 text-slate-300">{formatDate(b.pickupAt)}</td>
+                        <td className="p-3.5 text-slate-300">{b.destination?.name}</td>
                         <td className="p-3.5">
                           <StatusBadge status={b.status} />
                         </td>
@@ -1102,12 +1268,12 @@ export const AdminDashboardPage: React.FC = () => {
             })()}
 
             {/* Filter & Search Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 justify-between items-center">
+            <div className="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-md flex flex-col md:flex-row gap-3 justify-between items-center">
               <div className="flex flex-wrap gap-2 w-full md:w-auto items-center">
                 <select
                   value={bookingFilterStatus}
                   onChange={(e) => setBookingFilterStatus(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold"
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-blue-500"
                 >
                   <option value="">All Statuses</option>
                   <option value="PENDING_PAYMENT">Pending Payment</option>
@@ -1123,10 +1289,10 @@ export const AdminDashboardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setBookingFilterStatus('CONFIRMED')}
-                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all border ${
                     bookingFilterStatus === 'CONFIRMED'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                      : 'bg-slate-800/80 text-blue-300 border-slate-700 hover:bg-slate-750'
                   }`}
                 >
                   🚗 Ready for Pickup ({bookings.filter((b) => b.status === 'CONFIRMED').length})
@@ -1134,10 +1300,10 @@ export const AdminDashboardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setBookingFilterStatus('ONGOING')}
-                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all border ${
                     bookingFilterStatus === 'ONGOING'
-                      ? 'bg-slate-800 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
+                      : 'bg-slate-800/80 text-indigo-300 border-slate-700 hover:bg-slate-750'
                   }`}
                 >
                   🛣️ Ongoing ({bookings.filter((b) => b.status === 'ONGOING').length})
@@ -1145,10 +1311,10 @@ export const AdminDashboardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setBookingFilterStatus('COMPLETED')}
-                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all border ${
                     bookingFilterStatus === 'COMPLETED'
-                      ? 'bg-emerald-700 text-white shadow-xs'
-                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                      : 'bg-slate-800/80 text-emerald-300 border-slate-700 hover:bg-slate-750'
                   }`}
                 >
                   ✅ Completed
@@ -1157,7 +1323,7 @@ export const AdminDashboardPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setBookingFilterStatus('')}
-                    className="text-xs text-slate-500 hover:text-slate-800 underline font-semibold px-1"
+                    className="text-xs text-slate-400 hover:text-white underline font-semibold px-1"
                   >
                     Clear Filter
                   </button>
@@ -1171,17 +1337,17 @@ export const AdminDashboardPage: React.FC = () => {
                   value={bookingSearch}
                   onChange={(e) => setBookingSearch(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && fetchBookings()}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs pr-8"
+                  className="w-full bg-slate-800 border border-slate-750 text-white placeholder-slate-400 rounded-xl px-3 py-2 text-xs pr-8 focus:outline-none focus:border-blue-500"
                 />
                 <Search className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5" />
               </div>
             </div>
 
             {/* Bookings Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-600 uppercase">
+                  <thead className="bg-slate-850/90 border-b border-slate-800 font-bold text-slate-400 uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="p-3.5">Ref #</th>
                       <th className="p-3.5">Customer</th>
@@ -1192,46 +1358,56 @@ export const AdminDashboardPage: React.FC = () => {
                       <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  <tbody className="divide-y divide-slate-800/80 font-medium text-slate-300">
                     {bookings.map((b) => {
                       const fin = getBookingFinancials(b);
                       const isOverdue = b.status === 'ONGOING' && new Date() >= new Date(b.returnAt);
 
                       return (
-                        <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3.5 font-bold font-mono text-brand-navy">
+                        <tr key={b.id} className="hover:bg-slate-800/40 transition-colors">
+                          <td className="p-3.5 font-bold font-mono text-blue-400">
                             <button
                               type="button"
                               onClick={() => openViewBookingModal(b)}
-                              className="hover:underline text-brand-blue"
+                              className="hover:underline text-blue-400"
                               title="Click to view full booking details"
                             >
                               {b.reference}
                             </button>
                           </td>
                           <td className="p-3.5">
-                            <p className="font-bold text-slate-900">{b.customerName}</p>
-                            <p className="text-[10px] text-slate-400">{b.customerPhone}</p>
+                            <p className="font-bold text-white">{b.customerName}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">{b.customerPhone}</p>
                           </td>
-                          <td className="p-3.5 font-semibold text-slate-800">{b.vehicle?.name}</td>
                           <td className="p-3.5">
-                            <div>{formatDate(b.pickupAt, false)} → {formatDate(b.returnAt, false)}</div>
+                            <span className="font-semibold text-slate-200 block">{b.vehicle?.name}</span>
+                            <span className="text-[10px] text-slate-400 block">
+                              {b.rentalType === 'WITH_DRIVER' ? 'Chauffeur' : 'Self Drive'} • {b.destination?.name || 'Local'}
+                            </span>
+                            {b.destination?.slug?.includes('airport') && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded mt-0.5">
+                                ✈️ Airport Transfer
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3.5">
+                            <div className="text-slate-300">{formatDate(b.pickupAt, false)} → {formatDate(b.returnAt, false)}</div>
                             {isOverdue && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded mt-1">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-300 bg-rose-500/20 border border-rose-500/40 px-1.5 py-0.2 rounded mt-1">
                                 ⏰ Return Time Reached
                               </span>
                             )}
                           </td>
                           <td className="p-3.5">
-                            <span className="font-extrabold text-slate-900 block">{formatPeso(fin.totalAmount)}</span>
+                            <span className="font-extrabold text-white block">{formatPeso(fin.totalAmount)}</span>
                             <div className="text-[10px] mt-0.5 space-y-0.5">
-                              <span className="text-slate-500 block">₱1,000 Reservation Fee</span>
+                              <span className="text-slate-400 block">₱1,000 Reservation Fee</span>
                               {fin.isBalancePaid ? (
-                                <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">
+                                <span className="inline-flex items-center gap-1 text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
                                   <CheckCircle className="w-2.5 h-2.5" /> Balance Paid
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded font-bold">
+                                <span className="inline-flex items-center gap-1 text-amber-300 bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.2 rounded font-bold">
                                   <Clock className="w-2.5 h-2.5" /> Due: {formatPeso(fin.balanceDue)}
                                 </span>
                               )}
@@ -1244,7 +1420,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => openViewBookingModal(b)}
-                              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 transition-colors"
+                              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-2 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 transition-colors"
                               title="View full booking & payment records"
                             >
                               <Eye className="w-3 h-3" /> View
@@ -1253,7 +1429,7 @@ export const AdminDashboardPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => handleConfirmBooking(b.id)}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1.5 rounded-lg text-[11px] shadow-xs transition-colors"
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1.5 rounded-lg text-[11px] shadow-sm transition-colors"
                               >
                                 Confirm
                               </button>
@@ -1262,7 +1438,7 @@ export const AdminDashboardPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => openReleaseModal(b)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 shadow-xs transition-colors"
+                                className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 shadow-sm transition-colors"
                                 title="Collect remaining rental balance and release vehicle"
                               >
                                 <KeyRound className="w-3.5 h-3.5" /> Release & Collect Balance
@@ -1272,10 +1448,10 @@ export const AdminDashboardPage: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => openCompleteModal(b)}
-                                className={`font-bold px-3 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 shadow-xs transition-colors text-white ${
+                                className={`font-bold px-3 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 shadow-sm transition-colors text-white ${
                                   isOverdue
-                                    ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
-                                    : 'bg-slate-900 hover:bg-black'
+                                    ? 'bg-amber-600 hover:bg-amber-500 animate-pulse'
+                                    : 'bg-slate-800 hover:bg-slate-700 border border-slate-700'
                                 }`}
                                 title="Inspect vehicle return, refund security deposit, and mark rental done"
                               >
@@ -1296,13 +1472,13 @@ export const AdminDashboardPage: React.FC = () => {
         {/* TAB 3: FULL-SCREEN CALENDAR */}
         {activeTab === 'CALENDAR' && (
           <div className="space-y-6">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4">
+            <div className="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-md flex flex-wrap justify-between items-center gap-4">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-700">Filter Vehicle:</span>
+                <span className="text-xs font-bold text-slate-300">Filter Vehicle:</span>
                 <select
                   value={selectedVehicleId}
                   onChange={(e) => setSelectedVehicleId(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-medium"
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-xl px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-blue-500"
                 >
                   <option value="">All Vehicles</option>
                   {vehicles.map((v) => (
@@ -1315,7 +1491,7 @@ export const AdminDashboardPage: React.FC = () => {
 
               <button
                 onClick={() => setBlockModalOpen(true)}
-                className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow"
+                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md transition-all"
               >
                 <Plus className="w-4 h-4" /> Block Maintenance Dates
               </button>
@@ -1333,14 +1509,14 @@ export const AdminDashboardPage: React.FC = () => {
         {/* TAB 4: VEHICLE FLEET MANAGEMENT */}
         {activeTab === 'VEHICLES' && (
           <div className="space-y-6">
-            <div className="flex flex-wrap justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm gap-4">
+            <div className="flex flex-wrap justify-between items-center bg-slate-900/90 p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-md gap-4">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Vehicle Fleet Management</h3>
-                <p className="text-xs text-slate-500">Manage rental inventory, seating capacity, transmission, and photos.</p>
+                <h3 className="font-bold text-base text-white">Vehicle Fleet Management</h3>
+                <p className="text-xs text-slate-400">Manage rental inventory, seating capacity, transmission, and photos.</p>
               </div>
               <button
                 onClick={() => setAddVehicleModalOpen(true)}
-                className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/25 flex items-center gap-1.5 transition-all"
               >
                 <Plus className="w-4 h-4" /> Add New Vehicle
               </button>
@@ -1348,36 +1524,36 @@ export const AdminDashboardPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {vehicles.map((v) => (
-                <div key={v.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-                  <div className="aspect-[16/10] bg-slate-100 rounded-xl overflow-hidden relative">
+                <div key={v.id} className="bg-slate-900/90 rounded-2xl border border-slate-800 p-5 shadow-lg space-y-3 hover:border-slate-700 transition-all">
+                  <div className="aspect-[16/10] bg-slate-800 rounded-xl overflow-hidden relative">
                     <img
                       src={v.images?.[0]?.url || '/images/hero.jpg'}
                       alt=""
                       className="w-full h-full object-cover"
                     />
-                    <span className="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">
+                    <span className="absolute top-2 right-2 bg-slate-950/80 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-slate-800 backdrop-blur-sm">
                       {v.transmission} · {v.seats} Seats
                     </span>
                   </div>
 
                   <div>
-                    <h4 className="font-extrabold text-base text-slate-900">{v.name}</h4>
-                    <p className="text-xs text-slate-400">Plate: {v.plateNumber || 'Unassigned'}</p>
+                    <h4 className="font-extrabold text-base text-white">{v.name}</h4>
+                    <p className="text-xs text-slate-400 font-mono">Plate: {v.plateNumber || 'Unassigned'}</p>
                   </div>
 
                   <div className="flex items-center justify-between gap-2 text-xs pt-1">
                     <div className="flex gap-1.5">
-                      <span className="p-1 rounded bg-slate-100 text-slate-700 font-semibold">
+                      <span className="p-1 rounded bg-slate-800 text-slate-300 font-semibold border border-slate-700 text-[11px]">
                         {v.category.replace('_', '/')}
                       </span>
-                      <span className={`p-1 rounded font-semibold ${v.isPublished ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                      <span className={`p-1 rounded font-semibold text-[11px] border ${v.isPublished ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-rose-500/30'}`}>
                         {v.isPublished ? 'Published' : 'Hidden'}
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleDeleteVehicle(v)}
-                      className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                      className="px-2 py-1 text-rose-400 hover:bg-rose-500/20 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
                       title={`Delete unit ${v.name}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1393,19 +1569,19 @@ export const AdminDashboardPage: React.FC = () => {
         {/* TAB 5: PRICING & RATE MATRIX */}
         {activeTab === 'PRICING' && (
           <div className="space-y-6">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4">
+            <div className="bg-slate-900/90 p-5 rounded-2xl border border-slate-800 shadow-md flex flex-wrap justify-between items-center gap-4">
               <div>
-                <h3 className="font-bold text-base text-slate-900">Official Rental Rates Matrix</h3>
-                <p className="text-xs text-slate-500">Edit prices for destinations and durations without editing code.</p>
+                <h3 className="font-bold text-base text-white">Official Rental Rates Matrix</h3>
+                <p className="text-xs text-slate-400">Edit prices for destinations and durations without editing code.</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
                 <select
                   value={matrixVehicleId}
                   onChange={(e) => setMatrixVehicleId(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold"
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:border-blue-500"
                 >
-                  {vehicles.map((v) => (
+                  {vehicles.filter((v) => v.isPublished !== false).map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.name}
                     </option>
@@ -1415,49 +1591,117 @@ export const AdminDashboardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setAddDestModalOpen(true)}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+                  className="bg-slate-800 hover:bg-slate-700 border border-slate-750 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
                 >
                   <Plus className="w-4 h-4" /> Add Destination
                 </button>
 
                 <button
                   onClick={handleSaveRateMatrix}
-                  className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/25 transition-all"
                 >
                   Save & Publish Rates
                 </button>
               </div>
             </div>
 
+            {/* Airport Transfer Rates Quick Reference Card */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950/80 border border-slate-800 text-white p-5 rounded-2xl shadow-md space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/40 flex items-center justify-center font-bold text-xs">
+                    <Plane className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white">Airport Transfers & Chauffeur Rates Matrix (Pickup & Drop)</h4>
+                    <p className="text-[11px] text-slate-300">Configured official rates for BIA & Naga Airport with professional driver.</p>
+                  </div>
+                </div>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-bold self-start sm:self-auto">
+                  ✓ Active in Live Booking Flow
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                {/* Card 1: BIA Van */}
+                <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px] font-bold text-blue-300 uppercase">
+                    <span>Van (NV350 Urvan)</span>
+                    <span className="text-white font-mono">15 Seats</span>
+                  </div>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-slate-300 text-[11px]">BIA Airport (Daraga):</span>
+                    <strong className="text-amber-300 text-sm font-black">₱7,500</strong>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-slate-300 text-[11px]">Naga Airport (Pili):</span>
+                    <strong className="text-white text-xs font-bold">₱3,500</strong>
+                  </div>
+                </div>
+
+                {/* Card 2: BIA Innova */}
+                <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px] font-bold text-blue-300 uppercase">
+                    <span>SUV / MPV (Innova / Xpander)</span>
+                    <span className="text-white font-mono">7-8 Seats</span>
+                  </div>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-slate-300 text-[11px]">BIA Airport (Daraga):</span>
+                    <strong className="text-amber-300 text-sm font-black">₱6,000</strong>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-slate-300 text-[11px]">Naga Airport (Pili):</span>
+                    <strong className="text-white text-xs font-bold">₱2,500</strong>
+                  </div>
+                </div>
+
+                {/* Card 3: BIA Sedan */}
+                <div className="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px] font-bold text-blue-300 uppercase">
+                    <span>Sedan (Vios / Mirage AT)</span>
+                    <span className="text-white font-mono">4-5 Seats</span>
+                  </div>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-slate-300 text-[11px]">BIA Airport (Daraga):</span>
+                    <strong className="text-amber-300 text-sm font-black">₱4,500</strong>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-slate-300 text-[11px]">Naga Airport (Pili):</span>
+                    <strong className="text-white text-xs font-bold">₱1,800</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Matrix Input Table */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-700 uppercase">
+                  <thead className="bg-slate-850/90 border-b border-slate-800 font-bold text-slate-400 uppercase tracking-wider text-[11px]">
                     <tr>
-                      <th className="p-3">Destination</th>
-                      <th className="p-3">Rental Type</th>
-                      <th className="p-3">12 Hours (Flat)</th>
-                      <th className="p-3">24 Hours (Per Day)</th>
-                      <th className="p-3">Weekly (Per Day)</th>
-                      <th className="p-3">Monthly (Per Day)</th>
+                      <th className="p-3.5">Destination</th>
+                      <th className="p-3.5">Rental Type</th>
+                      <th className="p-3.5">12 Hours (Flat)</th>
+                      <th className="p-3.5">24 Hours (Per Day)</th>
+                      <th className="p-3.5">Weekly (Per Day)</th>
+                      <th className="p-3.5">Monthly (Per Day)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-800/80 font-medium">
                     {matrixDestinations.map((d) => (
                       <React.Fragment key={d.id}>
                         {/* Self Drive Row */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="p-3 font-bold text-slate-900" rowSpan={2}>
+                        <tr className="hover:bg-slate-800/40">
+                          <td className="p-3.5 font-bold text-white" rowSpan={2}>
                             {d.name}
                           </td>
-                          <td className="p-3 font-semibold text-emerald-700">Self Drive</td>
+                          <td className="p-3.5 font-semibold text-emerald-400">Self Drive</td>
                           {['HOURS_12', 'HOURS_24', 'WEEKLY', 'MONTHLY'].map((dur) => {
                             const key = `${d.id}_SELF_DRIVE_${dur}`;
                             return (
-                              <td key={dur} className="p-2">
+                              <td key={dur} className="p-2.5">
                                 <div className="relative">
-                                  <span className="absolute left-2 top-2 text-slate-400">₱</span>
+                                  <span className="absolute left-2.5 top-2 text-slate-400">₱</span>
                                   <input
                                     type="number"
                                     value={editingRates[key] !== null && editingRates[key] !== undefined ? editingRates[key]! : ''}
@@ -1468,7 +1712,7 @@ export const AdminDashboardPage: React.FC = () => {
                                       }))
                                     }
                                     placeholder="N/A"
-                                    className="w-24 pl-5 pr-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold"
+                                    className="w-28 pl-6 pr-2 py-1.5 bg-slate-800 border border-slate-700 text-white font-bold rounded-lg text-xs focus:outline-none focus:border-blue-500"
                                   />
                                 </div>
                               </td>
@@ -1477,14 +1721,14 @@ export const AdminDashboardPage: React.FC = () => {
                         </tr>
 
                         {/* With Driver Row */}
-                        <tr className="hover:bg-slate-50 border-b border-slate-200">
-                          <td className="p-3 font-semibold text-blue-700">With Driver</td>
+                        <tr className="hover:bg-slate-800/40 border-b border-slate-850">
+                          <td className="p-3.5 font-semibold text-blue-400">With Driver</td>
                           {['HOURS_12', 'HOURS_24', 'WEEKLY', 'MONTHLY'].map((dur) => {
                             const key = `${d.id}_WITH_DRIVER_${dur}`;
                             return (
-                              <td key={dur} className="p-2">
+                              <td key={dur} className="p-2.5">
                                 <div className="relative">
-                                  <span className="absolute left-2 top-2 text-slate-400">₱</span>
+                                  <span className="absolute left-2.5 top-2 text-slate-400">₱</span>
                                   <input
                                     type="number"
                                     value={editingRates[key] !== null && editingRates[key] !== undefined ? editingRates[key]! : ''}
@@ -1495,7 +1739,7 @@ export const AdminDashboardPage: React.FC = () => {
                                       }))
                                     }
                                     placeholder="N/A"
-                                    className="w-24 pl-5 pr-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold"
+                                    className="w-28 pl-6 pr-2 py-1.5 bg-slate-800 border border-slate-700 text-white font-bold rounded-lg text-xs focus:outline-none focus:border-blue-500"
                                   />
                                 </div>
                               </td>
@@ -1514,14 +1758,16 @@ export const AdminDashboardPage: React.FC = () => {
         {/* TAB 6: PAYMENT VERIFICATION */}
         {activeTab === 'PAYMENTS' && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-md">
               <div className="flex flex-wrap gap-2">
                 {['PENDING_VERIFICATION', 'APPROVED', 'REJECTED', 'ALL'].map((s) => (
                   <button
                     key={s}
                     onClick={() => setPaymentFilter(s)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      paymentFilter === s ? 'bg-brand-navy text-white shadow' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                      paymentFilter === s
+                        ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-750'
                     }`}
                   >
                     {s.replace(/_/g, ' ')}
@@ -1531,19 +1777,19 @@ export const AdminDashboardPage: React.FC = () => {
               <div className="flex items-center gap-4 text-xs">
                 <div className="text-right">
                   <span className="text-slate-400 font-bold text-[10px] uppercase block">This Month Verified</span>
-                  <span className="text-base font-black text-emerald-600">{formatPeso(stats?.thisMonthRevenue || 0)}</span>
+                  <span className="text-base font-black text-emerald-400">{formatPeso(stats?.thisMonthRevenue || 0)}</span>
                 </div>
-                <div className="h-8 w-px bg-slate-200 hidden sm:block" />
+                <div className="h-8 w-px bg-slate-800 hidden sm:block" />
                 <div className="text-right hidden sm:block">
                   <span className="text-slate-400 font-bold text-[10px] uppercase block">All-Time Revenue</span>
-                  <span className="text-base font-black text-brand-navy">{formatPeso(stats?.totalRevenue || 0)}</span>
+                  <span className="text-base font-black text-blue-400">{formatPeso(stats?.totalRevenue || 0)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-600 uppercase">
+                <thead className="bg-slate-850/90 border-b border-slate-800 font-bold text-slate-400 uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="p-3.5">Booking</th>
                     <th className="p-3.5">Customer</th>
@@ -1553,18 +1799,18 @@ export const AdminDashboardPage: React.FC = () => {
                     <th className="p-3.5 text-right">Proof & Verification</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
+                <tbody className="divide-y divide-slate-800/80 font-medium text-slate-300">
                   {payments.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="p-3.5 font-bold font-mono text-brand-navy">{p.booking?.reference}</td>
-                      <td className="p-3.5">{p.booking?.customerName}</td>
+                    <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="p-3.5 font-bold font-mono text-blue-400">{p.booking?.reference}</td>
+                      <td className="p-3.5 text-white font-semibold">{p.booking?.customerName}</td>
                       <td className="p-3.5">
-                        <span className="font-extrabold text-slate-900 block">{formatPeso(p.amount)}</span>
+                        <span className="font-extrabold text-white block">{formatPeso(p.amount)}</span>
                         <span className="text-[10px] text-slate-400">{p.type.replace(/_/g, ' ')}</span>
                       </td>
                       <td className="p-3.5">
-                        <p className="font-semibold text-slate-800">{p.paymentMethod?.name}</p>
-                        <p className="font-mono text-slate-500 text-[11px]">{p.referenceNumber || '-'}</p>
+                        <p className="font-semibold text-slate-200">{p.paymentMethod?.name}</p>
+                        <p className="font-mono text-slate-400 text-[11px]">{p.referenceNumber || '-'}</p>
                       </td>
                       <td className="p-3.5">
                         <StatusBadge status={p.status} />
@@ -1575,7 +1821,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setViewingReceiptPayment(p)}
-                              className="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-brand-blue font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors"
+                              className="inline-flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700 font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               View Receipt
@@ -1584,26 +1830,26 @@ export const AdminDashboardPage: React.FC = () => {
                               href={`/api/files/payments/${p.id}/proof?token=${encodeURIComponent(api.getToken() || '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-slate-400 hover:text-brand-blue p-1 rounded transition-colors"
+                              className="text-slate-400 hover:text-white p-1 rounded transition-colors"
                               title="Open receipt in new tab"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-400 italic">No proof</span>
+                          <span className="text-[11px] text-slate-500 italic">No proof</span>
                         )}
                         {p.status === 'PENDING_VERIFICATION' && (
                           <>
                             <button
                               onClick={() => handleApprovePayment(p.id)}
-                              className="bg-emerald-600 text-white font-bold px-3 py-1 rounded-lg text-[11px]"
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-[11px] shadow-sm transition-colors"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleRejectPayment(p.id)}
-                              className="bg-rose-600 text-white font-bold px-3 py-1 rounded-lg text-[11px]"
+                              className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-1 rounded-lg text-[11px] shadow-sm transition-colors"
                             >
                               Reject
                             </button>
@@ -1648,10 +1894,10 @@ export const AdminDashboardPage: React.FC = () => {
             {/* Split layout: Queue on left, Inspector on right */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column: Bookings Queue */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-700">Booking Queue</h4>
-                  <span className="text-[11px] font-mono text-slate-500 font-bold">{bookings.length} reservations</span>
+              <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-4 shadow-lg space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-300">Booking Queue</h4>
+                  <span className="text-[11px] font-mono text-slate-400 font-bold">{bookings.length} reservations</span>
                 </div>
 
                 <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
@@ -1664,16 +1910,16 @@ export const AdminDashboardPage: React.FC = () => {
                         onClick={() => handleSelectReqBooking(b.id)}
                         className={`w-full text-left p-3 rounded-xl border transition-all ${
                           isSelected
-                            ? 'bg-blue-50/70 border-brand-blue shadow-xs'
-                            : 'bg-slate-50/50 hover:bg-slate-100 border-slate-200'
+                            ? 'bg-blue-600/20 border-blue-500/80 shadow-md'
+                            : 'bg-slate-800/60 hover:bg-slate-800 border-slate-700/80'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-mono text-xs font-black text-slate-900">{b.reference}</span>
+                          <span className="font-mono text-xs font-black text-blue-400">{b.reference}</span>
                           <StatusBadge status={b.status} />
                         </div>
-                        <p className="text-xs font-bold text-slate-800 mt-1 truncate">{b.customerName}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                        <p className="text-xs font-bold text-white mt-1 truncate">{b.customerName}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">
                           {b.vehicle?.name} • {b.rentalType === 'SELF_DRIVE' ? 'Self-Drive (5 IDs)' : 'With Driver (1 ID)'}
                         </p>
                       </button>
@@ -1681,7 +1927,7 @@ export const AdminDashboardPage: React.FC = () => {
                   })}
 
                   {bookings.length === 0 && (
-                    <div className="text-center py-8 text-xs text-slate-400">
+                    <div className="text-center py-8 text-xs text-slate-500">
                       No active bookings in queue
                     </div>
                   )}
@@ -1691,23 +1937,23 @@ export const AdminDashboardPage: React.FC = () => {
               {/* Right Column: Document Verification Inspector */}
               <div className="lg:col-span-2 space-y-4">
                 {loadingReqDetail ? (
-                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
-                    <RefreshCw className="w-8 h-8 text-brand-blue animate-spin mx-auto mb-2" />
-                    <p className="text-xs font-bold text-slate-600">Loading requirement documents...</p>
+                  <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-12 text-center shadow-lg">
+                    <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-300">Loading requirement documents...</p>
                   </div>
                 ) : reqBookingDetail ? (
                   <div className="space-y-4">
                     {/* Booking Header Banner */}
-                    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-base font-black text-slate-900">{reqBookingDetail.customerName}</h4>
-                          <span className="font-mono text-xs font-bold text-brand-blue bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                          <h4 className="text-base font-black text-white">{reqBookingDetail.customerName}</h4>
+                          <span className="font-mono text-xs font-bold text-blue-300 bg-blue-500/20 border border-blue-400/30 px-2 py-0.5 rounded-md">
                             {reqBookingDetail.reference}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Phone: <strong>{reqBookingDetail.customerPhone}</strong> • Email: {reqBookingDetail.customerEmail} • Vehicle: {reqBookingDetail.vehicle?.name}
+                        <p className="text-xs text-slate-400 mt-1">
+                          Phone: <strong className="text-slate-200">{reqBookingDetail.customerPhone}</strong> • Email: {reqBookingDetail.customerEmail} • Vehicle: {reqBookingDetail.vehicle?.name}
                         </p>
                       </div>
 
@@ -1715,7 +1961,7 @@ export const AdminDashboardPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleConfirmBooking(reqBookingDetail.id)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-colors"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md transition-colors"
                         >
                           Confirm & Release Hold
                         </button>
@@ -1734,38 +1980,38 @@ export const AdminDashboardPage: React.FC = () => {
                         return (
                           <div
                             key={req.id}
-                            className={`p-5 rounded-2xl border bg-white shadow-sm space-y-3 transition-all ${
-                              isApproved ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'
+                            className={`p-5 rounded-2xl border bg-slate-900/90 shadow-md space-y-3 transition-all ${
+                              isApproved ? 'border-emerald-500/40 bg-emerald-950/20' : 'border-slate-800'
                             }`}
                           >
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <h5 className="font-bold text-sm text-slate-900">{req.name}</h5>
+                                  <h5 className="font-bold text-sm text-white">{req.name}</h5>
                                   {req.isRequired ? (
-                                    <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
+                                    <span className="text-[10px] font-bold text-rose-300 bg-rose-500/20 border border-rose-500/30 px-1.5 py-0.5 rounded">
                                       REQUIRED
                                     </span>
                                   ) : (
-                                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
+                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded">
                                       OPTIONAL
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-xs text-slate-500 mt-0.5">{req.requirementType?.description}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{req.requirementType?.description}</p>
                               </div>
 
                               <div className="flex items-center gap-2">
                                 {isApproved ? (
-                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">
+                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 rounded-full">
                                     <CheckCircle className="w-3.5 h-3.5" /> Approved
                                   </span>
                                 ) : hasUploaded ? (
-                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-full">
+                                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-3 py-1 rounded-full">
                                     <Clock className="w-3.5 h-3.5" /> Pending Admin Review
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 bg-slate-800 border border-slate-700 px-3 py-1 rounded-full">
                                     Not Uploaded
                                   </span>
                                 )}
@@ -1774,11 +2020,11 @@ export const AdminDashboardPage: React.FC = () => {
 
                             {/* Uploaded File Info & AI Analysis */}
                             {latestDoc ? (
-                              <div className="space-y-3 pt-2 border-t border-slate-100">
-                                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl text-xs">
+                              <div className="space-y-3 pt-2 border-t border-slate-800">
+                                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-800/80 border border-slate-750 p-2.5 rounded-xl text-xs">
                                   <div className="flex items-center gap-2 truncate">
-                                    <FileText className="w-4 h-4 text-slate-500 shrink-0" />
-                                    <span className="font-semibold text-slate-800 truncate">{latestDoc.originalName}</span>
+                                    <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                                    <span className="font-semibold text-white truncate">{latestDoc.originalName}</span>
                                     <span className="text-slate-400 font-mono text-[11px]">
                                       ({(latestDoc.sizeBytes / 1024).toFixed(1)} KB)
                                     </span>
@@ -1788,7 +2034,7 @@ export const AdminDashboardPage: React.FC = () => {
                                       href={`/api/files/requirements/${latestDoc.id}?token=${encodeURIComponent(api.getToken() || '')}`}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-blue hover:text-blue-700"
+                                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300"
                                     >
                                       <ExternalLink className="w-3 h-3" /> View File
                                     </a>
@@ -1796,28 +2042,28 @@ export const AdminDashboardPage: React.FC = () => {
                                 </div>
 
                                 {/* AI Legitimacy Badge & Details */}
-                                <div className="p-3 bg-gradient-to-r from-emerald-50/80 to-blue-50/50 border border-emerald-200/80 rounded-xl space-y-1.5 text-xs text-slate-800">
+                                <div className="p-3 bg-slate-800/70 border border-emerald-500/30 rounded-xl space-y-1.5 text-xs text-slate-200">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
-                                      <Sparkles className="w-4 h-4 text-emerald-600" />
-                                      <span className="font-black text-emerald-900">
+                                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                                      <span className="font-black text-emerald-300">
                                         {aiScan ? (aiScan.verdict === 'LEGIT' ? '✓ AI VERIFIED LEGITIMATE' : '⚠ AI FLAGGED FOR MANUAL REVIEW') : '✓ AI VERIFIED LEGITIMATE (Pre-Scan)'}
                                       </span>
-                                      <span className="text-[10px] font-bold bg-white text-emerald-800 border border-emerald-300 px-1.5 py-0.2 rounded">
+                                      <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded">
                                         {aiScan?.confidence || 95}% Match
                                       </span>
                                     </div>
-                                    <span className="text-[10px] font-mono text-slate-500">
+                                    <span className="text-[10px] font-mono text-slate-400">
                                       {aiScan?.engine === 'GEMINI_VISION' ? 'Google Gemini 2.0 Flash' : 'AI LTO Engine'}
                                     </span>
                                   </div>
 
-                                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                                  <p className="text-[11px] text-slate-300 leading-relaxed">
                                     {aiScan?.analysisSummary || "Official credential format verified. Clear typography, valid structure, and customer name match."}
                                   </p>
 
-                                  <div className="flex flex-wrap gap-3 pt-1 text-[11px] font-mono text-slate-600">
-                                    <span>Type: <strong className="text-slate-900">{aiScan?.documentTypeDetected || req.name}</strong></span>
+                                  <div className="flex flex-wrap gap-3 pt-1 text-[11px] font-mono text-slate-400">
+                                    <span>Type: <strong className="text-white">{aiScan?.documentTypeDetected || req.name}</strong></span>
                                     {aiScan?.extractedNumber && (
                                       <span>ID #: <strong className="text-slate-900">{aiScan.extractedNumber}</strong></span>
                                     )}
@@ -1860,7 +2106,44 @@ export const AdminDashboardPage: React.FC = () => {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-xs text-slate-400 italic pt-1">No file uploaded yet by customer.</p>
+                              <div className="pt-2 border-t border-slate-800 space-y-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <p className="text-xs text-slate-400 italic">
+                                    {isApproved ? '✓ Verified and approved by Staff.' : 'No file uploaded yet by customer.'}
+                                  </p>
+
+                                  {!isApproved && (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {/* Staff attach file */}
+                                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-lg shadow-xs transition-colors">
+                                        <Upload className="w-3.5 h-3.5" />
+                                        <span>Attach Document File</span>
+                                        <input
+                                          type="file"
+                                          accept="image/*,application/pdf"
+                                          onChange={(e) => {
+                                            if (e.target.files?.[0]) {
+                                              handleAdminUploadDoc(reqBookingDetail.id, req.id, e.target.files[0]);
+                                            }
+                                          }}
+                                          className="hidden"
+                                        />
+                                      </label>
+
+                                      {/* Staff verify in person / chat */}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleReviewReq(req.id, 'APPROVE')}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow-xs transition-colors"
+                                        title="Mark verified if customer presented ID at the counter or sent via Messenger"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Mark Verified In-Person / Chat</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             )}
                           </div>
                         );
@@ -1887,14 +2170,14 @@ export const AdminDashboardPage: React.FC = () => {
         {activeTab === 'SETTINGS' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* COMPANY INFORMATION CARD */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wider">Company Information</h3>
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 shadow-lg space-y-4 text-xs">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 className="font-bold text-sm text-white uppercase tracking-wider">Company Information</h3>
                 {!isEditingCompany ? (
                   <button
                     type="button"
                     onClick={handleStartEditCompany}
-                    className="flex items-center gap-1 px-2.5 py-1 text-brand-blue hover:bg-blue-50 rounded-lg font-bold text-xs transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1 text-blue-400 hover:bg-slate-800 rounded-lg font-bold text-xs transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                     <span>Edit</span>
@@ -1904,7 +2187,7 @@ export const AdminDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleSaveCompany}
-                      className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs shadow-xs transition-colors"
+                      className="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs shadow-sm transition-colors"
                     >
                       <Save className="w-3.5 h-3.5" />
                       <span>Save</span>
@@ -1912,7 +2195,7 @@ export const AdminDashboardPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsEditingCompany(false)}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs transition-colors"
+                      className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold text-xs transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
                       <span>Cancel</span>
@@ -1922,48 +2205,48 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
 
               {!isEditingCompany ? (
-                <div className="space-y-2 pt-1 text-slate-700">
-                  <p>Name: <strong className="text-slate-900">{settings?.company?.name || 'CUSTOWORKS CAR RENTAL'}</strong></p>
-                  <p>Hotline: <strong className="text-slate-900">{settings?.company?.phone || '0961 722 5326 / 0995 382 7972'}</strong></p>
-                  <p>Location: <strong className="text-slate-900">{settings?.company?.location || 'Carnation Street CBD ll Brgy Triangulo (Beside SM), Naga City, Philippines, 4400'}</strong></p>
-                  <p>Facebook: <strong className="text-slate-900">{settings?.company?.facebook || 'Custoworks Car Rental (fb.com/CustoWorkss)'}</strong></p>
+                <div className="space-y-2.5 pt-1 text-slate-300">
+                  <p>Name: <strong className="text-white font-bold">{settings?.company?.name || 'CUSTOWORKS CAR RENTAL'}</strong></p>
+                  <p>Hotline: <strong className="text-white font-bold">{settings?.company?.phone || '0961 722 5326 / 0995 382 7972'}</strong></p>
+                  <p>Location: <strong className="text-white font-bold">{settings?.company?.location || 'Carnation Street CBD ll Brgy Triangulo (Beside SM), Naga City, Philippines, 4400'}</strong></p>
+                  <p>Facebook: <strong className="text-white font-bold">{settings?.company?.facebook || 'Custoworks Car Rental (fb.com/CustoWorkss)'}</strong></p>
                 </div>
               ) : (
                 <div className="space-y-3 pt-1">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Company / Business Name</label>
+                    <label className="block font-bold text-slate-300 mb-1">Company / Business Name</label>
                     <input
                       type="text"
                       value={companyForm.name}
                       onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold text-slate-900"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 font-bold text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Hotline / Contact Number</label>
+                    <label className="block font-bold text-slate-300 mb-1">Hotline / Contact Number</label>
                     <input
                       type="text"
                       value={companyForm.phone}
                       onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold text-slate-900"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 font-bold text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Head Office Location</label>
+                    <label className="block font-bold text-slate-300 mb-1">Head Office Location</label>
                     <input
                       type="text"
                       value={companyForm.location}
                       onChange={(e) => setCompanyForm({ ...companyForm, location: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold text-slate-900"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 font-bold text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Facebook Page Name</label>
+                    <label className="block font-bold text-slate-300 mb-1">Facebook Page Name</label>
                     <input
                       type="text"
                       value={companyForm.facebook}
                       onChange={(e) => setCompanyForm({ ...companyForm, facebook: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 font-bold text-slate-900"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 font-bold text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -1971,38 +2254,38 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
 
             {/* CONFIGURED ADDITIONAL FEES CARD */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wider">Configured Additional Fees</h3>
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 shadow-lg space-y-4 text-xs">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 className="font-bold text-sm text-white uppercase tracking-wider">Configured Additional Fees</h3>
                 <button
                   type="button"
                   onClick={handleStartAddFee}
-                  className="flex items-center gap-1 bg-brand-blue hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-xs transition-colors"
+                  className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-md transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add Fee</span>
                 </button>
               </div>
 
-              <div className="space-y-1 divide-y divide-slate-100">
+              <div className="space-y-1 divide-y divide-slate-800/80">
                 {additionalFees.length === 0 ? (
-                  <p className="py-4 text-center text-slate-400">No additional fees configured.</p>
+                  <p className="py-4 text-center text-slate-500">No additional fees configured.</p>
                 ) : (
                   additionalFees.map((f) => (
-                    <div key={f.id} className="flex items-center justify-between py-2 gap-2 hover:bg-slate-50/50 rounded-lg px-1 transition-colors">
+                    <div key={f.id} className="flex items-center justify-between py-2.5 gap-2 hover:bg-slate-800/40 rounded-lg px-1 transition-colors">
                       <div className="min-w-0 flex-1">
-                        <span className="text-slate-800 font-medium block truncate">{f.name}</span>
+                        <span className="text-slate-200 font-medium block truncate">{f.name}</span>
                         {f.type && (
                           <span className="text-[10px] text-slate-400 uppercase tracking-wider">{f.type.replace('_', ' ')}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="font-bold text-slate-900 font-mono text-xs">{formatPeso(f.amount)}</span>
+                        <span className="font-bold text-white font-mono text-xs">{formatPeso(f.amount)}</span>
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => handleStartEditFee(f)}
-                            className="p-1 text-slate-400 hover:text-brand-blue hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-1 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
                             title={`Edit ${f.name}`}
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -2010,7 +2293,7 @@ export const AdminDashboardPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDeleteFee(f)}
-                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors"
                             title={`Delete ${f.name}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -2024,20 +2307,20 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
 
             {/* OFFICIAL PAYMENT ACCOUNTS & QR CODES CARD */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4 text-xs md:col-span-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 p-6 shadow-lg space-y-4 text-xs md:col-span-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900 uppercase tracking-wider">Official Payment Accounts & QR Codes</h3>
-                  <p className="text-slate-500 text-[11px] mt-0.5">Payment accounts and InstaPay QR codes shown to customers upon checkout & booking tracking.</p>
+                  <h3 className="font-bold text-sm text-white uppercase tracking-wider">Official Payment Accounts & QR Codes</h3>
+                  <p className="text-slate-400 text-[11px] mt-0.5">Payment accounts and InstaPay QR codes shown to customers upon checkout & booking tracking.</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="self-start sm:self-auto bg-blue-50 text-brand-blue font-bold px-3 py-1.5 rounded-full text-[11px] border border-blue-100">
+                  <span className="self-start sm:self-auto bg-blue-500/20 text-blue-300 font-bold px-3 py-1.5 rounded-full text-[11px] border border-blue-400/30">
                     Standard Reservation Fee: ₱1,000.00
                   </span>
                   <button
                     type="button"
                     onClick={handleOpenAddPm}
-                    className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-blue-600 text-white font-bold px-3.5 py-1.5 rounded-xl shadow-sm text-xs transition-colors"
+                    className="inline-flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-3.5 py-1.5 rounded-xl shadow-md text-xs transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add Payment Account
@@ -2047,13 +2330,13 @@ export const AdminDashboardPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                 {paymentMethods.length === 0 ? (
-                  <div className="col-span-2 py-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <p className="font-semibold text-xs">No payment accounts configured yet.</p>
+                  <div className="col-span-2 py-8 text-center text-slate-500 bg-slate-800/40 rounded-2xl border border-dashed border-slate-750">
+                    <p className="font-semibold text-xs text-slate-300">No payment accounts configured yet.</p>
                     <p className="text-[11px] mt-0.5">Click &quot;Add Payment Account&quot; to configure GCash, Maya, or Bank accounts.</p>
                   </div>
                 ) : (
                   paymentMethods.map((pm) => (
-                    <div key={pm.id} className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-center sm:items-start bg-slate-50/60 shadow-xs relative hover:border-slate-300 transition-colors">
+                    <div key={pm.id} className="border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row gap-4 items-center sm:items-start bg-slate-800/60 shadow-sm relative hover:border-slate-700 transition-colors">
                       {/* QR Image with Quick Change */}
                       <div className="flex flex-col items-center gap-1.5 shrink-0">
                         {pm.qrImageUrl ? (
@@ -2061,23 +2344,23 @@ export const AdminDashboardPage: React.FC = () => {
                             <img
                               src={pm.qrImageUrl}
                               alt={`${pm.name} QR Code`}
-                              className="w-32 h-auto max-h-40 object-contain rounded-xl border border-slate-200 shadow-sm bg-white p-1"
+                              className="w-32 h-auto max-h-40 object-contain rounded-xl border border-slate-700 shadow-sm bg-white p-1"
                             />
                             <a
                               href={pm.qrImageUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="absolute inset-0 bg-slate-900/60 text-white font-bold text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl transition-opacity"
+                              className="absolute inset-0 bg-slate-900/70 text-white font-bold text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-xl transition-opacity"
                             >
                               View Full Size ↗
                             </a>
                           </div>
                         ) : (
-                          <div className="w-32 h-32 bg-slate-100 rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 text-center p-2 shrink-0 text-[11px]">
+                          <div className="w-32 h-32 bg-slate-800 rounded-xl border border-dashed border-slate-700 flex items-center justify-center text-slate-400 text-center p-2 shrink-0 text-[11px]">
                             No QR Image
                           </div>
                         )}
-                        <label className="cursor-pointer text-[10px] font-bold text-brand-blue hover:underline text-center">
+                        <label className="cursor-pointer text-[10px] font-bold text-blue-400 hover:underline text-center">
                           <span>{pm.qrImageUrl ? 'Change QR Image' : 'Upload QR Image'}</span>
                           <input
                             type="file"
@@ -2093,15 +2376,15 @@ export const AdminDashboardPage: React.FC = () => {
                       </div>
 
                       <div className="space-y-1.5 flex-1 min-w-0 text-center sm:text-left w-full">
-                        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-200/60 pb-1.5">
+                        <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-700/80 pb-1.5">
                           <div className="flex items-center gap-2">
-                            <h4 className="font-extrabold text-slate-900 text-sm">{pm.name}</h4>
-                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                              pm.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                            <h4 className="font-extrabold text-white text-sm">{pm.name}</h4>
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
+                              pm.isActive ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-slate-750 text-slate-400 border-slate-700'
                             }`}>
                               {pm.isActive ? 'ACTIVE' : 'INACTIVE'}
                             </span>
-                            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">
                               {pm.code}
                             </span>
                           </div>
@@ -2111,7 +2394,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenEditPm(pm)}
-                              className="p-1.5 text-slate-500 hover:text-brand-blue hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-lg transition-colors"
                               title={`Edit ${pm.name}`}
                             >
                               <Pencil className="w-3.5 h-3.5" />
@@ -2119,7 +2402,7 @@ export const AdminDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleDeletePm(pm)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 rounded-lg transition-colors"
                               title={`Delete ${pm.name}`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -2127,13 +2410,13 @@ export const AdminDashboardPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <p className="text-slate-600">
-                          Account Name: <strong className="text-slate-900">{pm.accountName || 'N/A'}</strong>
+                        <p className="text-slate-300">
+                          Account Name: <strong className="text-white">{pm.accountName || 'N/A'}</strong>
                         </p>
-                        <p className="text-slate-600">
-                          Account Number: <strong className="font-mono text-brand-navy font-bold text-sm">{pm.accountNumber || 'N/A'}</strong>
+                        <p className="text-slate-300">
+                          Account Number: <strong className="font-mono text-blue-400 font-bold text-sm">{pm.accountNumber || 'N/A'}</strong>
                         </p>
-                        <p className="text-slate-500 text-[11px] bg-white p-2.5 rounded-xl border border-slate-200 leading-relaxed">
+                        <p className="text-slate-300 text-[11px] bg-slate-850 p-2.5 rounded-xl border border-slate-750 leading-relaxed">
                           {pm.instructions || 'No instructions provided.'}
                         </p>
                       </div>
@@ -2869,8 +3152,8 @@ export const AdminDashboardPage: React.FC = () => {
                     <span className="font-mono font-extrabold text-slate-900">{formatPeso(fin.totalAmount)}</span>
                   </div>
                   <div className="flex justify-between items-center text-emerald-700">
-                    <span>Less: Reservation Fee Paid:</span>
-                    <span className="font-mono font-bold">- {formatPeso(fin.reservationFeePaid)}</span>
+                    <span>Reservation Fee / Security Deposit (Held):</span>
+                    <span className="font-mono font-bold">{formatPeso(fin.reservationFeePaid)} (Refundable upon return)</span>
                   </div>
                   {fin.rentalBalancePaid > 0 && (
                     <div className="flex justify-between items-center text-blue-700">
@@ -2887,7 +3170,7 @@ export const AdminDashboardPage: React.FC = () => {
                 <div className="mt-2 pt-2 border-t border-blue-100 flex items-start gap-2 text-[11px] text-blue-900/80 bg-white/60 p-2.5 rounded-xl">
                   <Shield className="w-4 h-4 text-brand-blue shrink-0 mt-0.5" />
                   <p>
-                    <strong>Security Deposit Policy:</strong> The customer's ₱1,000 reservation fee serves as their security deposit. It is held during the rental and inspected & refunded immediately upon return of the vehicle.
+                    <strong>Refundable Security Deposit Policy:</strong> The customer pays the full rental amount of <strong>{formatPeso(fin.totalAmount)}</strong> upon vehicle pickup. The ₱1,000 reservation fee serves as their security deposit and will be refunded immediately after vehicle inspection upon return.
                   </p>
                 </div>
               </div>
