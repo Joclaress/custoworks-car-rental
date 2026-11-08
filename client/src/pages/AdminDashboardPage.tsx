@@ -1114,7 +1114,7 @@ export const AdminDashboardPage: React.FC = () => {
                       {formatPeso(stats.thisMonthRevenue ?? stats.totalRevenue)}
                     </span>
                     <p className="text-xs text-slate-300 mt-1.5">
-                      Gross collected this month from reservation fees (₱500) and vehicle rental balances.
+                      Gross collected this month from reservation fees (₱1,000) and vehicle rental balances.
                     </p>
                   </div>
 

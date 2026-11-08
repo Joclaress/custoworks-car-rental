@@ -45,7 +45,7 @@ async function seedSampleRentals() {
   const admin = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
 
   // 5. Create multiple 24h Mirage bookings for this month (November 2026)
-  // Example: 24hrs = ₱2,500 per booking (₱500 reservation fee + ₱2,000 rental balance)
+  // Example: 24hrs = ₱2,500 per booking (₱1,000 reservation fee + ₱1,500 rental balance)
   const sampleBookings = [
     {
       vehicleId: mirage.id,
@@ -55,8 +55,8 @@ async function seedSampleRentals() {
       daysAgo: 6,
       durationHours: 24,
       totalAmount: 2500,
-      reservationFee: 500,
-      balance: 2000,
+      reservationFee: 1000,
+      balance: 1500,
       status: 'COMPLETED' as const,
       paymentMethodId: gcash?.id || '',
       note: '24-hour self-drive around Naga City. Clean return.',
@@ -69,8 +69,8 @@ async function seedSampleRentals() {
       daysAgo: 4,
       durationHours: 24,
       totalAmount: 2500,
-      reservationFee: 500,
-      balance: 2000,
+      reservationFee: 1000,
+      balance: 1500,
       status: 'COMPLETED' as const,
       paymentMethodId: bdo?.id || '',
       note: '24-hour trip to Pili & Naga CBD. All verified.',
@@ -83,8 +83,8 @@ async function seedSampleRentals() {
       daysAgo: 2,
       durationHours: 24,
       totalAmount: 2500,
-      reservationFee: 500,
-      balance: 2000,
+      reservationFee: 1000,
+      balance: 1500,
       status: 'COMPLETED' as const,
       paymentMethodId: gcash?.id || '',
       note: '24-hour business meeting rental in Naga.',
@@ -97,8 +97,8 @@ async function seedSampleRentals() {
       daysAgo: 1,
       durationHours: 24,
       totalAmount: 2500,
-      reservationFee: 500,
-      balance: 2000,
+      reservationFee: 1000,
+      balance: 1500,
       status: 'ONGOING' as const,
       paymentMethodId: gcash?.id || '',
       note: 'Active 24hr rental today. Vehicle released.',
@@ -111,8 +111,8 @@ async function seedSampleRentals() {
       daysAgo: 0,
       durationHours: 24,
       totalAmount: 2500,
-      reservationFee: 500,
-      balance: 2000,
+      reservationFee: 1000,
+      balance: 1500,
       status: 'CONFIRMED' as const,
       paymentMethodId: bdo?.id || '',
       note: 'Confirmed upcoming 24h rental. Reservation fee paid.',
@@ -129,8 +129,8 @@ async function seedSampleRentals() {
       daysAgo: 5,
       durationHours: 48,
       totalAmount: 4000,
-      reservationFee: 500,
-      balance: 3500,
+      reservationFee: 1000,
+      balance: 3000,
       status: 'COMPLETED' as const,
       paymentMethodId: gcash?.id || '',
       note: '2-day Vios rental to Albay.',
@@ -146,8 +146,8 @@ async function seedSampleRentals() {
       daysAgo: 3,
       durationHours: 24,
       totalAmount: 3500,
-      reservationFee: 500,
-      balance: 3000,
+      reservationFee: 1000,
+      balance: 2500,
       status: 'COMPLETED' as const,
       paymentMethodId: bdo?.id || '',
       note: '1-day family tour Innova rental.',
@@ -201,7 +201,7 @@ async function seedSampleRentals() {
 
     console.log(`Created booking: ${ref} for ${b.customerName} (PHP ${b.totalAmount})`);
 
-    // 1. Reservation Fee Payment (₱500)
+    // 1. Reservation Fee Payment (₱1,000)
     await prisma.payment.create({
       data: {
         bookingId: booking.id,

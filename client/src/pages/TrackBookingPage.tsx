@@ -282,7 +282,7 @@ export const TrackBookingPage: React.FC = () => {
               <div className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
                 {booking.status === 'PENDING_PAYMENT' && (
                   <p>
-                    ⏳ <strong>Awaiting Reservation Fee:</strong> Please upload your ₱500 reservation fee receipt below to lock your schedule.
+                    ⏳ <strong>Awaiting Reservation Fee:</strong> Please upload your {formatPeso(booking.reservationFee || 1000)} reservation fee receipt below to lock your schedule.
                   </p>
                 )}
                 {booking.status === 'PAYMENT_VERIFICATION' && (
@@ -409,7 +409,7 @@ export const TrackBookingPage: React.FC = () => {
                     pickupAt={booking.pickupAt}
                     returnAt={booking.returnAt}
                     status={booking.status}
-                    reservationFee={500}
+                    reservationFee={booking.reservationFee || 1000}
                     customerName={booking.customerName}
                     customerPhone={booking.customerPhone}
                   />
@@ -541,7 +541,7 @@ export const TrackBookingPage: React.FC = () => {
 
                   <div className="p-3 bg-slate-50 rounded-xl space-y-2 pt-2 border border-slate-200">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-600 font-semibold">₱500 Reservation Fee:</span>
+                      <span className="text-slate-600 font-semibold">{formatPeso(booking.reservationFee || 1000)} Reservation Fee:</span>
                       {booking.payments?.some((p) => p.status === 'APPROVED') ? (
                         <span className="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-[11px] flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Verified
