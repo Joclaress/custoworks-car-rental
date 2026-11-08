@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { TieUpAgreementModal } from '../components/TieUpAgreementModal';
 import {
   Car,
   TrendingUp,
@@ -23,6 +24,12 @@ import {
   Send,
   Loader2,
   Users,
+  FileText,
+  AlertTriangle,
+  Radio,
+  FileSignature,
+  Printer,
+  ChevronDown,
 } from 'lucide-react';
 
 interface CalculatorPreset {
@@ -64,6 +71,9 @@ export const PartnerProgramPage: React.FC = () => {
   const partner80Percent = monthlyGross - custoworks20Percent;
   const annualEarnings = partner80Percent * 12;
 
+  // Agreement Modal state
+  const [isAgreementOpen, setIsAgreementOpen] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     fullName: '',
@@ -72,11 +82,17 @@ export const PartnerProgramPage: React.FC = () => {
     city: 'Naga City',
     vehicleMake: '',
     vehicleModel: '',
-    year: 2023,
+    year: 2024,
     transmission: 'AT',
     category: 'SEDAN',
     plateNumber: '',
+    color: '',
+    chassisVin: '',
+    engineNumber: '',
+    gpsBrandImei: '',
+    insurancePolicy: '',
     rentalTypePreference: 'SELF_DRIVE',
+    agreementAccepted: true,
     notes: '',
   });
 
@@ -390,6 +406,110 @@ export const PartnerProgramPage: React.FC = () => {
         </div>
       </section>
 
+      {/* 4.5 Official Tie-Up Agreement & Collision Liability Terms (Section 4 Focus) */}
+      <section className="bg-slate-900 text-white py-20 border-y border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mb-12">
+            <div className="inline-flex items-center gap-2 bg-amber-400/20 border border-amber-400/30 px-3 py-1 rounded-full text-xs font-bold text-amber-300 uppercase tracking-widest mb-3">
+              <FileSignature className="w-3.5 h-3.5" /> Fleet Consignment Agreement Terms
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              Complete Transparency: Collision Liability & Operational Rules
+            </h2>
+            <p className="text-slate-400 text-sm mt-2">
+              We operate under an official 3-page consignment contract. Here is how your investment is safeguarded under Section 4 ("Kung Nabangga ang Sasakyan").
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {/* Term 1 */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <h3 className="font-extrabold text-white text-base">Strict Renter Liability</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                <strong className="text-white">"Ang umupa ang mananagot sa anumang pinsala."</strong> Renters undergo strict LTO LTMS portal identity verification and sign legally binding damage liability waivers before driving.
+              </p>
+            </div>
+
+            {/* Term 2 */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h3 className="font-extrabold text-white text-base">Comprehensive Insurance Claim</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                For major accidents, repairs are filed under the vehicle's Comprehensive Insurance. The renter is strictly billed for the insurance participation / deductible fee and third-party liabilities.
+              </p>
+            </div>
+
+            {/* Term 3 */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <Coins className="w-5 h-5" />
+              </div>
+              <h3 className="font-extrabold text-white text-base">Minor Damage Security Deposit</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                For minor scratches, dents, or bumper scuffs under ₱10,000, repair expenses are deducted immediately from the renter's mandatory cash security deposit upon check-in inspection.
+              </p>
+            </div>
+
+            {/* Term 4 */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                <Clock className="w-5 h-5" />
+              </div>
+              <h3 className="font-extrabold text-white text-base">Zero Downtime Compensation</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                <strong className="text-white">"Walang Daily Income Kapag Nakatambay Dahil sa Bangga."</strong> In the event of an accident or repair shop stay, Custoworks and the vehicle owner share the commercial reality of zero income during shop downtime.
+              </p>
+            </div>
+
+            {/* Term 5 */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                <Radio className="w-5 h-5" />
+              </div>
+              <h3 className="font-extrabold text-white text-base">24/7 GPS with Remote Shut-Off</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Every fleet vehicle is fitted with an active 24/7 GPS tracker with real-time speed monitoring, geofence boundary alerts (Bicol Region), and instant remote engine kill in case of unauthorized deviation.
+              </p>
+            </div>
+
+            {/* Term 6 */}
+            <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                <FileCheck2 className="w-5 h-5" />
+              </div>
+              <h3 className="font-extrabold text-white text-base">24-Hour Police Blotter Protocol</h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                In any road incident, Custoworks dispatch and the renter immediately file a local Police Blotter and Traffic Accident Investigation Report (TAIR) within 24 hours to preserve insurance admissibility.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-blue-900/60 via-slate-800 to-slate-900 border border-blue-500/30 rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-1.5 text-center md:text-left">
+              <h4 className="text-lg font-black text-white flex items-center justify-center md:justify-start gap-2">
+                <FileText className="w-5 h-5 text-amber-400" />
+                Read the Official 3-Page Fleet Consignment Agreement
+              </h4>
+              <p className="text-xs text-slate-300 max-w-xl">
+                Review the complete legal text covering operational scope, revenue remittance, 3-month term & pull-out rules, and complete Schedule A fleet specifications.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsAgreementOpen(true)}
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs px-6 py-3.5 rounded-xl shadow-lg shadow-amber-400/20 flex items-center gap-2 shrink-0 transition-transform active:scale-95"
+            >
+              <FileSignature className="w-4 h-4 text-slate-950" />
+              View & Print Official Contract
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* 5. Application Form */}
       <section id="apply-form" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
@@ -603,8 +723,87 @@ export const PartnerProgramPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Section C: Rental Type Preference & Notes */}
-                <div className="pt-4">
+                {/* Section C: Contract Schedule A Details (Optional / Pre-fill) */}
+                <div className="pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                    <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <FileCheck2 className="w-4 h-4 text-brand-blue" /> Schedule A Fleet Details (Optional / Pre-fills Contract)
+                    </h3>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase bg-slate-100 px-2 py-0.5 rounded">
+                      Can be completed later
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Color
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.color}
+                        onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                        placeholder="e.g. Pearl White / Gray"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Chassis / VIN Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.chassisVin}
+                        onChange={(e) => setFormData({ ...formData, chassisVin: e.target.value })}
+                        placeholder="Found on OR/CR"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Engine Number
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.engineNumber}
+                        onChange={(e) => setFormData({ ...formData, engineNumber: e.target.value })}
+                        placeholder="Found on OR/CR"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Active GPS Brand & IMEI
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.gpsBrandImei}
+                        onChange={(e) => setFormData({ ...formData, gpsBrandImei: e.target.value })}
+                        placeholder="Or leave blank if Custoworks will install"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Comprehensive Insurance Policy #
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.insurancePolicy}
+                        onChange={(e) => setFormData({ ...formData, insurancePolicy: e.target.value })}
+                        placeholder="e.g. Standard Insurance / FPG / Malayan (Policy No.)"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section D: Rental Type Preference & Notes */}
+                <div className="pt-4 border-t border-slate-100">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -632,6 +831,34 @@ export const PartnerProgramPage: React.FC = () => {
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-blue focus:outline-none"
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* Section E: Legal Agreement Acceptance */}
+                <div className="pt-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.agreementAccepted}
+                      onChange={(e) => setFormData({ ...formData, agreementAccepted: e.target.checked })}
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
+                      required
+                    />
+                    <div className="text-xs text-slate-700 leading-relaxed">
+                      <span className="font-extrabold text-slate-900">
+                        I confirm my understanding and acceptance of the Fleet Consignment & Collision Liability Terms:
+                      </span>{' '}
+                      80% Partner payout / 20% Custoworks management fee, minimum 3-month partnership term, strict renter accident liability, and zero daily downtime compensation during body repairs (Section 4).
+                    </div>
+                  </label>
+                  <div className="pl-7">
+                    <button
+                      type="button"
+                      onClick={() => setIsAgreementOpen(true)}
+                      className="text-xs font-bold text-brand-blue hover:text-blue-800 underline flex items-center gap-1.5"
+                    >
+                      <FileSignature className="w-3.5 h-3.5" /> Read and preview the full 3-page printable agreement
+                    </button>
                   </div>
                 </div>
 
@@ -696,6 +923,13 @@ export const PartnerProgramPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* Official Tie-Up Agreement Modal */}
+      <TieUpAgreementModal
+        isOpen={isAgreementOpen}
+        onClose={() => setIsAgreementOpen(false)}
+        partnerDetails={formData}
+      />
     </div>
   );
 };

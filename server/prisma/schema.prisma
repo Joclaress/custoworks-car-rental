@@ -790,10 +790,16 @@ model PartnerApplication {
   year                  Int
   transmission          Transmission  @default(AT)
   category              VehicleCategory @default(SEDAN)
+  color                 String?
   plateNumber           String?       @map("plate_number")
+  chassisVin            String?       @map("chassis_vin")
+  engineNumber          String?       @map("engine_number")
+  gpsBrandImei          String?       @map("gps_brand_imei")
+  insurancePolicy       String?       @map("insurance_policy")
   rentalTypePreference  RentalType    @default(SELF_DRIVE) @map("rental_type_preference")
   partnerSharePercent   Decimal       @default(80.00) @map("partner_share_percent") @db.Decimal(5, 2)
   custoworksFeePercent  Decimal       @default(20.00) @map("custoworks_fee_percent") @db.Decimal(5, 2)
+  agreementAccepted     Boolean       @default(true) @map("agreement_accepted")
   status                PartnerStatus @default(PENDING)
   notes                 String?
   createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz

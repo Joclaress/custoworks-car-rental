@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { TieUpAgreementModal } from '../TieUpAgreementModal';
 import {
   Car,
   Users,
@@ -20,6 +21,9 @@ import {
   Loader2,
   DollarSign,
   ChevronDown,
+  FileText,
+  FileSignature,
+  Printer,
 } from 'lucide-react';
 
 interface PartnerApplication {
@@ -35,6 +39,12 @@ interface PartnerApplication {
   category: string;
   plateNumber: string | null;
   rentalTypePreference: string;
+  color?: string | null;
+  chassisVin?: string | null;
+  engineNumber?: string | null;
+  gpsBrandImei?: string | null;
+  insurancePolicy?: string | null;
+  agreementAccepted?: boolean;
   partnerSharePercent: number | string;
   custoworksFeePercent: number | string;
   status: 'PENDING' | 'CONTACTED' | 'APPROVED' | 'REJECTED';
@@ -50,6 +60,7 @@ export const AdminPartnersTab: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<{ [id: string]: string }>({});
+  const [selectedAppForAgreement, setSelectedAppForAgreement] = useState<PartnerApplication | null>(null);
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -304,7 +315,37 @@ export const AdminPartnersTab: React.FC = () => {
                 </div>
               </div>
 
-              {/* Quick Communication & Notes */}
+              {/* Schedule A Fleet Details (If provided) */}
+              {(app.color || app.chassisVin || app.engineNumber || app.gpsBrandImei || app.insurancePolicy) && (
+                <div className="bg-slate-950/40 p-3 rounded-xl border border-slate-800/60 text-xs grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-400">
+                  {app.color && (
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-500">Color: </span>
+                      <strong className="text-slate-200">{app.color}</strong>
+                    </div>
+                  )}
+                  {app.chassisVin && (
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-500">VIN: </span>
+                      <strong className="text-slate-200">{app.chassisVin}</strong>
+                    </div>
+                  )}
+                  {app.gpsBrandImei && (
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-500">GPS: </span>
+                      <strong className="text-slate-200">{app.gpsBrandImei}</strong>
+                    </div>
+                  )}
+                  {app.insurancePolicy && (
+                    <div>
+                      <span className="text-[10px] uppercase font-semibold text-slate-500">Policy: </span>
+                      <strong className="text-slate-200">{app.insurancePolicy}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Quick Communication, Notes & Print Agreement */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-1">
                 <div className="flex-1 w-full sm:w-auto">
                   <div className="flex items-center gap-2">
@@ -326,8 +367,16 @@ export const AdminPartnersTab: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 1-Click Direct Chat Buttons */}
-                <div className="flex items-center gap-2 shrink-0">
+                {/* Actions: View Agreement, Call, WhatsApp */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setSelectedAppForAgreement(app)}
+                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-all"
+                    title="Generate and Print Pre-Filled 3-Page Consignment Agreement"
+                  >
+                    <FileSignature className="w-3.5 h-3.5 text-slate-950" /> Print Agreement
+                  </button>
+
                   <a
                     href={`tel:${app.phone}`}
                     className="bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 border border-slate-700"
@@ -351,6 +400,33 @@ export const AdminPartnersTab: React.FC = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Tie-Up Consignment Agreement Modal for Printing / Review */}
+      {selectedAppForAgreement && (
+        <TieUpAgreementModal
+          isOpen={!!selectedAppForAgreement}
+          onClose={() => setSelectedAppForAgreement(null)}
+          partnerDetails={{
+            fullName: selectedAppForAgreement.fullName,
+            phone: selectedAppForAgreement.phone,
+            email: selectedAppForAgreement.email,
+            city: selectedAppForAgreement.city,
+            vehicleMake: selectedAppForAgreement.vehicleMake,
+            vehicleModel: selectedAppForAgreement.vehicleModel,
+            year: selectedAppForAgreement.year,
+            transmission: selectedAppForAgreement.transmission,
+            category: selectedAppForAgreement.category,
+            plateNumber: selectedAppForAgreement.plateNumber || undefined,
+            color: selectedAppForAgreement.color || undefined,
+            chassisVin: selectedAppForAgreement.chassisVin || undefined,
+            engineNumber: selectedAppForAgreement.engineNumber || undefined,
+            gpsBrandImei: selectedAppForAgreement.gpsBrandImei || undefined,
+            insurancePolicy: selectedAppForAgreement.insurancePolicy || undefined,
+            partnerSharePercent: selectedAppForAgreement.partnerSharePercent,
+            custoworksFeePercent: selectedAppForAgreement.custoworksFeePercent,
+          }}
+        />
       )}
     </div>
   );
