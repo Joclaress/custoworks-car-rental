@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { InteractiveCalendar } from '../components/InteractiveCalendar';
 import { AdminQuotationsTab } from '../components/admin/AdminQuotationsTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
+import { AdminPartnersTab } from '../components/admin/AdminPartnersTab';
 import { formatPeso, formatDate } from '../lib/utils';
 import {
   LayoutDashboard,
@@ -44,11 +45,12 @@ import {
   ArrowRight,
   Info,
   Upload,
+  Handshake,
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BOOKINGS' | 'CALENDAR' | 'VEHICLES' | 'PRICING' | 'PAYMENTS' | 'REQUIREMENTS' | 'QUOTATIONS' | 'USERS' | 'SETTINGS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BOOKINGS' | 'CALENDAR' | 'VEHICLES' | 'PRICING' | 'PAYMENTS' | 'REQUIREMENTS' | 'QUOTATIONS' | 'USERS' | 'SETTINGS' | 'PARTNERS'>('OVERVIEW');
 
   // Stats & Overview
   const [stats, setStats] = useState<any>(null);
@@ -928,6 +930,7 @@ export const AdminDashboardPage: React.FC = () => {
             { id: 'PAYMENTS', label: 'Payments', icon: Receipt, badge: stats?.pendingPayments, badgeAmber: true },
             { id: 'REQUIREMENTS', label: 'Requirements', icon: FileCheck2 },
             { id: 'QUOTATIONS', label: 'Quotations', icon: FileText },
+            { id: 'PARTNERS', label: 'Tie-Up Partners', icon: Handshake },
             { id: 'USERS', label: 'Staff Accounts', icon: Users },
             { id: 'SETTINGS', label: 'Settings', icon: Settings },
           ].map((tab) => {
@@ -2162,6 +2165,9 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* TAB: QUOTATIONS & CUSTOMER INQUIRIES */}
         {activeTab === 'QUOTATIONS' && <AdminQuotationsTab />}
+
+        {/* TAB: TIE-UP FLEET & PARTNERS */}
+        {activeTab === 'PARTNERS' && <AdminPartnersTab />}
 
         {/* TAB: ADMIN & STAFF USER MANAGEMENT */}
         {activeTab === 'USERS' && <AdminUsersTab />}

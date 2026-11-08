@@ -19,6 +19,7 @@ import { calendarRoutes } from './modules/calendar/calendar.routes';
 import { adminRoutes } from './modules/admin/admin.routes';
 import { fileRoutes } from './modules/files/files.routes';
 import { contactRoutes } from './modules/contact/contact.routes';
+import { partnerRoutes } from './modules/partners/partners.routes';
 
 export const app = express();
 
@@ -78,6 +79,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/partners', partnerRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

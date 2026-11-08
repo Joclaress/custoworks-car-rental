@@ -1013,7 +1013,45 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 8. Call to Action Banner */}
+      {/* 8. Become a Partner Callout Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="bg-gradient-to-r from-slate-900 via-brand-navy to-slate-900 rounded-3xl p-8 sm:p-12 text-white border border-blue-500/30 shadow-2xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8">
+          <div className="space-y-4 max-w-2xl">
+            <div className="inline-flex items-center gap-2 bg-amber-500/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              Car Owners & Fleet Hosts • Naga City & CamSur
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+              Turn Your Car into Passive Income with <span className="text-emerald-400">80% Net Payouts.</span>
+            </h2>
+            <p className="text-slate-300 text-sm leading-relaxed">
+              Consign your sedan, MPV, or van with Custoworks. We handle 100% of the customer screening, GPS tracking, booking contracts, and payment collection. Earn <strong>₱30,000 – ₱48,000/month</strong> while we only take a 20% all-inclusive management fee.
+            </p>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 pt-2">
+              <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-400" /> 80% Owner Share</span>
+              <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-400" /> 20% Custoworks Management</span>
+              <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-400" /> Free GPS & LTMS Screening</span>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3 w-full sm:w-auto">
+            <Link
+              to="/partner"
+              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-sm px-8 py-4 rounded-xl shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all hover:scale-105 text-center"
+            >
+              Become a Tie-Up Partner <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/partner#calculator"
+              className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs px-6 py-3 rounded-xl transition-all text-center"
+            >
+              Calculate Potential Earnings
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 9. Call to Action Banner */}
       <section className="bg-gradient-to-r from-brand-navy to-brand-blue text-white py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>

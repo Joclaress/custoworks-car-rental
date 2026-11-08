@@ -768,3 +768,39 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ----------------------------------------------------------------------------
+// Tie-Up Partner Fleet Program (80% Partner / 20% Custoworks Management Fee)
+// ----------------------------------------------------------------------------
+
+enum PartnerStatus {
+  PENDING
+  CONTACTED
+  APPROVED
+  REJECTED
+}
+
+model PartnerApplication {
+  id                    String        @id @default(uuid()) @db.Uuid
+  fullName              String        @map("full_name")
+  phone                 String
+  email                 String
+  city                  String        @default("Naga City")
+  vehicleMake           String        @map("vehicle_make")
+  vehicleModel          String        @map("vehicle_model")
+  year                  Int
+  transmission          Transmission  @default(AT)
+  category              VehicleCategory @default(SEDAN)
+  plateNumber           String?       @map("plate_number")
+  rentalTypePreference  RentalType    @default(SELF_DRIVE) @map("rental_type_preference")
+  partnerSharePercent   Decimal       @default(80.00) @map("partner_share_percent") @db.Decimal(5, 2)
+  custoworksFeePercent  Decimal       @default(20.00) @map("custoworks_fee_percent") @db.Decimal(5, 2)
+  status                PartnerStatus @default(PENDING)
+  notes                 String?
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("partner_applications")
+}
+

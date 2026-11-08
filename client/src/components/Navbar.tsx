@@ -22,6 +22,7 @@ export const Navbar: React.FC = () => {
     { label: 'Vehicles & Fleet', path: '/vehicles' },
     { label: 'Rates & Pricelist', path: '/rates' },
     { label: 'How It Works', path: '/#process' },
+    { label: 'Become a Partner', path: '/partner', highlight: true },
     { label: 'Contact', path: '/#contact' },
   ];
 
@@ -105,17 +106,26 @@ export const Navbar: React.FC = () => {
         </Link>
 
         {/* Desktop Navigation Links */}
-        <div className="hidden lg:flex items-center gap-3.5 xl:gap-6 text-xs xl:text-sm font-semibold whitespace-nowrap">
+        <div className="hidden lg:flex items-center gap-3 xl:gap-5 text-xs xl:text-sm font-semibold whitespace-nowrap">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               to={link.path}
               onClick={(e) => handleLinkClick(link.path, e)}
-              className={`transition-colors hover:text-blue-300 py-1 ${
-                isLinkActive(link.path) ? 'text-blue-400 font-bold border-b-2 border-blue-400' : 'text-slate-200'
+              className={`transition-all py-1 flex items-center gap-1.5 ${
+                link.highlight
+                  ? 'text-amber-300 hover:text-amber-200 font-extrabold bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-400/40'
+                  : isLinkActive(link.path)
+                  ? 'text-blue-400 font-bold border-b-2 border-blue-400'
+                  : 'text-slate-200 hover:text-blue-300'
               }`}
             >
               {link.label}
+              {link.highlight && (
+                <span className="text-[10px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                  80% Earn
+                </span>
+              )}
             </Link>
           ))}
         </div>
@@ -210,11 +220,20 @@ export const Navbar: React.FC = () => {
               key={link.label}
               to={link.path}
               onClick={(e) => handleLinkClick(link.path, e)}
-              className={`block py-2 font-medium ${
-                isLinkActive(link.path) ? 'text-blue-400 font-semibold' : 'text-slate-300 hover:text-blue-400'
+              className={`flex items-center justify-between py-2 font-medium ${
+                link.highlight
+                  ? 'text-amber-300 font-bold bg-amber-400/10 px-2.5 rounded-lg border border-amber-400/30'
+                  : isLinkActive(link.path)
+                  ? 'text-blue-400 font-semibold'
+                  : 'text-slate-300 hover:text-blue-400'
               }`}
             >
-              {link.label}
+              <span>{link.label}</span>
+              {link.highlight && (
+                <span className="text-[10px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.5 rounded-full uppercase">
+                  80% Payout
+                </span>
+              )}
             </Link>
           ))}
           <div className="pt-4 border-t border-slate-800 flex flex-col gap-2">

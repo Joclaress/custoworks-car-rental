@@ -14,6 +14,7 @@ import { CustomerDashboardPage } from './pages/CustomerDashboardPage';
 import { TrackBookingPage } from './pages/TrackBookingPage';
 import { ContactPage } from './pages/ContactPage';
 import { PriceListPage } from './pages/PriceListPage';
+import { PartnerProgramPage } from './pages/PartnerProgramPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -60,6 +61,8 @@ export const App: React.FC = () => {
               <Route path="/book" element={<BookingWizardPage />} />
               <Route path="/track" element={<TrackBookingPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/partner" element={<PartnerProgramPage />} />
+              <Route path="/become-a-partner" element={<PartnerProgramPage />} />
 
               {/* Protected Customer Routes */}
               <Route
