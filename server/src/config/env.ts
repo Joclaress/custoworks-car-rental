@@ -6,7 +6,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   CLIENT_URL: z.string().default('http://localhost:5173'),
   API_URL: z.string().default('http://localhost:4000'),
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z.string().default('postgresql://postgres:postgres@localhost:5432/custoworks?schema=public'),
   JWT_ACCESS_SECRET: z
     .string()
     .optional()

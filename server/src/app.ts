@@ -8,6 +8,7 @@ import { env, isProd } from './config/env';
 import { globalLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/error';
 import { localPublicDir } from './services/storage.service';
+import { prisma } from './lib/prisma';
 
 import { authRoutes } from './modules/auth/auth.routes';
 import { vehicleRoutes } from './modules/vehicles/vehicles.routes';
@@ -59,10 +60,22 @@ app.use(globalLimiter);
 // Public uploads folder (vehicle photos, public QR codes)
 app.use('/uploads/public', express.static(localPublicDir));
 
-// Health check endpoint
-app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
+// Health check endpoint with database connectivity check
+app.get('/api/health', async (_req, res) => {
+  let dbStatus = 'disconnected';
+  let dbError: string | null = null;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = 'connected';
+  } catch (err: any) {
+    dbError = err.message || 'Unable to connect to database';
+  }
+
+  const isHealthy = dbStatus === 'connected';
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'ok' : 'database_disconnected',
+    database: dbStatus,
+    dbError,
     service: 'Custoworks Car Rental API',
     timestamp: new Date().toISOString(),
   });
