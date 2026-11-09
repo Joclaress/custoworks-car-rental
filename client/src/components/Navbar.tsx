@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search, MapPin, Megaphone } from 'lucide-react';
+import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search, MapPin, Megaphone, ArrowRight } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -22,8 +22,8 @@ export const Navbar: React.FC = () => {
     { label: 'Fleet', path: '/vehicles' },
     { label: 'Rates', path: '/rates' },
     { label: 'How It Works', path: '/#process' },
-    { label: 'Local Sponsors', path: '/#sponsors' },
-    { label: 'Become a Partner', path: '/partner', highlight: true },
+    { label: 'Partner With Us / Advertise Here', path: '/#sponsors' },
+    { label: 'Become a Partner (80% Net)', path: '/partner', highlight: true },
     { label: 'Contact', path: '/#contact' },
   ];
 
@@ -64,7 +64,34 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-50 bg-brand-navy border-b border-brand-navy-light/40 shadow-lg text-white">
-      {/* Top Banner */}
+      {/* Top Sponsor Banner Placement Bar */}
+      <div className="bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 text-slate-950 text-xs py-1.5 px-4 shadow-sm border-b border-amber-500/30">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+          <div className="flex items-center gap-2 text-center sm:text-left">
+            <span className="bg-slate-950 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+              Top Banner Placement
+            </span>
+            <span className="text-slate-950 text-xs font-bold">
+              🏨 <strong>Calling Naga & Bicol Hotels, Resorts & Shops:</strong> Travelers renting cars are looking for places to stay & visit!
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="text-[11px] font-black bg-slate-950/10 text-slate-900 px-2 py-0.5 rounded-md border border-slate-900/10 hidden md:inline">
+              ₱3,000/mo or 14-Day Free Trial
+            </span>
+            <a
+              href="/#sponsors"
+              onClick={(e) => handleLinkClick('/#sponsors', e)}
+              className="bg-slate-950 hover:bg-slate-800 text-white font-black text-[11px] px-3 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
+            >
+              <span>Partner With Us / Advertise Here</span>
+              <ArrowRight className="w-3 h-3 text-amber-400" />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Dispatch & Location Sub-Bar */}
       <div className="bg-brand-navy-dark text-slate-300 text-xs py-1.5 px-4 hidden md:block border-b border-white/5">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">

@@ -294,25 +294,29 @@ export const LocalSponsorBanner: React.FC = () => {
             <div>
               <div className="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Banner Placement Open
+                Top Banner Placement Available
               </div>
 
               <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                Advertise Your Business to Bicol Travelers
+                Advertise Your Hotel, Resort or Shop to Bicol Travelers
               </h3>
 
+              <div className="mt-2.5 inline-block bg-amber-400 text-slate-950 font-black text-xs px-2.5 py-1 rounded-lg shadow-sm">
+                ₱3,000 / month • or 14-Day Free Trial Exposure
+              </div>
+
               <p className="text-xs text-slate-300 mt-3 leading-relaxed">
-                Connect directly with tourists, visiting balikbayans, executives, and local families renting vehicles in Naga City.
+                Connect directly with tourists, visiting balikbayans, executives, and local families renting vehicles in Naga City looking for accommodations & places to go.
               </p>
 
               <div className="space-y-2 mt-4 pt-3 border-t border-white/10 text-xs text-slate-200">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Featured homepage banner slot with clickable link</span>
+                  <span><strong>Top Header Banner</strong> placement seen on every page visit</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Reach 5,000+ active car renters every month</span>
+                  <span>Reach 5,000+ active car renters looking for lodging & dining</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -320,7 +324,7 @@ export const LocalSponsorBanner: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Flat monthly sponsorship — zero commissions taken</span>
+                  <span>Flat ₱3,000/mo — zero commission on your bookings</span>
                 </div>
               </div>
             </div>
@@ -453,6 +457,17 @@ export const LocalSponsorBanner: React.FC = () => {
               ) : (
                 <form onSubmit={handleInquirySubmit} className="space-y-4">
                   
+                  {/* Special Offer Alert Callout */}
+                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-900">
+                    <span className="text-base shrink-0">🎁</span>
+                    <div>
+                      <strong className="font-extrabold text-amber-950">14-Day Free Trial Available:</strong>
+                      <p className="text-[11px] text-amber-800 mt-0.5">
+                        New local hotels, resorts, and auto shops get a 14-day exposure trial! Continued placement is only <strong>₱3,000/month flat</strong> with zero commissions.
+                      </p>
+                    </div>
+                  </div>
+
                   {/* Banner Slot Options Selection */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -460,9 +475,9 @@ export const LocalSponsorBanner: React.FC = () => {
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                       {[
-                        { id: 'Homepage Prime Banner', label: 'Homepage Prime', sub: 'High Foot Traffic' },
-                        { id: 'Confirmation Voucher Banner', label: 'Renter Vouchers', sub: 'Sent on Confirmation' },
-                        { id: 'Fleet & Rate Cards Banner', label: 'Fleet & Rates', sub: 'Customer Booking View' },
+                        { id: 'Top Header Sticky Banner', label: 'Top Header Banner', sub: '₱3k/mo or 14-Day Free Trial' },
+                        { id: 'Homepage Prime Showcase', label: 'Homepage Showcase', sub: 'Local Partners Grid' },
+                        { id: 'Confirmation Voucher Slip', label: 'Renter Vouchers', sub: 'Sent on Confirmation' },
                       ].map((slot) => (
                         <label
                           key={slot.id}
