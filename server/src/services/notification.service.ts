@@ -12,8 +12,8 @@ function getTransport(): Transporter {
   if (transporter) return transporter;
 
   const host = env.SMTP_HOST || 'smtp.gmail.com';
-  const port = env.SMTP_PORT || 465;
-  const secure = env.SMTP_SECURE ?? true;
+  const port = env.SMTP_PORT || 587;
+  const secure = env.SMTP_SECURE ?? false;
   const user = env.SMTP_USER || 'custoworks1@gmail.com';
   const pass = env.SMTP_PASS || 'fzataexaujzygovd';
 
@@ -23,8 +23,12 @@ function getTransport(): Transporter {
       port,
       secure,
       auth: { user, pass },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
+      tls: {
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     });
   } else {
     if (env.NODE_ENV === 'production') {
