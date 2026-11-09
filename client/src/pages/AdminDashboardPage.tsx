@@ -1403,7 +1403,7 @@ export const AdminDashboardPage: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-slate-300 mt-1.5">
-                      Combined total of online reservation fees & rental balances + manual offline trips (BIA airport runs, walk-ins).
+                      Combined total of net online rental earnings (with refundable security deposits deducted upon return) + manual offline trips (BIA airport runs, walk-ins).
                     </p>
 
                     {/* Financial Breakdown Grid */}

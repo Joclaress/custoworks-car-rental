@@ -30,8 +30,10 @@ export async function getDashboardStats(_req: Request, res: Response) {
     pendingPayments,
     totalVehicles,
     activeRentalsCount,
-    revenueData,
-    thisMonthRevenueData,
+    revenueInflow,
+    revenueOutflow,
+    thisMonthInflow,
+    thisMonthOutflow,
     thisMonthBookingsCount,
     vehiclePayments,
     recentBookings,
@@ -61,17 +63,27 @@ export async function getDashboardStats(_req: Request, res: Response) {
     prisma.booking.count({
       where: { status: 'ONGOING' },
     }),
+    // 7. All-time revenue inflows (rentals, reservations, additional charges, deposits)
     prisma.payment.aggregate({
       where: {
         status: 'APPROVED',
-        type: { in: ['RESERVATION_FEE', 'RENTAL_BALANCE', 'ADDITIONAL_CHARGE'] },
+        type: { in: ['RESERVATION_FEE', 'RENTAL_BALANCE', 'ADDITIONAL_CHARGE', 'SECURITY_DEPOSIT'] },
       },
       _sum: { amount: true },
     }),
+    // 8. All-time outflows / refunds (returned security deposits and refunds)
     prisma.payment.aggregate({
       where: {
         status: 'APPROVED',
-        type: { in: ['RESERVATION_FEE', 'RENTAL_BALANCE', 'ADDITIONAL_CHARGE'] },
+        type: { in: ['SECURITY_DEPOSIT_REFUND', 'REFUND'] },
+      },
+      _sum: { amount: true },
+    }),
+    // 9. This month revenue inflows
+    prisma.payment.aggregate({
+      where: {
+        status: 'APPROVED',
+        type: { in: ['RESERVATION_FEE', 'RENTAL_BALANCE', 'ADDITIONAL_CHARGE', 'SECURITY_DEPOSIT'] },
         OR: [
           { paidAt: { gte: startOfMonth, lt: endOfMonth } },
           { paidAt: null, createdAt: { gte: startOfMonth, lt: endOfMonth } },
@@ -79,21 +91,36 @@ export async function getDashboardStats(_req: Request, res: Response) {
       },
       _sum: { amount: true },
     }),
+    // 10. This month revenue outflows / refunds
+    prisma.payment.aggregate({
+      where: {
+        status: 'APPROVED',
+        type: { in: ['SECURITY_DEPOSIT_REFUND', 'REFUND'] },
+        OR: [
+          { paidAt: { gte: startOfMonth, lt: endOfMonth } },
+          { paidAt: null, createdAt: { gte: startOfMonth, lt: endOfMonth } },
+        ],
+      },
+      _sum: { amount: true },
+    }),
+    // 11. Bookings count this month
     prisma.booking.count({
       where: {
         createdAt: { gte: startOfMonth, lt: endOfMonth },
       },
     }),
+    // 12. Vehicle payments (both inflows and refunds to reflect net rental revenue per vehicle)
     prisma.payment.findMany({
       where: {
         status: 'APPROVED',
-        type: { in: ['RESERVATION_FEE', 'RENTAL_BALANCE', 'ADDITIONAL_CHARGE'] },
+        type: { in: ['RESERVATION_FEE', 'RENTAL_BALANCE', 'ADDITIONAL_CHARGE', 'SECURITY_DEPOSIT', 'SECURITY_DEPOSIT_REFUND', 'REFUND'] },
         OR: [
           { paidAt: { gte: startOfMonth, lt: endOfMonth } },
           { paidAt: null, createdAt: { gte: startOfMonth, lt: endOfMonth } },
         ],
       },
       select: {
+        type: true,
         amount: true,
         booking: {
           select: {
@@ -129,15 +156,16 @@ export async function getDashboardStats(_req: Request, res: Response) {
   ]);
 
   const availableVehicles = Math.max(0, totalVehicles - activeRentalsCount);
-  const totalRevenue = Number(revenueData._sum.amount || 0);
-  const thisMonthRevenue = Number(thisMonthRevenueData._sum.amount || 0);
+  // Net revenue = Inflows (fees & balances) minus Outflows (refundable security deposit returns & refunds)
+  const totalRevenue = Math.max(0, Number(revenueInflow._sum.amount || 0) - Number(revenueOutflow._sum.amount || 0));
+  const thisMonthRevenue = Math.max(0, Number(thisMonthInflow._sum.amount || 0) - Number(thisMonthOutflow._sum.amount || 0));
 
   // Manual Trip Revenues (e.g. BIA airport pickup/drop, custom chauffeur bookings)
   const manualStats = getManualRevenueStatsForMonth(now.getFullYear(), now.getMonth());
   const combinedThisMonthRevenue = thisMonthRevenue + manualStats.totalGross;
   const combinedTotalRevenue = totalRevenue + manualStats.totalGross;
 
-  // Group vehicle revenues
+  // Group vehicle revenues (deducting deposit refunds so vehicle earnings reflect actual rental income)
   const vehicleRevMap = new Map<string, { id: string; name: string; plateNumber: string; category: string; totalRevenue: number; transactionCount: number }>();
   for (const vp of vehiclePayments) {
     const v = vp.booking?.vehicle;
@@ -150,8 +178,12 @@ export async function getDashboardStats(_req: Request, res: Response) {
       totalRevenue: 0,
       transactionCount: 0,
     };
-    existing.totalRevenue += Number(vp.amount);
-    existing.transactionCount += 1;
+    const isOutflow = vp.type === 'SECURITY_DEPOSIT_REFUND' || vp.type === 'REFUND';
+    const amt = Number(vp.amount);
+    existing.totalRevenue += isOutflow ? -amt : amt;
+    if (!isOutflow) {
+      existing.transactionCount += 1;
+    }
     vehicleRevMap.set(v.id, existing);
   }
 
