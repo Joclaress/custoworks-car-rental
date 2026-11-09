@@ -10,14 +10,29 @@ import { getSettings } from './settings.service';
 let transporter: Transporter | null = null;
 function getTransport(): Transporter {
   if (transporter) return transporter;
-  transporter = env.SMTP_HOST
-    ? nodemailer.createTransport({
-        host: env.SMTP_HOST,
-        port: env.SMTP_PORT,
-        secure: env.SMTP_SECURE,
-        auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
-      })
-    : nodemailer.createTransport({ jsonTransport: true }); // dev: log only
+
+  const host = env.SMTP_HOST || 'smtp.gmail.com';
+  const port = env.SMTP_PORT || 465;
+  const secure = env.SMTP_SECURE ?? true;
+  const user = env.SMTP_USER || 'custoworks1@gmail.com';
+  const pass = env.SMTP_PASS || 'fzataexaujzygovd';
+
+  if (user && pass) {
+    transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user, pass },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+    });
+  } else {
+    if (env.NODE_ENV === 'production') {
+      throw new Error('SMTP credentials are not configured on the production server. Email could not be sent.');
+    }
+    transporter = nodemailer.createTransport({ jsonTransport: true });
+  }
+
   return transporter;
 }
 
@@ -28,8 +43,9 @@ export async function sendEmail(
   text: string,
   attachments?: Array<{ filename: string; content?: any; path?: string; contentType?: string }>
 ) {
-  const info = await getTransport().sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
-  if (!env.SMTP_HOST) console.log(`📧 [mail:dev] to=${to} subject="${subject}" (attachments: ${attachments?.length || 0})`);
+  const transport = getTransport();
+  const info = await transport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
+  console.log(`📧 [mail:sent] to=${to} subject="${subject}" messageId=${info.messageId} (attachments: ${attachments?.length || 0})`);
   return info;
 }
 

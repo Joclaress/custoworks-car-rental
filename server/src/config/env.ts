@@ -25,14 +25,18 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
   CLOUDINARY_FOLDER: z.string().default('custoworks'),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_HOST: z.string().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().default(465),
   SMTP_SECURE: z
-    .string()
+    .union([z.boolean(), z.string()])
     .optional()
-    .transform((v) => v === 'true'),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
+    .transform((v) => {
+      if (typeof v === 'boolean') return v;
+      if (typeof v === 'string') return v === 'true';
+      return true; // default true for port 465
+    }),
+  SMTP_USER: z.string().default('custoworks1@gmail.com'),
+  SMTP_PASS: z.string().default('fzataexaujzygovd'),
   MAIL_FROM: z.string().default('Custoworks Car Rental <custoworks1@gmail.com>'),
   ADMIN_NOTIFY_EMAIL: z.string().optional(),
   SMS_PROVIDER: z.string().optional(),
