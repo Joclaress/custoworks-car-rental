@@ -46,7 +46,7 @@ const SPONSOR_SLOTS: SponsorSlot[] = [
     categoryLabel: 'Carwash & Detailing',
     title: 'Custoworks Carwash and Detailing | Naga City',
     location: 'Carnation St. CBD II Brgy. Triangulo (Beside SM City), Naga City',
-    image: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=800&q=80',
+    image: '/images/carwash.jpg',
     description: 'Premium Snow Foam Wash, Deep Interior Sanitization, Engine Bay Wash & Acid Rain Removal. Keep your vehicle showroom-clean!',
     suggestedPerk: 'Priority Fast Lane Wash & Free Tire Dressing for Renters & Community Drivers',
     isAvailable: false,
