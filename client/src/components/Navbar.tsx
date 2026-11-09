@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search, MapPin, Megaphone, ArrowRight } from 'lucide-react';
+import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search, MapPin, Megaphone, ArrowRight, ExternalLink, Sparkles } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -64,28 +64,36 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-50 bg-brand-navy border-b border-brand-navy-light/40 shadow-lg text-white">
-      {/* Top Sponsor Banner Placement Bar */}
-      <div className="bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 text-slate-950 text-xs py-1.5 px-4 shadow-sm border-b border-amber-500/30">
+      {/* Top Banner: Custoworks Carwash and Detailing */}
+      <div className="bg-gradient-to-r from-blue-950 via-brand-navy to-slate-900 text-white text-xs py-2 px-4 shadow-md border-b border-cyan-500/30">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-2 text-center sm:text-left">
-            <span className="bg-slate-950 text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
-              Top Banner Placement
+            <span className="bg-cyan-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 fill-slate-950" />
+              Official Partner
             </span>
-            <span className="text-slate-950 text-xs font-bold">
-              🏨 <strong>Calling Naga & Bicol Hotels, Resorts & Shops:</strong> Travelers renting cars are looking for places to stay & visit!
+            <span className="text-slate-100 text-xs">
+              🧼 <strong className="text-cyan-300 font-extrabold">Custoworks Carwash and Detailing | Naga City:</strong> Snow Foam Wash, Deep Interior Sanitization & Engine Degreasing at Carnation St (Beside SM Naga).
             </span>
           </div>
           <div className="flex items-center gap-2.5 shrink-0">
-            <span className="text-[11px] font-black bg-slate-950/10 text-slate-900 px-2 py-0.5 rounded-md border border-slate-900/10 hidden md:inline">
-              ₱3,000/mo or 14-Day Free Trial
-            </span>
+            <a
+              href="https://www.facebook.com/profile.php?id=61586727264046"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-[11px] px-3 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1.5"
+            >
+              <span>Visit Carwash Facebook</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            <span className="text-slate-600 hidden md:inline">|</span>
             <a
               href="/#sponsors"
               onClick={(e) => handleLinkClick('/#sponsors', e)}
-              className="bg-slate-950 hover:bg-slate-800 text-white font-black text-[11px] px-3 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
+              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
             >
-              <span>Partner With Us / Advertise Here</span>
-              <ArrowRight className="w-3 h-3 text-amber-400" />
+              <span>+ Add Slot Here (₱3k/mo)</span>
+              <ArrowRight className="w-3 h-3 text-slate-950" />
             </a>
           </div>
         </div>

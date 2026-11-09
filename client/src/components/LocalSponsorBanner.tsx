@@ -3,104 +3,129 @@ import {
   Sparkles,
   MapPin,
   ExternalLink,
-  Tag,
   PhoneCall,
   ArrowRight,
-  ShieldCheck,
   CheckCircle2,
   Megaphone,
   Building2,
   Utensils,
   Compass,
   Wrench,
+  ShoppingBag,
   X,
   MessageCircle,
   Eye,
-  Gift,
+  CreditCard,
+  Calendar,
+  HelpCircle,
 } from 'lucide-react';
 
-export interface SponsorItem {
+export interface SponsorSlot {
   id: string;
-  name: string;
-  category: 'HOTEL' | 'FOOD' | 'ADVENTURE' | 'AUTOCARE';
+  category: 'HOTEL' | 'FOOD' | 'ADVENTURE' | 'AUTOCARE' | 'RETAIL';
   categoryLabel: string;
-  tagline: string;
+  title: string;
   location: string;
-  renterPerk: string;
   image: string;
-  websiteUrl?: string;
-  phone?: string;
-  isFeatured?: boolean;
+  description: string;
+  suggestedPerk: string;
+  isAvailable: boolean;
+  activeBusiness?: {
+    name: string;
+    tagline: string;
+    websiteUrl: string;
+    phone: string;
+  };
 }
 
-const DEFAULT_SPONSORS: SponsorItem[] = [
-  {
-    id: 'cwc-camsur',
-    name: 'CWC CamSur Watersports Complex',
-    category: 'ADVENTURE',
-    categoryLabel: 'Adventure & Sports',
-    tagline: 'World-Class 6-Point Cable Ski Park & Eco-Resort',
-    location: 'Cadlan, Pili, Camarines Sur (15 mins from Naga)',
-    renterPerk: '10% OFF Cable Ski Day Passes with Custoworks Rental Agreement',
-    image: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80',
-    websiteUrl: 'https://cwcwake.com',
-    phone: '0917 500 8920',
-    isFeatured: true,
-  },
-  {
-    id: 'villa-caceres',
-    name: 'Villa Caceres Hotel & Convention Center',
-    category: 'HOTEL',
-    categoryLabel: 'Hotel & Lodging',
-    tagline: 'Victorian-Style Luxury Rooms, Pool & 24/7 RJ Buffet',
-    location: 'Magsaysay Avenue, Naga City',
-    renterPerk: 'Free Secured Overnight Parking & 10% Off RJ Buffet for Renters',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=80',
-    websiteUrl: 'https://villacacereshotel.com',
-    phone: '054 811 6083',
-    isFeatured: true,
-  },
-  {
-    id: 'bob-marlin',
-    name: 'Bob Marlin Restaurant & Grill',
-    category: 'FOOD',
-    categoryLabel: 'Dining & Bicolano Cuisine',
-    tagline: 'Home of the Department of Tourism Award-Winning Crispy Pata',
-    location: 'Magsaysay Avenue, Naga City',
-    renterPerk: 'Complimentary Bicol Express Appetizer with any Family Platter',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
-    websiteUrl: 'https://facebook.com/bobmarlinresto',
-    phone: '054 473 1339',
-  },
-  {
-    id: 'mayon-atv',
-    name: 'Mayon SkyDrive ATV Adventure Tours',
-    category: 'ADVENTURE',
-    categoryLabel: 'Adventure & Tours',
-    tagline: 'Black Lava Trail ATV Rides to the Foot of Mt. Mayon',
-    location: 'Cagsawa Ruins, Albay (1.5 hrs from Naga via Custoworks Car)',
-    renterPerk: '₱300 Voucher on Premium Lava Trail per Custoworks Car Booking',
-    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=600&q=80',
-    websiteUrl: 'https://facebook.com/mayonskydrive',
-    phone: '0977 840 0252',
-  },
+const SPONSOR_SLOTS: SponsorSlot[] = [
+  // 1. ACTIVE SPONSOR: Custoworks Carwash and Detailing
   {
     id: 'custoworks-carwash-detailing',
-    name: 'Custoworks Carwash and Detailing | Naga City',
     category: 'AUTOCARE',
     categoryLabel: 'Carwash & Detailing',
-    tagline: 'Premium Snow Foam Wash, Deep Interior Detailing, Engine Wash & Ceramic Coating in Naga City',
+    title: 'Custoworks Carwash and Detailing | Naga City',
     location: 'Carnation St. CBD II Brgy. Triangulo (Beside SM City), Naga City',
-    renterPerk: 'Priority Fast Lane Wash & Free Tire Dressing for Renters & Community Drivers',
-    image: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=600&q=80',
-    websiteUrl: 'https://www.facebook.com/profile.php?id=61586727264046',
-    phone: '0961 722 5326',
-    isFeatured: true,
+    image: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=800&q=80',
+    description: 'Premium Snow Foam Wash, Deep Interior Sanitization, Engine Bay Wash & Acid Rain Removal. Keep your vehicle showroom-clean!',
+    suggestedPerk: 'Priority Fast Lane Wash & Free Tire Dressing for Renters & Community Drivers',
+    isAvailable: false,
+    activeBusiness: {
+      name: 'Custoworks Carwash and Detailing',
+      tagline: 'Official Auto Detailing Partner of Custoworks in Naga City',
+      websiteUrl: 'https://www.facebook.com/profile.php?id=61586727264046',
+      phone: '0961 722 5326',
+    },
+  },
+
+  // 2. OPEN SLOT: Hotel & Resort
+  {
+    id: 'slot-hotel-resort',
+    category: 'HOTEL',
+    categoryLabel: 'Hotels & Lodging',
+    title: 'Hotel & Resort Sponsor Slot (Available)',
+    location: 'Naga City, Camarines Sur, or Albay',
+    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+    description: 'Incoming travelers renting vehicles need clean, safe, and comfortable accommodations in Naga City & Bicol.',
+    suggestedPerk: 'e.g. 10% Off Room Rate or Free Guest Parking for Custoworks Renters',
+    isAvailable: true,
+  },
+
+  // 3. OPEN SLOT: Restaurant & Dining
+  {
+    id: 'slot-food-dining',
+    category: 'FOOD',
+    categoryLabel: 'Restaurants & Cafes',
+    title: 'Restaurant & Dining Sponsor Slot (Available)',
+    location: 'Magsaysay Ave / Centro Naga / Pili',
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
+    description: 'Feature your authentic Bicolano cuisine, grill, cafe, or family dining spot to hungry tourists and road trippers.',
+    suggestedPerk: 'e.g. Free Appetizer, Dessert, or 10% Off with Rental Agreement',
+    isAvailable: true,
+  },
+
+  // 4. OPEN SLOT: Tour Operator & Adventure
+  {
+    id: 'slot-tours-adventure',
+    category: 'ADVENTURE',
+    categoryLabel: 'Adventure & Tours',
+    title: 'Adventure & Tourism Sponsor Slot (Available)',
+    location: 'Caramoan, CWC Pili, or Mt. Mayon Albay',
+    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80',
+    description: 'Promote your island hopping, ATV mountain tours, wake park, or water sports packages to active travelers with cars.',
+    suggestedPerk: 'e.g. ₱300 Discount Voucher or Free Gear Rental for Renters',
+    isAvailable: true,
+  },
+
+  // 5. OPEN SLOT: Auto Shop & Gas Station
+  {
+    id: 'slot-autocare-gas',
+    category: 'AUTOCARE',
+    categoryLabel: 'Auto Care & Gas Station',
+    title: 'Auto Care & Gas Sponsor Slot (Available)',
+    location: 'Naga City & Pan-Philippine Highway',
+    image: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+    description: 'Promote your gas station, tire service, vulcanizing, or battery shop to hundreds of motorists traversing Bicol daily.',
+    suggestedPerk: 'e.g. Free Air/Tire Pressure Check or Points Discount',
+    isAvailable: true,
+  },
+
+  // 6. OPEN SLOT: Retail & Local Souvenirs
+  {
+    id: 'slot-retail-pasalubong',
+    category: 'RETAIL',
+    categoryLabel: 'Pasalubong & Shopping',
+    title: 'Pasalubong & Retail Slot (Available)',
+    location: 'Naga City & Camarines Sur',
+    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80',
+    description: 'Tourists always buy pili nuts, native delicacies, and Bicol handicrafts before driving home or flying back.',
+    suggestedPerk: 'e.g. 5% Off Pasalubong Box for Custoworks Car Renters',
+    isAvailable: true,
   },
 ];
 
 export const LocalSponsorBanner: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'ALL' | 'HOTEL' | 'FOOD' | 'ADVENTURE' | 'AUTOCARE'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'HOTEL' | 'FOOD' | 'ADVENTURE' | 'AUTOCARE' | 'RETAIL'>('ALL');
   const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
   const [formData, setFormData] = useState({
@@ -109,15 +134,26 @@ export const LocalSponsorBanner: React.FC = () => {
     phone: '',
     email: '',
     category: 'Hotel / Resort',
-    placementSlot: 'Homepage Prime Banner',
+    placementSlot: 'Top Header Sticky Banner',
+    paymentTerm: 'Monthly Recurring (₱3,000/mo after 14-day trial)',
     proposedPerk: '',
     message: '',
   });
 
-  const filteredSponsors =
+  const filteredSlots =
     activeTab === 'ALL'
-      ? DEFAULT_SPONSORS
-      : DEFAULT_SPONSORS.filter((s) => s.category === activeTab);
+      ? SPONSOR_SLOTS
+      : SPONSOR_SLOTS.filter((s) => s.category === activeTab);
+
+  const openInquiryForSlot = (slotTitle: string, category: string) => {
+    setFormData({
+      ...formData,
+      placementSlot: slotTitle,
+      category: category,
+    });
+    setInquirySubmitted(false);
+    setInquiryModalOpen(true);
+  };
 
   const handleInquirySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +168,8 @@ export const LocalSponsorBanner: React.FC = () => {
       phone: '',
       email: '',
       category: 'Hotel / Resort',
-      placementSlot: 'Homepage Prime Banner',
+      placementSlot: 'Top Header Sticky Banner',
+      paymentTerm: 'Monthly Recurring (₱3,000/mo after 14-day trial)',
       proposedPerk: '',
       message: '',
     });
@@ -142,19 +179,19 @@ export const LocalSponsorBanner: React.FC = () => {
     <section id="sponsors" className="bg-gradient-to-b from-slate-50 via-white to-slate-100 py-20 border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Header Title & Pitch */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 px-3.5 py-1.5 rounded-full text-xs font-bold text-brand-blue uppercase tracking-widest mb-3">
               <Megaphone className="w-3.5 h-3.5 text-brand-blue" />
-              Local Business Network & Community Sponsors
+              Local Business Network & Direct Sponsors
             </div>
             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Direct Sponsors & Local Partner Network
+              Direct Sponsors & Local Banner Placement
             </h2>
             <p className="text-sm sm:text-base text-slate-600 mt-2 leading-relaxed">
-              Rent with Custoworks and unlock exclusive traveler discounts across Naga City, Albay, and Camarines Sur. 
-              Are you a local establishment? Place your banner directly in front of thousands of active Bicol travelers.
+              Every month, 5,000+ tourists, balikbayans, and corporate travelers rent vehicles on our platform. 
+              Place your banner here to directly reach guests looking for places to stay, dine, wash, and explore in Naga City & Bicol!
             </p>
           </div>
 
@@ -165,62 +202,81 @@ export const LocalSponsorBanner: React.FC = () => {
                 resetForm();
                 setInquiryModalOpen(true);
               }}
-              className="bg-brand-navy hover:bg-slate-800 text-white font-bold text-xs sm:text-sm px-5 py-3 rounded-xl shadow-lg shadow-slate-900/10 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95 border border-slate-700"
+              className="bg-brand-navy hover:bg-slate-800 text-white font-black text-xs sm:text-sm px-5 py-3.5 rounded-xl shadow-lg shadow-slate-900/10 flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-95 border border-slate-700"
             >
               <Megaphone className="w-4 h-4 text-amber-400" />
-              <span>Direct Sponsor Placement</span>
+              <span>+ Add Your Slot Here</span>
             </button>
           </div>
         </div>
 
-        {/* Featured Sponsor Ad Banner: Custoworks Carwash and Detailing */}
-        <div className="mb-10 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 rounded-3xl p-6 sm:p-8 text-white border-2 border-blue-400/30 shadow-xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="relative z-10 max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 bg-blue-500/20 text-cyan-300 border border-blue-400/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
-              Featured Local Partner Ad • Naga City
+        {/* 1. TOP OFFICIAL SPONSOR: Custoworks Carwash and Detailing */}
+        <div className="mb-12 bg-gradient-to-r from-slate-950 via-brand-navy to-slate-900 rounded-3xl p-6 sm:p-9 text-white border-2 border-cyan-400/40 shadow-2xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8">
+          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 max-w-2xl space-y-3.5">
+            <div className="inline-flex items-center gap-2 bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-300 fill-cyan-300" />
+              Top Active Sponsor • Naga City
             </div>
-            <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            
+            <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
               Custoworks Carwash and Detailing | Naga City
             </h3>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Keep your vehicle showroom-clean! Professional snow foam wash, interior deep sanitization, engine degreasing, and ceramic protection right at <strong>Carnation St. CBD II Brgy. Triangulo (Beside SM City Naga)</strong>.
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+              Keep your vehicle showroom-clean! Professional snow foam car wash, deep interior sanitization, engine degreasing, and ceramic protection right at <strong>Carnation St. CBD II Brgy. Triangulo (Beside SM City Naga)</strong>.
             </p>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-cyan-200 pt-1">
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Snow Foam Wash</span>
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Interior Sanitization</span>
-              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Priority Express Lane</span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-cyan-100 pt-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Snow Foam Exterior Wash</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Interior Deep Vacuum & Sanitize</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Engine Bay Detailing</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span><strong>100% Deposit Refund Guarantee</strong> for Renters</span>
+              </div>
             </div>
           </div>
 
-          <div className="relative z-10 shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2.5 w-full sm:w-auto">
+          <div className="relative z-10 shrink-0 flex flex-col sm:flex-row lg:flex-col gap-3 w-full sm:w-auto">
             <a
               href="https://www.facebook.com/profile.php?id=61586727264046"
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-black text-xs sm:text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all hover:scale-105"
+              className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-black text-xs sm:text-sm px-7 py-4 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2.5 transition-all hover:scale-105"
             >
               <ExternalLink className="w-4 h-4" />
-              <span>Visit Facebook Page</span>
+              <span>Visit Carwash Facebook Page</span>
             </a>
             <a
               href="tel:09617225326"
-              className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all text-center flex items-center justify-center gap-2"
+              className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs px-6 py-3 rounded-xl transition-all text-center flex items-center justify-center gap-2"
             >
               <PhoneCall className="w-3.5 h-3.5 text-cyan-300" />
-              <span>Call / Book Detailing</span>
+              <span>Call / Book Detailing: 0961 722 5326</span>
             </a>
           </div>
         </div>
 
-        {/* Category Filter Tabs */}
+        {/* Category Filter Pills */}
         <div className="flex flex-wrap items-center gap-2 mb-8">
           {[
-            { id: 'ALL', label: 'All Sponsors' },
-            { id: 'HOTEL', label: 'Hotels & Lodging' },
-            { id: 'FOOD', label: 'Restaurants & Dining' },
-            { id: 'ADVENTURE', label: 'Adventures & Tours' },
-            { id: 'AUTOCARE', label: 'Auto Care & Detailing' },
+            { id: 'ALL', label: 'All Slots' },
+            { id: 'AUTOCARE', label: 'Carwash & Detailing (Active)' },
+            { id: 'HOTEL', label: 'Hotels & Lodging (Open)' },
+            { id: 'FOOD', label: 'Restaurants & Dining (Open)' },
+            { id: 'ADVENTURE', label: 'Tours & Adventure (Open)' },
+            { id: 'RETAIL', label: 'Pasalubong & Shopping (Open)' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -236,210 +292,213 @@ export const LocalSponsorBanner: React.FC = () => {
           ))}
         </div>
 
-        {/* Sponsor Banners Grid */}
+        {/* 2. SPONSORS GRID: Top Active + Available Slots with Pictures */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          
-          {filteredSponsors.map((sponsor) => (
-            <div
-              key={sponsor.id}
-              className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-sm hover:shadow-md transition-all group flex flex-col justify-between"
-            >
-              {/* Banner Graphic Header */}
-              <div className="relative h-44 w-full overflow-hidden bg-slate-900">
-                <img
-                  src={sponsor.image}
-                  alt={sponsor.name}
-                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/20" />
-                
-                {/* Category Pill */}
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg border border-white/10">
-                  {sponsor.category === 'HOTEL' && <Building2 className="w-3.5 h-3.5 text-blue-400" />}
-                  {sponsor.category === 'FOOD' && <Utensils className="w-3.5 h-3.5 text-amber-400" />}
-                  {sponsor.category === 'ADVENTURE' && <Compass className="w-3.5 h-3.5 text-emerald-400" />}
-                  {sponsor.category === 'AUTOCARE' && <Wrench className="w-3.5 h-3.5 text-cyan-400" />}
-                  <span>{sponsor.categoryLabel}</span>
-                </div>
+          {filteredSlots.map((slot) => {
+            const isActive = !slot.isAvailable;
 
-                {/* Direct Sponsor Tag */}
-                <div className="absolute top-3 right-3 bg-amber-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full tracking-wider uppercase shadow-md flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 fill-slate-950" />
-                  Direct Sponsor
-                </div>
+            return (
+              <div
+                key={slot.id}
+                className={`rounded-2xl overflow-hidden transition-all flex flex-col justify-between ${
+                  isActive
+                    ? 'bg-white border-2 border-cyan-500 shadow-md ring-1 ring-cyan-500/20'
+                    : 'bg-white border-2 border-dashed border-slate-300 hover:border-brand-blue shadow-sm hover:shadow-md group'
+                }`}
+              >
+                {/* Banner Graphic Header with Picture */}
+                <div className="relative h-44 w-full overflow-hidden bg-slate-900">
+                  <img
+                    src={slot.image}
+                    alt={slot.title}
+                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-80 group-hover:opacity-95"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-black/20 to-transparent" />
 
-                {/* Bottom title overlay */}
-                <div className="absolute bottom-3 left-3 right-3">
-                  <h3 className="text-white font-black text-lg leading-snug drop-shadow-md">
-                    {sponsor.name}
-                  </h3>
-                  <div className="flex items-center gap-1 text-slate-300 text-xs mt-0.5">
-                    <MapPin className="w-3 h-3 text-red-400 shrink-0" />
-                    <span className="truncate">{sponsor.location}</span>
+                  {/* Category Pill */}
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-lg border border-white/10">
+                    {slot.category === 'AUTOCARE' && <Wrench className="w-3.5 h-3.5 text-cyan-400" />}
+                    {slot.category === 'HOTEL' && <Building2 className="w-3.5 h-3.5 text-blue-400" />}
+                    {slot.category === 'FOOD' && <Utensils className="w-3.5 h-3.5 text-amber-400" />}
+                    {slot.category === 'ADVENTURE' && <Compass className="w-3.5 h-3.5 text-emerald-400" />}
+                    {slot.category === 'RETAIL' && <ShoppingBag className="w-3.5 h-3.5 text-purple-400" />}
+                    <span>{slot.categoryLabel}</span>
                   </div>
-                </div>
-              </div>
 
-              {/* Body Content */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                    {sponsor.tagline}
-                  </p>
+                  {/* Status Tag */}
+                  {isActive ? (
+                    <div className="absolute top-3 right-3 bg-cyan-400 text-slate-950 font-black text-[10px] px-2.5 py-0.5 rounded-full tracking-wider uppercase shadow-md flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 fill-slate-950" />
+                      Active Sponsor
+                    </div>
+                  ) : (
+                    <div className="absolute top-3 right-3 bg-amber-400 text-slate-950 font-black text-[10px] px-2.5 py-0.5 rounded-full tracking-wider uppercase shadow-md animate-pulse">
+                      Slot Available
+                    </div>
+                  )}
 
-                  {/* Exclusive Renter Perk Banner */}
-                  <div className="mt-3.5 bg-emerald-50 border border-emerald-200/90 rounded-xl p-3 flex items-start gap-2.5">
-                    <Gift className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="block text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
-                        Custoworks Renter Special
-                      </span>
-                      <p className="text-xs font-bold text-slate-800 mt-0.5 leading-snug">
-                        {sponsor.renterPerk}
-                      </p>
+                  {/* Bottom Title Overlay */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <h3 className="text-white font-black text-base sm:text-lg leading-snug drop-shadow-md">
+                      {slot.title}
+                    </h3>
+                    <div className="flex items-center gap-1 text-slate-300 text-xs mt-0.5">
+                      <MapPin className="w-3 h-3 text-red-400 shrink-0" />
+                      <span className="truncate">{slot.location}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer Buttons */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
-                  {sponsor.phone && (
-                    <a
-                      href={`tel:${sponsor.phone.replace(/\s+/g, '')}`}
-                      className="text-xs font-semibold text-slate-600 hover:text-brand-blue flex items-center gap-1 transition-colors"
-                    >
-                      <PhoneCall className="w-3.5 h-3.5 text-brand-blue" />
-                      <span>{sponsor.phone}</span>
-                    </a>
-                  )}
+                {/* Card Body */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                      {slot.description}
+                    </p>
 
-                  {sponsor.websiteUrl && (
-                    <a
-                      href={sponsor.websiteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-auto inline-flex items-center gap-1.5 bg-slate-100 hover:bg-brand-blue hover:text-white text-slate-800 text-xs font-bold px-3.5 py-1.5 rounded-lg transition-all"
-                    >
-                      <span>Visit Partner</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
+                    {/* Pricing or Perk Badge */}
+                    {isActive ? (
+                      <div className="mt-3.5 bg-cyan-50 border border-cyan-200 rounded-xl p-3">
+                        <span className="block text-[10px] font-extrabold uppercase tracking-wider text-cyan-800">
+                          Renter Special Offer
+                        </span>
+                        <p className="text-xs font-bold text-slate-800 mt-0.5 leading-snug">
+                          {slot.suggestedPerk}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-3.5 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start justify-between gap-2">
+                        <div>
+                          <span className="block text-[10px] font-extrabold uppercase tracking-wider text-amber-900">
+                            Monthly Rate
+                          </span>
+                          <span className="text-xs font-black text-slate-900">
+                            ₱3,000 / month
+                          </span>
+                          <span className="block text-[10px] text-emerald-700 font-bold mt-0.5">
+                            🎁 14-Day Free Trial Available
+                          </span>
+                        </div>
+                        <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-md self-center">
+                          Month-to-Month
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Actions */}
+                  <div className="pt-3 border-t border-slate-100">
+                    {isActive ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <a
+                          href="tel:09617225326"
+                          className="text-xs font-bold text-slate-700 hover:text-brand-blue flex items-center gap-1"
+                        >
+                          <PhoneCall className="w-3.5 h-3.5 text-brand-blue" />
+                          <span>0961 722 5326</span>
+                        </a>
+                        <a
+                          href={slot.activeBusiness?.websiteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 bg-[#1877F2] hover:bg-[#166fe5] text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          <span>Visit Facebook</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => openInquiryForSlot(slot.title, slot.categoryLabel)}
+                        className="w-full bg-slate-900 hover:bg-brand-blue text-white font-extrabold text-xs py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm group-hover:scale-[1.02]"
+                      >
+                        <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+                        <span>+ Add Your Slot Here</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-
-          {/* Direct Sponsor Placement Available Slot Card */}
-          <div className="bg-gradient-to-br from-brand-navy via-slate-900 to-brand-navy-dark text-white rounded-2xl border-2 border-dashed border-blue-400/40 p-6 flex flex-col justify-between relative overflow-hidden shadow-lg group">
-            <div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-            
-            <div>
-              <div className="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Top Banner Placement Available
-              </div>
-
-              <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                Advertise Your Hotel, Resort or Shop to Bicol Travelers
-              </h3>
-
-              <div className="mt-2.5 inline-block bg-amber-400 text-slate-950 font-black text-xs px-2.5 py-1 rounded-lg shadow-sm">
-                ₱3,000 / month • or 14-Day Free Trial Exposure
-              </div>
-
-              <p className="text-xs text-slate-300 mt-3 leading-relaxed">
-                Connect directly with tourists, visiting balikbayans, executives, and local families renting vehicles in Naga City looking for accommodations & places to go.
-              </p>
-
-              <div className="space-y-2 mt-4 pt-3 border-t border-white/10 text-xs text-slate-200">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span><strong>Top Header Banner</strong> placement seen on every page visit</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Reach 5,000+ active car renters looking for lodging & dining</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Included in booking confirmation email & road itinerary</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Flat ₱3,000/mo — zero commission on your bookings</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-6 mt-6 border-t border-white/10 flex flex-col gap-2.5">
-              <button
-                onClick={() => {
-                  resetForm();
-                  setInquiryModalOpen(true);
-                }}
-                className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 group-hover:scale-[1.02]"
-              >
-                <Megaphone className="w-4 h-4" />
-                <span>Reserve This Banner Slot</span>
-              </button>
-
-              <a
-                href="https://wa.me/639617225326?text=Hi%20Custoworks,%20I'm%20interested%20in%20a%20Direct%20Sponsor%20Local%20Banner%20Placement%20on%20your%20website!"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs py-2.5 rounded-xl transition-all text-center flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Chat via WhatsApp Dispatch</span>
-              </a>
-            </div>
-          </div>
-
+            );
+          })}
         </div>
 
-        {/* Bottom Banner Stats Strip */}
-        <div className="mt-12 bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center shrink-0">
-              <Eye className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="font-extrabold text-sm sm:text-base text-slate-900">
-                High-Intent Local & Tourism Foot Traffic
+        {/* 3. HOW SPONSORS PAY (EVERY MONTH BILLING & PAYMENT METHODS) */}
+        <div className="mt-14 bg-white rounded-3xl border border-slate-200 p-6 sm:p-10 shadow-sm">
+          <div className="max-w-2xl mb-8">
+            <span className="text-xs font-extrabold uppercase tracking-widest text-brand-blue">
+              Simple, Transparent Partnership Terms
+            </span>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1">
+              Paano Magbayad ang Sponsor? (Billing & Payment Terms)
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+              Walang hidden charges at walang long-term lock-in contract. Narito kung paano gumagana ang buwanang sponsorship:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Step 1: 14-Day Free Trial */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-4 font-black text-sm">
+                01
+              </div>
+              <h4 className="font-extrabold text-base text-slate-900 mb-1">
+                14-Day Free Trial Muna
               </h4>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Our car renters look for hotels, authentic Bicolano dining, fuel stops, and tourist destinations daily.
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Libre po ang unang dalawang linggo (14 days). Ilalagay ang inyong banner, picture, at links sa website para makita ninyo ang dating ng mga inquiries mula sa mga bumibisitang biyahero.
+              </p>
+            </div>
+
+            {/* Step 2: Bayad Kada Buwan (₱3,000/month) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 text-brand-blue flex items-center justify-center mb-4 font-black text-sm">
+                02
+              </div>
+              <h4 className="font-extrabold text-base text-slate-900 mb-1">
+                Bayad Kada Buwan (₱3,000/mo)
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Kung nagustuhan ninyo ang exposure, <strong>₱3,000 lamang po bawat buwan (monthly recurring)</strong>. Walang komisyon sa inyong room bookings, dining receipts, o benta. Lahat ng benta ninyo ay sa inyo 100%.
+              </p>
+            </div>
+
+            {/* Step 3: Convenient Payment Channels */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 relative overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 font-black text-sm">
+                03
+              </div>
+              <h4 className="font-extrabold text-base text-slate-900 mb-1">
+                Madaling Paraan ng Pagbabayad
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Maaaring magbayad buwan-buwan via <strong>GCash, Maya, BDO/BPI Bank Transfer</strong>, o Cash sa Custoworks garage sa Carnation St. Naga na may kasamang Official Billing Statement.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 divide-x divide-slate-200 text-center shrink-0">
-            <div className="px-3">
-              <div className="text-lg sm:text-xl font-black text-brand-navy">5,000+</div>
-              <div className="text-[10px] uppercase font-bold text-slate-400">Monthly Visitors</div>
+          <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Calendar className="w-4 h-4 text-brand-blue shrink-0" />
+              <span><strong>Month-to-month subscription:</strong> Puwedeng i-renew o ihinto anumang buwan nang walang penalty.</span>
             </div>
-            <div className="pl-6 px-3">
-              <div className="text-lg sm:text-xl font-black text-emerald-600">100%</div>
-              <div className="text-[10px] uppercase font-bold text-slate-400">Targeted Bicol Travel</div>
-            </div>
-            <div className="pl-6">
-              <button
-                onClick={() => {
-                  resetForm();
-                  setInquiryModalOpen(true);
-                }}
-                className="text-xs font-bold text-brand-blue hover:text-blue-700 flex items-center gap-1"
-              >
-                <span>View Rate Kit</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                resetForm();
+                setInquiryModalOpen(true);
+              }}
+              className="bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition-all shadow-md shrink-0 flex items-center gap-1.5"
+            >
+              <span>Mag-inquire ng Banner Slot</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
       </div>
 
-      {/* Interactive Modal: Direct Sponsor Placement Inquiry */}
+      {/* Interactive Modal: Direct Sponsor Application & Payment Terms */}
       {inquiryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 text-slate-900 relative">
@@ -471,89 +530,68 @@ export const LocalSponsorBanner: React.FC = () => {
                   <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h4 className="text-2xl font-black text-slate-900">Inquiry Received!</h4>
+                  <h4 className="text-2xl font-black text-slate-900">Application Received!</h4>
                   <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                    Thank you, <strong>{formData.contactPerson || 'Partner'}</strong>! Our marketing and fleet coordinator will review your banner placement inquiry for <strong>{formData.businessName || 'your business'}</strong> and reach out within 24 hours.
+                    Salamat, <strong>{formData.contactPerson || 'Partner'}</strong>! Na-receive na po namin ang inyong sponsor application para sa <strong>{formData.businessName || 'inyong negosyo'}</strong>. Makikipag-ugnayan po kami sa inyo via WhatsApp/phone sa loob ng 24 oras para sa inyong 14-day free trial banner.
                   </p>
 
                   <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                     <a
                       href={`https://wa.me/639617225326?text=${encodeURIComponent(
-                        `Hi Custoworks, I submitted a Direct Sponsor Banner Placement inquiry for ${formData.businessName} (${formData.contactPerson})!`
+                        `Hi Custoworks! Nag-submit po ako ng Sponsor Banner application para sa ${formData.businessName} (${formData.contactPerson}). Nais po naming i-activate ang aming 14-day free trial banner!`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs px-6 py-3 rounded-xl shadow-md flex items-center justify-center gap-2"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      <span>Fast-Track on WhatsApp Dispatch</span>
+                      <span>Fast-Track sa WhatsApp Dispatch</span>
                     </a>
                     <button
                       onClick={() => setInquiryModalOpen(false)}
                       className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-5 py-3 rounded-xl transition-all"
                     >
-                      Close Window
+                      Isara ang Window
                     </button>
                   </div>
                 </div>
               ) : (
                 <form onSubmit={handleInquirySubmit} className="space-y-4">
                   
-                  {/* Special Offer Alert Callout */}
-                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-900">
-                    <span className="text-base shrink-0">🎁</span>
-                    <div>
-                      <strong className="font-extrabold text-amber-950">14-Day Free Trial Available:</strong>
-                      <p className="text-[11px] text-amber-800 mt-0.5">
-                        New local hotels, resorts, and auto shops get a 14-day exposure trial! Continued placement is only <strong>₱3,000/month flat</strong> with zero commissions.
-                      </p>
+                  {/* Free Trial & Monthly Pricing Banner */}
+                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+                    <div className="flex items-center gap-2 font-black text-amber-950">
+                      <span>🎁 14-Day Free Trial Muna</span>
+                      <span className="text-[10px] bg-amber-200 px-2 py-0.5 rounded-full font-bold">Walang Bayad Upfront</span>
                     </div>
+                    <p className="text-[11px] text-amber-800 leading-snug">
+                      Pagkatapos ng 14 days, flat <strong>₱3,000 bawat buwan (monthly recurring)</strong>. Puwedeng bayaran via GCash, Maya, BDO/BPI, o Cash. Walang lock-in contract!
+                    </p>
                   </div>
 
-                  {/* Banner Slot Options Selection */}
+                  {/* Selected Slot Name */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      Select Placement Slot
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Target Banner Slot
                     </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                      {[
-                        { id: 'Top Header Sticky Banner', label: 'Top Header Banner', sub: '₱3k/mo or 14-Day Free Trial' },
-                        { id: 'Homepage Prime Showcase', label: 'Homepage Showcase', sub: 'Local Partners Grid' },
-                        { id: 'Confirmation Voucher Slip', label: 'Renter Vouchers', sub: 'Sent on Confirmation' },
-                      ].map((slot) => (
-                        <label
-                          key={slot.id}
-                          className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                            formData.placementSlot === slot.id
-                              ? 'bg-blue-50/80 border-brand-blue text-brand-navy ring-1 ring-brand-blue'
-                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="placementSlot"
-                            value={slot.id}
-                            checked={formData.placementSlot === slot.id}
-                            onChange={(e) => setFormData({ ...formData, placementSlot: e.target.value })}
-                            className="sr-only"
-                          />
-                          <span className="block font-bold text-slate-900">{slot.label}</span>
-                          <span className="block text-[10px] text-slate-500 mt-0.5">{slot.sub}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <input
+                      type="text"
+                      readOnly
+                      value={formData.placementSlot}
+                      className="w-full bg-slate-100 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-bold text-brand-navy"
+                    />
                   </div>
 
                   {/* Business & Contact Name */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                        Business / Brand Name *
+                        Pangalan ng Negosyo / Hotel *
                       </label>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Naga Highlands Resort"
+                        placeholder="hal. Villa Caceres / Local Cafe"
                         value={formData.businessName}
                         onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none"
@@ -567,7 +605,7 @@ export const LocalSponsorBanner: React.FC = () => {
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Maria Santos"
+                        placeholder="hal. Juan Dela Cruz"
                         value={formData.contactPerson}
                         onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none"
@@ -579,7 +617,7 @@ export const LocalSponsorBanner: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                        Mobile / WhatsApp *
+                        Mobile / WhatsApp / Viber *
                       </label>
                       <input
                         type="tel"
@@ -597,7 +635,7 @@ export const LocalSponsorBanner: React.FC = () => {
                       </label>
                       <input
                         type="email"
-                        placeholder="sponsor@business.com"
+                        placeholder="partner@business.com"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none"
@@ -605,48 +643,27 @@ export const LocalSponsorBanner: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Business Category & Renter Promo */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                        Business Category
-                      </label>
-                      <select
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                      >
-                        <option value="Hotel / Resort">Hotel / Resort / Accommodation</option>
-                        <option value="Restaurant / Cafe">Restaurant / Cafe / Food</option>
-                        <option value="Adventure / Tours">Adventure / Tour Operator</option>
-                        <option value="Automotive / Detailing">Auto Detailing / Gas Station</option>
-                        <option value="Corporate / Event">Event Venue / Corporate Service</option>
-                        <option value="Other">Other Local Business</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                        Perk for Car Renters (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 10% off meal, free dessert, free parking"
-                        value={formData.proposedPerk}
-                        onChange={(e) => setFormData({ ...formData, proposedPerk: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Notes / Message */}
+                  {/* Proposed Perk & Notes */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Website / Facebook Page & Notes
+                      Special Offer o Discount para sa Car Renters (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="hal. 10% off room rate, libreng kape, o ₱100 off dining"
+                      value={formData.proposedPerk}
+                      onChange={(e) => setFormData({ ...formData, proposedPerk: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Website / Facebook Page Link & Karagdagang Mensahe
                     </label>
                     <textarea
                       rows={2}
-                      placeholder="Link to your website or Facebook page, and any questions about banner sizes or schedules..."
+                      placeholder="I-paste ang link ng inyong Facebook page o website..."
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none"
@@ -657,13 +674,13 @@ export const LocalSponsorBanner: React.FC = () => {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-xs sm:text-sm py-3.5 rounded-xl shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 transition-all"
+                      className="w-full bg-brand-navy hover:bg-slate-800 text-white font-black text-xs sm:text-sm py-3.5 rounded-xl shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 transition-all"
                     >
                       <Megaphone className="w-4 h-4 text-amber-400" />
-                      <span>Submit Direct Banner Placement Inquiry</span>
+                      <span>Simulan ang 14-Day Free Trial Banner</span>
                     </button>
                     <p className="text-[11px] text-center text-slate-400 mt-2">
-                      Prefer instant support? Call dispatch directly at <strong className="text-slate-700">0961 722 5326</strong>.
+                      May katanungan? Tumawag o mag-text sa dispatch: <strong className="text-slate-700">0961 722 5326</strong>.
                     </p>
                   </div>
                 </form>
