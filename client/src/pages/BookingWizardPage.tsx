@@ -602,11 +602,33 @@ export const BookingWizardPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 py-4 sm:py-8 lg:py-10">
+      <div className="max-w-5xl mx-auto px-2.5 sm:px-6 lg:px-8">
         {/* Wizard Progress Bar */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm mb-8">
-          <div className="flex items-center justify-between overflow-x-auto pb-2 gap-2">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-5 shadow-sm mb-4 sm:mb-8">
+          {/* Mobile Step Header (Visible on phone screens) */}
+          <div className="sm:hidden space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-brand-blue text-white flex items-center justify-center text-[10px] font-bold">
+                  {step}
+                </span>
+                <span>
+                  Step {step} of {steps.length}: <strong className="text-brand-blue">{steps[step - 1]?.title}</strong>
+                </span>
+              </span>
+              <span className="font-mono text-slate-500 font-bold text-[11px]">{Math.round((step / steps.length) * 100)}%</span>
+            </div>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-brand-blue h-full rounded-full transition-all duration-300"
+                style={{ width: `${(step / steps.length) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Desktop Step Tracker (Hidden on small phones) */}
+          <div className="hidden sm:flex items-center justify-between overflow-x-auto pb-2 gap-2">
             {steps.map((s) => {
               const isPassed = step > s.num;
               const isCurrent = step === s.num;
@@ -645,14 +667,14 @@ export const BookingWizardPage: React.FC = () => {
 
         {/* Global Error Banner */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl text-xs flex items-center gap-2 mb-6">
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3.5 sm:p-4 rounded-2xl text-xs flex items-center gap-2 mb-4 sm:mb-6">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
             <span className="font-medium">{error}</span>
           </div>
         )}
 
         {/* Wizard Container */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 md:p-8">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-6 md:p-8">
           {/* STEP 1: SELECT VEHICLE */}
           {step === 1 && (
             <div className="space-y-6">
@@ -670,13 +692,13 @@ export const BookingWizardPage: React.FC = () => {
                     <div
                       key={v.id}
                       onClick={() => setSelectedVehicleId(v.id)}
-                      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex gap-4 ${
+                      className={`p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${
                         isSelected
                           ? 'border-brand-blue bg-blue-50/40 shadow-sm'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
-                      <img src={img} alt={v.name} className="w-28 h-20 object-cover rounded-xl bg-slate-100 shrink-0" />
+                      <img src={img} alt={v.name} className="w-full sm:w-28 h-36 sm:h-20 object-cover rounded-xl bg-slate-100 shrink-0" />
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
                           <h4 className="font-bold text-sm text-slate-900">{v.name}</h4>

@@ -55,8 +55,13 @@ import {
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BOOKINGS' | 'CALENDAR' | 'VEHICLES' | 'PRICING' | 'PAYMENTS' | 'REQUIREMENTS' | 'QUOTATIONS' | 'USERS' | 'SETTINGS' | 'PARTNERS'>('OVERVIEW');
-  const [viewAsPhone, setViewAsPhone] = useState<boolean>(false);
-  const [phonePreviewUrl, setPhonePreviewUrl] = useState<'ADMIN' | 'CUSTOMER_SITE'>('ADMIN');
+  // Phone Simulator Modal State
+  const [phoneSimulatorOpen, setPhoneSimulatorOpen] = useState<boolean>(false);
+  const [simulatorDevice, setSimulatorDevice] = useState<'IPHONE_15' | 'GALAXY_S24' | 'IPHONE_SE'>('IPHONE_15');
+  const [simulatorUrl, setSimulatorUrl] = useState<string>('/book');
+  const [simulatorZoom, setSimulatorZoom] = useState<number>(0.85);
+  const [simulatorOrientation, setSimulatorOrientation] = useState<'PORTRAIT' | 'LANDSCAPE'>('PORTRAIT');
+  const isEmbedMobile = typeof window !== 'undefined' && window.location.search.includes('mobile_sim=1');
   const [mobileTabMenuOpen, setMobileTabMenuOpen] = useState<boolean>(false);
 
   // Stats & Overview
@@ -1122,21 +1127,18 @@ export const AdminDashboardPage: React.FC = () => {
               <span className="hidden sm:inline">Live Website</span>
             </a>
 
-            {/* View as Phone Toggle Button */}
-            <button
-              type="button"
-              onClick={() => setViewAsPhone(!viewAsPhone)}
-              title="Preview how Admin & Booking look on a mobile phone"
-              className={`border text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm ${
-                viewAsPhone
-                  ? 'bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/40 shadow-amber-500/20'
-                  : 'bg-slate-800/90 hover:bg-slate-700 border-slate-700/80 text-amber-300 hover:text-white'
-              }`}
-            >
-              <Smartphone className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">{viewAsPhone ? 'Exit Phone View' : '📱 View as Phone'}</span>
-              <span className="sm:hidden">{viewAsPhone ? 'Exit' : 'Phone'}</span>
-            </button>
+            {/* View as Phone Simulator Trigger Button (Desktop/Laptop only) */}
+            {!isEmbedMobile && (
+              <button
+                type="button"
+                onClick={() => setPhoneSimulatorOpen(true)}
+                title="Preview how Admin & Customer sites look on mobile phones"
+                className="bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 text-amber-300 hover:text-white text-xs font-bold px-3 py-2 rounded-xl transition-all hidden md:flex items-center gap-1.5 shadow-sm"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+                <span>📱 View as Phone</span>
+              </button>
+            )}
 
             <button
               onClick={() => setAddVehicleModalOpen(true)}
@@ -1160,99 +1162,14 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Phone Simulation Mode Top Bar */}
-      {viewAsPhone && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 text-xs text-amber-300 flex flex-wrap items-center justify-between gap-3 sticky top-[61px] z-30 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-            <span className="font-extrabold text-white text-xs">
-              📱 Phone View Simulator Active (390px Mobile Smartphone)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setPhonePreviewUrl('ADMIN')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                phonePreviewUrl === 'ADMIN'
-                  ? 'bg-amber-400 text-slate-950 font-black shadow'
-                  : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
-              }`}
-            >
-              Admin Mobile Console
-            </button>
-            <button
-              type="button"
-              onClick={() => setPhonePreviewUrl('CUSTOMER_SITE')}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                phonePreviewUrl === 'CUSTOMER_SITE'
-                  ? 'bg-amber-400 text-slate-950 font-black shadow'
-                  : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
-              }`}
-            >
-              Customer Booking Flow (/book)
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewAsPhone(false)}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded-lg text-xs font-bold border border-slate-700 flex items-center gap-1"
-            >
-              <X className="w-3.5 h-3.5" /> Exit Phone View
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Main Admin Content Container */}
-      <div
-        className={`flex-1 mx-auto w-full transition-all duration-300 ${
-          viewAsPhone
-            ? 'max-w-[420px] my-6 bg-slate-950 border-[10px] border-slate-800 rounded-[50px] shadow-2xl shadow-black ring-4 ring-slate-800/80 px-3.5 py-4 space-y-4'
-            : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-7 space-y-6'
-        }`}
-      >
-        {/* Phone Notch & Status bar when in Phone View */}
-        {viewAsPhone && (
-          <div className="pt-1 pb-2 flex flex-col items-center border-b border-slate-800/80 mb-2 select-none">
-            <div className="w-24 h-4 bg-black rounded-full flex items-center justify-between px-3">
-              <div className="w-2 h-2 rounded-full bg-slate-900" />
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-900" />
-            </div>
-            <div className="w-full px-4 pt-1 flex items-center justify-between text-[10px] font-mono text-slate-400 font-bold">
-              <span>9:41 AM</span>
-              <span className="text-emerald-400">5G · 100% 🔋</span>
-            </div>
-          </div>
-        )}
-
-        {/* If Customer Booking preview is selected in Phone Mode */}
-        {viewAsPhone && phonePreviewUrl === 'CUSTOMER_SITE' ? (
-          <div className="rounded-2xl overflow-hidden shadow-inner bg-white">
-            <div className="bg-slate-800 px-3 py-1.5 flex items-center justify-between text-[10px] text-slate-300 border-b border-slate-700">
-              <span className="font-mono text-slate-400 truncate">https://custoworks.com/book</span>
-              <a
-                href="/book"
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-400 hover:underline flex items-center gap-1 shrink-0 ml-2"
-              >
-                <ExternalLink className="w-3 h-3" /> New tab
-              </a>
-            </div>
-            <iframe
-              src="/book"
-              title="Customer Booking Phone Simulation"
-              className="w-full h-[720px] border-0"
-            />
-          </div>
-        ) : (
-          <>
-            {/* Mobile Tab Quick Switcher (visible on real phones or in Phone View) */}
-            <div className={viewAsPhone ? 'block' : 'md:hidden'}>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setMobileTabMenuOpen(!mobileTabMenuOpen)}
+      <div className="flex-1 max-w-7xl mx-auto w-full px-3.5 sm:px-6 lg:px-8 py-4 sm:py-7 space-y-5 sm:space-y-6">
+        {/* Mobile Tab Quick Switcher (visible on real phones) */}
+        <div className="md:hidden">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMobileTabMenuOpen(!mobileTabMenuOpen)}
                   className="w-full flex items-center justify-between bg-slate-900 border border-slate-700/80 p-2.5 rounded-xl text-left shadow-sm active:bg-slate-850"
                 >
                   <div className="flex items-center gap-2">
@@ -1661,7 +1578,11 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <div className="sm:hidden px-3.5 py-1.5 bg-slate-800/80 border-b border-slate-700/60 text-[10px] text-slate-300 font-semibold flex items-center justify-between">
+                    <span>📱 Ledger Table</span>
+                    <span className="text-emerald-400">👈 Swipe to view details & actions 👉</span>
+                  </div>
+                  <table className="w-full text-left text-xs min-w-[750px]">
                     <thead className="bg-slate-850 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                       <tr>
                         <th className="p-3.5">Date</th>
@@ -1776,7 +1697,11 @@ export const AdminDashboardPage: React.FC = () => {
                 </button>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <div className="sm:hidden px-3.5 py-1.5 bg-slate-800/80 border-b border-slate-700/60 text-[10px] text-slate-300 font-semibold flex items-center justify-between">
+                  <span>📱 Customer Bookings</span>
+                  <span className="text-blue-400">👈 Swipe to view status 👉</span>
+                </div>
+                <table className="w-full text-left text-xs min-w-[650px]">
                   <thead className="bg-slate-850 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="p-3.5">Reference</th>
@@ -1976,7 +1901,11 @@ export const AdminDashboardPage: React.FC = () => {
             {/* Bookings Table */}
             <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <div className="sm:hidden px-3.5 py-1.5 bg-slate-800/80 border-b border-slate-700/60 text-[10px] text-slate-300 font-semibold flex items-center justify-between">
+                  <span>📱 Customer Bookings</span>
+                  <span className="text-blue-400">👈 Swipe to view status 👉</span>
+                </div>
+                <table className="w-full text-left text-xs min-w-[650px]">
                   <thead className="bg-slate-850/90 border-b border-slate-800 font-bold text-slate-400 uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="p-3.5">Ref #</th>
@@ -2316,7 +2245,11 @@ export const AdminDashboardPage: React.FC = () => {
             {/* Matrix Input Table */}
             <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <div className="sm:hidden px-3.5 py-1.5 bg-slate-800/80 border-b border-slate-700/60 text-[10px] text-slate-300 font-semibold flex items-center justify-between">
+                  <span>📱 Customer Bookings</span>
+                  <span className="text-blue-400">👈 Swipe to view status 👉</span>
+                </div>
+                <table className="w-full text-left text-xs min-w-[650px]">
                   <thead className="bg-slate-850/90 border-b border-slate-800 font-bold text-slate-400 uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="p-3.5">Destination</th>
@@ -3108,16 +3041,7 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
         )}
-
-        {/* Phone View Home Indicator */}
-        {viewAsPhone && (
-          <div className="pt-3 pb-1 flex items-center justify-center border-t border-slate-800/80 mt-6 select-none">
-            <div className="w-32 h-1 bg-slate-600 rounded-full" />
-          </div>
-        )}
-      </>
-    )}
-  </div>
+      </div>
 
   {/* View Receipt Proof Modal / Lightbox */}
       {viewingReceiptPayment && (
@@ -4780,6 +4704,182 @@ export const AdminDashboardPage: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 5. Realistic Interactive Mobile Phone Simulator Modal */}
+      {phoneSimulatorOpen && (() => {
+        const deviceConfigs: Record<string, { name: string; width: number; height: number; os: string }> = {
+          IPHONE_15: { name: 'iPhone 15 Pro', width: 393, height: 852, os: 'iOS 18' },
+          GALAXY_S24: { name: 'Samsung Galaxy S24', width: 360, height: 780, os: 'Android 15' },
+          IPHONE_SE: { name: 'iPhone SE / Compact', width: 375, height: 667, os: 'iOS 17' },
+        };
+
+        const activeDevice = deviceConfigs[simulatorDevice] || deviceConfigs.IPHONE_15;
+        const width = simulatorOrientation === 'PORTRAIT' ? activeDevice.width : activeDevice.height;
+        const height = simulatorOrientation === 'PORTRAIT' ? activeDevice.height : activeDevice.width;
+
+        const navRoutes = [
+          { label: '🛍️ Customer: Booking (/book)', url: '/book' },
+          { label: '🏠 Customer: Home (/)', url: '/' },
+          { label: '🔍 Customer: Tracking (/track)', url: '/track' },
+          { label: '🚗 Customer: Rates (/prices)', url: '/prices' },
+          { label: '⚙️ Admin: Mobile Console', url: '/admin?mobile_sim=1' },
+        ];
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-5 overflow-y-auto">
+            {/* Top Simulator Control Bar */}
+            <div className="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-xl flex flex-wrap items-center justify-between gap-3 text-xs mb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <span className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-bold">
+                  <Smartphone className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="font-extrabold text-white text-sm">
+                    Interactive Mobile Phone Simulator
+                  </h3>
+                  <p className="text-slate-400 text-[11px]">
+                    Preview authentic responsive layouts on real mobile viewports with active CSS media queries.
+                  </p>
+                </div>
+              </div>
+
+              {/* Device Selector, Zoom & Controls */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700">
+                  {(['IPHONE_15', 'GALAXY_S24', 'IPHONE_SE'] as const).map((dev) => (
+                    <button
+                      key={dev}
+                      type="button"
+                      onClick={() => setSimulatorDevice(dev)}
+                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                        simulatorDevice === dev
+                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {dev === 'IPHONE_15' ? 'iPhone 15' : dev === 'GALAXY_S24' ? 'Galaxy S24' : 'iPhone SE'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700">
+                  {[0.75, 0.85, 1.0].map((z) => (
+                    <button
+                      key={z}
+                      type="button"
+                      onClick={() => setSimulatorZoom(z)}
+                      className={`px-2 py-1 rounded-lg font-bold text-[10px] transition-all ${
+                        simulatorZoom === z
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {Math.round(z * 100)}%
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSimulatorOrientation(simulatorOrientation === 'PORTRAIT' ? 'LANDSCAPE' : 'PORTRAIT')
+                  }
+                  title="Rotate phone orientation"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white p-2 rounded-xl border border-slate-700 transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPhoneSimulatorOpen(false)}
+                  className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-3 py-1.5 rounded-xl font-bold transition-colors flex items-center gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Exit Simulator</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Route Switcher Bar */}
+            <div className="w-full max-w-5xl flex items-center justify-between gap-2 pb-2 mb-2 overflow-x-auto text-xs shrink-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {navRoutes.map((r) => {
+                  const isActive = simulatorUrl === r.url;
+                  return (
+                    <button
+                      key={r.url}
+                      type="button"
+                      onClick={() => setSimulatorUrl(r.url)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-all whitespace-nowrap text-xs border ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-600/30'
+                          : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <a
+                href={simulatorUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-slate-900 hover:bg-slate-800 text-blue-400 px-3 py-1.5 rounded-xl border border-slate-800 font-bold flex items-center gap-1 shrink-0 ml-auto"
+              >
+                <span>Open in Tab</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* Realistic Smartphone Chassis Frame */}
+            <div
+              className="my-auto transition-transform duration-200"
+              style={{
+                transform: `scale(${simulatorZoom})`,
+                transformOrigin: 'top center',
+              }}
+            >
+              <div
+                className="bg-black rounded-[52px] border-[12px] border-slate-900 shadow-2xl shadow-black ring-4 ring-slate-800/80 relative flex flex-col overflow-hidden"
+                style={{ width: `${width + 24}px`, height: `${height + 24}px` }}
+              >
+                {/* Dynamic Island / Top Notch */}
+                {simulatorOrientation === 'PORTRAIT' && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-6 bg-black rounded-full flex items-center justify-between px-3 z-30 select-none shadow">
+                    <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800" />
+                    <div className="w-2 h-2 rounded-full bg-blue-900/60" />
+                  </div>
+                )}
+
+                {/* Status Bar */}
+                <div className="w-full bg-slate-950 text-slate-400 px-6 pt-2 pb-1 flex items-center justify-between text-[10px] font-mono font-bold select-none z-20 shrink-0 border-b border-slate-900">
+                  <span>9:41 AM</span>
+                  <span className="text-emerald-400 font-sans font-semibold">5G · 100% 🔋</span>
+                </div>
+
+                {/* Screen Viewport with Iframe */}
+                <div className="flex-1 w-full h-full bg-white relative overflow-hidden">
+                  <iframe
+                    key={`${simulatorUrl}-${simulatorDevice}-${simulatorOrientation}`}
+                    src={simulatorUrl}
+                    title="Mobile View Simulator Screen"
+                    className="w-full h-full border-0"
+                    style={{ width: `${width}px`, height: `${height}px` }}
+                  />
+                </div>
+
+                {/* Bottom Home Indicator */}
+                <div className="w-full bg-slate-950 py-1.5 flex items-center justify-center select-none z-20 shrink-0">
+                  <div className="w-28 h-1 bg-slate-600 rounded-full" />
+                </div>
+              </div>
             </div>
           </div>
         );
