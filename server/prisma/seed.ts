@@ -53,12 +53,14 @@ async function main() {
 
   // 2. Destinations from Custoworks Rate Cards
   const destinationsData = [
-    { name: 'Naga City', slug: 'naga-city', sortOrder: 1 },
-    { name: 'Camarines Sur', slug: 'camarines-sur', sortOrder: 2 },
-    { name: 'Albay / Daet', slug: 'albay-daet', sortOrder: 3 },
-    { name: 'Sorsogon / Labo', slug: 'sorsogon-labo', sortOrder: 4 },
-    { name: 'Manila', slug: 'manila', sortOrder: 5 },
-    { name: 'Baguio', slug: 'baguio', sortOrder: 6 },
+    { name: 'Naga City', slug: 'naga-city', sortOrder: 1, description: 'Naga City proper, SM City Naga, Magsaysay Ave, Centro' },
+    { name: 'Camarines Sur', slug: 'camarines-sur', sortOrder: 2, description: 'Pili, Canaman, Milaor, Magarao, Ocampo, Calabanga, Pasacao, Baao, Iriga' },
+    { name: 'Naga Airport (WNP / Pili) - Pickup & Drop', slug: 'naga-airport', sortOrder: 3, description: 'Local Naga / Pili Airport terminal pickup, drop-off & flight arrival shuttle (15 km)' },
+    { name: 'Bicol International Airport (BIA / Daraga) - Pickup & Drop', slug: 'bicol-intl-airport', sortOrder: 4, description: 'Official Naga City to Bicol International Airport (Daraga) Airport Chauffeur Meetup & Drop-off (95 km)' },
+    { name: 'Albay / Daet', slug: 'albay-daet', sortOrder: 5, description: 'Legazpi, Daraga, Tabaco, Polangui, Ligao, Daet Camarines Norte' },
+    { name: 'Sorsogon / Labo', slug: 'sorsogon-labo', sortOrder: 6, description: 'Sorsogon City, Matnog, Donsol, Gubat, Bulan, Labo' },
+    { name: 'Manila', slug: 'manila', sortOrder: 7, description: 'Metro Manila, NAIA Terminals 1-4, Quezon City, Makati, BGC, Alabang' },
+    { name: 'Baguio', slug: 'baguio', sortOrder: 8, description: 'Baguio City, Benguet, Northern Luzon' },
   ];
 
   const destinationMap = new Map<string, string>();
@@ -168,7 +170,7 @@ async function main() {
       plateNumber: 'NVV-3501',
       description: 'Full-size 15-passenger commuter van powered by a strong diesel engine. Perfect for corporate shuttles, tour groups, team outings, Baguio & Manila long hauls.',
       features: ['15-Passenger Capacity', 'Dual Front & Ceiling AC Vents', 'High-Roof Clearance', 'Strong Turbo Diesel Engine', 'Large Luggage Space', 'Fire Extinguisher & First Aid Kit'],
-      allowSelfDrive: false,
+      allowSelfDrive: true,
       allowWithDriver: true,
       isFeatured: true,
       sortOrder: 5,
@@ -200,88 +202,277 @@ async function main() {
   console.log('🚗 Vehicles seeded with images');
 
   // 4. Official Custoworks Rates Matrix
-  // Sedan Rates (Mirage / Vios)
+  // 1. SEDAN RATES (Toyota Vios & Mitsubishi Mirage G4)
   const sedanRates = [
     // Naga City
     { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 1500 },
     { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2000 },
     { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 1900 },
-    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 1400 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 35000, unit: PricingUnit.FLAT },
     { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 2800 },
     { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 3800 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 3700 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 3600 },
 
     // Camarines Sur
-    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 1500 },
-    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2000 },
-    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 1800 },
-    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 2300 },
-    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 2800 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 1700 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2200 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2100 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 35000, unit: PricingUnit.FLAT },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3000 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4000 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 3900 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 4100 },
+
+    // Naga Airport
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 1500, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2000, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 1800, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 1800, unit: PricingUnit.FLAT },
+
+    // Bicol International Airport
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2000, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2500, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 4500, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4500, unit: PricingUnit.FLAT },
 
     // Albay / Daet
-    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 1800 },
-    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2300 },
-    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2000 },
-    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 2600 },
-    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 3200 },
-
-    // Sorsogon / Labo
-    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2600 },
-    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2300 },
-    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 3500 },
-
-    // Manila
-    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3200 },
-    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4500 },
-  ];
-
-  // MPV Rates (Xpander / Innova)
-  const mpvRates = [
-    // Naga City
-    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 1800 },
-    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2500 },
-    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2200 },
-    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 1900 },
-    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 2600 },
-    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 3300 },
-
-    // Camarines Sur
-    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2000 },
-    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2800 },
-    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2500 },
-    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 2900 },
-    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 3600 },
-
-    // Albay / Daet
-    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2400 },
-    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3100 },
-    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2800 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2000 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2500 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2400 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 35000, unit: PricingUnit.FLAT },
     { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3300 },
-    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4000 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4300 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 4200 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 4600 },
 
     // Sorsogon / Labo
-    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3500 },
-    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 3100 },
-    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4500 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2500 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3000 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2900 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 35000, unit: PricingUnit.FLAT },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3800 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4800 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 4700 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 4600 },
 
     // Manila
-    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 4200 },
-    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 5500 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 4500 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 5000 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 4900 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 45000, unit: PricingUnit.FLAT },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 5800 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 6800 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 6700 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 6600 },
   ];
 
-  // Van Rates (Nissan NV350 Urvan - With Driver)
+  // 2. XPANDER AT RATES
+  const xpanderRates = [
+    // Naga City
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2000 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2500 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2400 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 45000, unit: PricingUnit.FLAT },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3300 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4300 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 4200 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 4100 },
+
+    // Camarines Sur
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2200 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2700 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2600 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 45000, unit: PricingUnit.FLAT },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3500 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4500 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 4400 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 4300 },
+
+    // Naga Airport
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2000, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2500, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 2500, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 2500, unit: PricingUnit.FLAT },
+
+    // Bicol International Airport
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 3000, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3500, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 6000, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 6000, unit: PricingUnit.FLAT },
+
+    // Albay / Daet
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2500 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3000 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2900 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 45000, unit: PricingUnit.FLAT },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3800 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4800 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 4700 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 4600 },
+
+    // Sorsogon / Labo
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 3000 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3500 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 3400 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 45000, unit: PricingUnit.FLAT },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 4300 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 5300 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 5200 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 5100 },
+
+    // Manila
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 5500 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 6000 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 5900 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 60000, unit: PricingUnit.FLAT },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 6800 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 7800 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 7700 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 7600 },
+  ];
+
+  // 3. INNOVA AT RATES
+  const innovaRates = [
+    // Naga City
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2500 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3000 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 2900 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 50000, unit: PricingUnit.FLAT },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3800 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4800 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 4700 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 4600 },
+
+    // Camarines Sur
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2700 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3200 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 3100 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 50000, unit: PricingUnit.FLAT },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 4300 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 5300 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 5200 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 5100 },
+
+    // Naga Airport
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 2000, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 2500, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 2500, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 2500, unit: PricingUnit.FLAT },
+
+    // Bicol International Airport
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 3000, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3500, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 6000, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 6000, unit: PricingUnit.FLAT },
+
+    // Albay / Daet
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 3000 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 3500 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 3400 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 50000, unit: PricingUnit.FLAT },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 4800 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 5800 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 5700 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 5600 },
+
+    // Sorsogon / Labo
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 3500 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 4000 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 3900 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 50000, unit: PricingUnit.FLAT },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 5300 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 6300 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 6200 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 6100 },
+
+    // Manila
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 6500 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 7000 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 6400 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 70000, unit: PricingUnit.FLAT },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 7800 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 8800 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 8700 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 8600 },
+  ];
+
+  // 4. VAN NV350 RATES
   const vanRates = [
-    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3500 },
-    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4500 },
-    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3800 },
-    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 4800 },
-    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 4200 },
-    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 5200 },
-    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 5800 },
-    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 7500 },
-    { dest: 'baguio', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 9000 },
+    // Naga City
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 4000 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 5000 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 4900 },
+    { dest: 'naga-city', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 4800 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 5500 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 7000 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 6900 },
+    { dest: 'naga-city', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 6800 },
+
+    // Camarines Sur
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 4500 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 5500 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 5400 },
+    { dest: 'camarines-sur', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 5300 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 6000 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 7500 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 7400 },
+    { dest: 'camarines-sur', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 7300 },
+
+    // Naga Airport
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 4000, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 5000, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 3500, unit: PricingUnit.FLAT },
+    { dest: 'naga-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 3500, unit: PricingUnit.FLAT },
+
+    // Bicol International Airport
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 5000, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 6000, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 7500, unit: PricingUnit.FLAT },
+    { dest: 'bicol-intl-airport', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 7500, unit: PricingUnit.FLAT },
+
+    // Albay / Daet
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 5000 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 6000 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 5900 },
+    { dest: 'albay-daet', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 5800 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 6500 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 8000 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 7900 },
+    { dest: 'albay-daet', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 7800 },
+
+    // Sorsogon / Labo
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 5500 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 6500 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 6400 },
+    { dest: 'sorsogon-labo', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 6300 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 7000 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 8500 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 8400 },
+    { dest: 'sorsogon-labo', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 8300 },
+
+    // Manila
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 7000 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 7500 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 7400 },
+    { dest: 'manila', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 7300 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 9000 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 9500 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 9400 },
+    { dest: 'manila', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 9300 },
+
+    // Baguio
+    { dest: 'baguio', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_12, amt: 8000 },
+    { dest: 'baguio', type: RentalType.SELF_DRIVE, dur: RateDuration.HOURS_24, amt: 8500 },
+    { dest: 'baguio', type: RentalType.SELF_DRIVE, dur: RateDuration.WEEKLY, amt: 8400 },
+    { dest: 'baguio', type: RentalType.SELF_DRIVE, dur: RateDuration.MONTHLY, amt: 8300 },
+    { dest: 'baguio', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_12, amt: 10000 },
+    { dest: 'baguio', type: RentalType.WITH_DRIVER, dur: RateDuration.HOURS_24, amt: 10500 },
+    { dest: 'baguio', type: RentalType.WITH_DRIVER, dur: RateDuration.WEEKLY, amt: 10400 },
+    { dest: 'baguio', type: RentalType.WITH_DRIVER, dur: RateDuration.MONTHLY, amt: 10300 },
   ];
 
-  async function applyRates(vehicleSlug: string, list: typeof sedanRates) {
+  async function applyRates(vehicleSlug: string, list: any[]) {
     const vehicleId = vehicleMap.get(vehicleSlug)!;
     for (const r of list) {
       const destinationId = destinationMap.get(r.dest);
@@ -298,7 +489,7 @@ async function main() {
         update: {
           amount: r.amt,
           isPublished: true,
-          pricingUnit: PricingUnit.PER_DAY,
+          pricingUnit: r.unit || PricingUnit.PER_DAY,
         },
         create: {
           vehicleId,
@@ -307,7 +498,7 @@ async function main() {
           duration: r.dur,
           amount: r.amt,
           isPublished: true,
-          pricingUnit: PricingUnit.PER_DAY,
+          pricingUnit: r.unit || PricingUnit.PER_DAY,
         },
       });
     }
@@ -315,8 +506,8 @@ async function main() {
 
   await applyRates('toyota-vios-2025-at', sedanRates);
   await applyRates('mitsubishi-mirage-g4-at', sedanRates);
-  await applyRates('mitsubishi-xpander-at', mpvRates);
-  await applyRates('toyota-innova-at', mpvRates);
+  await applyRates('mitsubishi-xpander-at', xpanderRates);
+  await applyRates('toyota-innova-at', innovaRates);
   await applyRates('nissan-nv350-urvan-mt', vanRates);
   console.log('💰 Rate matrices seeded for all 5 vehicles');
 
