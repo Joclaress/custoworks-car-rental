@@ -8,6 +8,20 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [adDismissed, setAdDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem('cw_ad_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const dismissAd = () => {
+    setAdDismissed(true);
+    try {
+      sessionStorage.setItem('cw_ad_dismissed', 'true');
+    } catch {}
+  };
 
   const isStaff = user?.role === 'ADMIN' || user?.role === 'STAFF';
 
@@ -22,7 +36,7 @@ export const Navbar: React.FC = () => {
     { label: 'Fleet', path: '/vehicles' },
     { label: 'Rates', path: '/rates' },
     { label: 'How It Works', path: '/#process' },
-    { label: 'Partner With Us / Advertise Here', path: '/#sponsors' },
+    { label: 'Advertise With Us', path: '/#sponsors' },
     { label: 'Become a Partner (80% Net)', path: '/partner', highlight: true },
     { label: 'Contact', path: '/#contact' },
   ];
@@ -65,39 +79,50 @@ export const Navbar: React.FC = () => {
   return (
     <header className="sticky top-0 z-50 bg-brand-navy border-b border-brand-navy-light/40 shadow-lg text-white">
       {/* Top Banner: Custoworks Carwash and Detailing */}
-      <div className="bg-gradient-to-r from-blue-950 via-brand-navy to-slate-900 text-white text-xs py-2 px-4 shadow-md border-b border-cyan-500/30">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-          <div className="flex items-center gap-2 text-center sm:text-left">
-            <span className="bg-cyan-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 fill-slate-950" />
-              Official Partner
-            </span>
-            <span className="text-slate-100 text-xs">
-              🧼 <strong className="text-cyan-300 font-extrabold">Custoworks Carwash and Detailing | Naga City:</strong> Snow Foam Wash, Deep Interior Sanitization & Engine Degreasing at Carnation St (Beside SM Naga).
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5 shrink-0">
-            <a
-              href="https://www.facebook.com/profile.php?id=61586727264046"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-[11px] px-3 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1.5"
-            >
-              <span>Visit Carwash Facebook</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
-            <span className="text-slate-600 hidden md:inline">|</span>
-            <a
-              href="/#sponsors"
-              onClick={(e) => handleLinkClick('/#sponsors', e)}
-              className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg transition-all shadow-sm flex items-center gap-1"
-            >
-              <span>+ Add Slot Here (₱3k/mo)</span>
-              <ArrowRight className="w-3 h-3 text-slate-950" />
-            </a>
+      {!adDismissed && (
+        <div className="bg-gradient-to-r from-blue-950 via-brand-navy to-slate-900 text-white text-xs py-1.5 px-3 sm:px-4 shadow-md border-b border-cyan-500/30">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <span className="bg-cyan-400 text-slate-950 text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-slate-950" />
+                <span>Partner</span>
+              </span>
+              <p className="text-slate-100 text-[11px] sm:text-xs truncate">
+                🧼 <strong className="text-cyan-300 font-bold">Custoworks Carwash & Detailing:</strong>{' '}
+                <span className="text-slate-300 hidden sm:inline">Snow Foam Wash & Sanitization (Beside SM Naga)</span>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <a
+                href="https://www.facebook.com/profile.php?id=61586727264046"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-bold text-[10px] sm:text-[11px] px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg transition-all shadow-sm flex items-center gap-1"
+              >
+                <span>Facebook</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              <a
+                href="/#sponsors"
+                onClick={(e) => handleLinkClick('/#sponsors', e)}
+                className="hidden md:inline-flex bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-[11px] px-2.5 py-1 rounded-lg transition-all shadow-sm items-center gap-1"
+              >
+                <span>+ Add Slot (₱3k/mo)</span>
+                <ArrowRight className="w-3 h-3 text-slate-950" />
+              </a>
+              <button
+                onClick={dismissAd}
+                className="p-1 text-slate-400 hover:text-white rounded-md hover:bg-white/10 transition-colors ml-0.5"
+                title="Dismiss Announcement"
+                aria-label="Dismiss banner"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Dispatch & Location Sub-Bar */}
       <div className="bg-brand-navy-dark text-slate-300 text-xs py-1.5 px-4 hidden md:block border-b border-white/5">
