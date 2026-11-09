@@ -85,15 +85,17 @@ const DEFAULT_SPONSORS: SponsorItem[] = [
     phone: '0977 840 0252',
   },
   {
-    id: 'bicol-autoworx',
-    name: 'SpeedTech Auto Care & Detailing',
+    id: 'custoworks-carwash-detailing',
+    name: 'Custoworks Carwash and Detailing | Naga City',
     category: 'AUTOCARE',
-    categoryLabel: 'Automotive & Detailing',
-    tagline: 'Official Maintenance & Fast Wash Partner of Custoworks',
-    location: 'CBD II Triangulo, Naga City',
-    renterPerk: 'Priority 15-Minute Express Wash & Free Tire Pressure Check',
+    categoryLabel: 'Carwash & Detailing',
+    tagline: 'Premium Snow Foam Wash, Deep Interior Detailing, Engine Wash & Ceramic Coating in Naga City',
+    location: 'Carnation St. CBD II Brgy. Triangulo (Beside SM City), Naga City',
+    renterPerk: 'Priority Fast Lane Wash & Free Tire Dressing for Renters & Community Drivers',
     image: 'https://images.unsplash.com/photo-1607860108855-64acf2078ed9?auto=format&fit=crop&w=600&q=80',
+    websiteUrl: 'https://www.facebook.com/profile.php?id=61586727264046',
     phone: '0961 722 5326',
+    isFeatured: true,
   },
 ];
 
@@ -168,6 +170,46 @@ export const LocalSponsorBanner: React.FC = () => {
               <Megaphone className="w-4 h-4 text-amber-400" />
               <span>Direct Sponsor Placement</span>
             </button>
+          </div>
+        </div>
+
+        {/* Featured Sponsor Ad Banner: Custoworks Carwash and Detailing */}
+        <div className="mb-10 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 rounded-3xl p-6 sm:p-8 text-white border-2 border-blue-400/30 shadow-xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="relative z-10 max-w-2xl space-y-3">
+            <div className="inline-flex items-center gap-2 bg-blue-500/20 text-cyan-300 border border-blue-400/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+              Featured Local Partner Ad • Naga City
+            </div>
+            <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              Custoworks Carwash and Detailing | Naga City
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Keep your vehicle showroom-clean! Professional snow foam wash, interior deep sanitization, engine degreasing, and ceramic protection right at <strong>Carnation St. CBD II Brgy. Triangulo (Beside SM City Naga)</strong>.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-cyan-200 pt-1">
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Snow Foam Wash</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Interior Sanitization</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Priority Express Lane</span>
+            </div>
+          </div>
+
+          <div className="relative z-10 shrink-0 flex flex-col sm:flex-row lg:flex-col gap-2.5 w-full sm:w-auto">
+            <a
+              href="https://www.facebook.com/profile.php?id=61586727264046"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#1877F2] hover:bg-[#166fe5] text-white font-black text-xs sm:text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition-all hover:scale-105"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span>Visit Facebook Page</span>
+            </a>
+            <a
+              href="tel:09617225326"
+              className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all text-center flex items-center justify-center gap-2"
+            >
+              <PhoneCall className="w-3.5 h-3.5 text-cyan-300" />
+              <span>Call / Book Detailing</span>
+            </a>
           </div>
         </div>
 

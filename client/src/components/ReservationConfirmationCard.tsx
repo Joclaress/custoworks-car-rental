@@ -398,6 +398,23 @@ export const ReservationConfirmationCard: React.FC<ReservationConfirmationCardPr
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs mt-3">
+          <a
+            href="https://www.facebook.com/profile.php?id=61586727264046"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="col-span-1 sm:col-span-2 bg-blue-500/15 hover:bg-blue-500/25 border border-cyan-400/40 rounded-xl p-2.5 flex items-center justify-between gap-2 transition-all group"
+          >
+            <div>
+              <div className="font-bold text-cyan-300 text-[11px] flex items-center gap-1.5">
+                <span>🧼 Custoworks Carwash & Detailing | Naga City</span>
+                <span className="text-[9px] bg-blue-600 text-white font-black px-1.5 py-0.2 rounded">Official Partner</span>
+              </div>
+              <div className="text-[11px] text-slate-200 mt-0.5">
+                Snow foam wash & detailing at Carnation St (Beside SM). Return unit clean for 100% deposit refund!
+              </div>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-cyan-300 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+          </a>
           <div className="bg-white/5 border border-white/10 rounded-xl p-2.5">
             <div className="font-bold text-amber-300 text-[11px]">CWC Watersports Complex</div>
             <div className="text-[11px] text-slate-200 mt-0.5">10% OFF Cable Ski Passes with Custoworks rental</div>
