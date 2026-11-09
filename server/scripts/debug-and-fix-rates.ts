@@ -57,6 +57,20 @@ async function main() {
         });
         console.log(`Updated ${s.name} ${r.id} to 2000`);
       }
+      if (r.rentalType === 'WITH_DRIVER' && r.duration === 'HOURS_12') {
+        await livePrisma.vehicleRate.update({
+          where: { id: r.id },
+          data: { amount: 2800 },
+        });
+        console.log(`Updated ${s.name} ${r.id} to 2800`);
+      }
+      if (r.rentalType === 'WITH_DRIVER' && r.duration === 'HOURS_24') {
+        await livePrisma.vehicleRate.update({
+          where: { id: r.id },
+          data: { amount: 3800 },
+        });
+        console.log(`Updated ${s.name} ${r.id} to 3800`);
+      }
     }
   }
 

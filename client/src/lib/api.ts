@@ -1,10 +1,13 @@
 const API_BASE = (((import.meta as any).env?.VITE_API_URL as string) || '/api').replace(/\/+$/, '');
 
-const CACHE_VERSION = 'v5_live_rates_1500';
+const CACHE_VERSION = 'v6_rates_1500_permanent';
 try {
   const keys = Object.keys(sessionStorage).filter((k) => k.startsWith('cw_cache_'));
   keys.forEach((k) => sessionStorage.removeItem(k));
   sessionStorage.setItem('cw_cache_version', CACHE_VERSION);
+  // Also clear any persisted client caches
+  localStorage.removeItem('cw_vehicles_cache');
+  localStorage.removeItem('cw_rates_cache');
 } catch {}
 
 interface CacheItem {
