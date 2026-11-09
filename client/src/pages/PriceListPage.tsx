@@ -499,7 +499,7 @@ export const PriceListPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-white font-bold">12-Hour Tier</p>
-                <p className="text-slate-400 text-[11px]">Starts from ₱1,200</p>
+                <p className="text-slate-400 text-[11px]">Starts from ₱1,500</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -508,7 +508,7 @@ export const PriceListPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-white font-bold">24-Hour Whole Day</p>
-                <p className="text-slate-400 text-[11px]">Sedans from ₱1,800</p>
+                <p className="text-slate-400 text-[11px]">Sedans from ₱2,000</p>
               </div>
             </div>
             <div className="flex items-center gap-3">

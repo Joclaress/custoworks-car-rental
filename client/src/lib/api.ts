@@ -1,6 +1,6 @@
 const API_BASE = (((import.meta as any).env?.VITE_API_URL as string) || '/api').replace(/\/+$/, '');
 
-const CACHE_VERSION = 'v3_resfee_1000';
+const CACHE_VERSION = 'v4_sedan_1500';
 try {
   if (sessionStorage.getItem('cw_cache_version') !== CACHE_VERSION) {
     const keys = Object.keys(sessionStorage).filter((k) => k.startsWith('cw_cache_'));
