@@ -32,7 +32,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
-import { downloadElementAsImage } from '../lib/screenshot';
+import { downloadElementAsImage, saveFileToGallery } from '../lib/screenshot';
 
 export const TrackBookingPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -679,6 +679,14 @@ export const TrackBookingPage: React.FC = () => {
                                     <p className="text-[11px] text-slate-500">
                                       {(selectedReqFile.size / 1024).toFixed(1)} KB • Ready to submit
                                     </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => saveFileToGallery(selectedReqFile, `${req.name}.jpg`)}
+                                      className="mt-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                      title="Save photo copy to your phone's photo gallery"
+                                    >
+                                      <Download className="w-3 h-3" /> Save to Phone Gallery
+                                    </button>
                                   </div>
                                 </div>
                               ) : (
@@ -944,16 +952,26 @@ export const TrackBookingPage: React.FC = () => {
                       )}
                       <div className="flex-1 min-w-0 text-left">
                         <p className="text-xs font-bold text-slate-900 truncate">{paymentReceiptFile.name}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPaymentReceiptFile(null);
-                            setPaymentReceiptPreview(null);
-                          }}
-                          className="text-[11px] text-rose-600 hover:underline mt-0.5"
-                        >
-                          Retake / Change
-                        </button>
+                        <div className="flex items-center gap-3 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentReceiptFile(null);
+                              setPaymentReceiptPreview(null);
+                            }}
+                            className="text-[11px] text-rose-600 hover:underline"
+                          >
+                            Retake / Change
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveFileToGallery(paymentReceiptFile, 'Payment-Receipt.jpg')}
+                            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                            title="Save copy to phone gallery"
+                          >
+                            <Download className="w-3 h-3" /> Save to Phone Gallery
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (

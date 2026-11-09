@@ -13,15 +13,15 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const redirect = searchParams.get('redirect') || '/admin';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
-      navigate(redirect);
+      const loggedUser = await login(email, password);
+      const isStaff = loggedUser.role === 'ADMIN' || loggedUser.role === 'STAFF';
+      const defaultTarget = isStaff ? '/admin' : '/dashboard';
+      navigate(searchParams.get('redirect') || defaultTarget);
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {

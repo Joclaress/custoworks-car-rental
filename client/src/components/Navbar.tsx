@@ -56,6 +56,11 @@ export const Navbar: React.FC = () => {
     return location.pathname === path;
   };
 
+  // Do not render public customer navbar on admin dashboard to prevent double-header collision
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-50 bg-brand-navy border-b border-brand-navy-light/40 shadow-lg text-white">
       {/* Top Banner */}

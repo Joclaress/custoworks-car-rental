@@ -1,8 +1,15 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Car, Phone, MapPin, ShieldCheck, Clock, CheckCircle2 } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  const location = useLocation();
+
+  // Hide customer footer on admin portal
+  if (location.pathname.startsWith('/admin')) {
+    return null;
+  }
+
   return (
     <footer className="bg-brand-navy-dark border-t border-brand-navy-light/40 text-slate-400 text-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">

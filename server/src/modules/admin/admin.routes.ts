@@ -7,6 +7,11 @@ export const adminRoutes = Router();
 adminRoutes.get('/stats', authenticate, requireStaff, c.getDashboardStats);
 adminRoutes.get('/settings', authenticate, requireStaff, c.getAdminSettings);
 adminRoutes.put('/settings', authenticate, requireAdmin, c.updateAdminSettings);
+
+// Manual Trip Revenues & Off-system Airport Transfers (e.g. BIA ₱7,500, driver ₱1,000, diesel ₱2,000)
+adminRoutes.get('/manual-revenues', authenticate, requireStaff, c.getManualRevenues);
+adminRoutes.post('/manual-revenues', authenticate, requireStaff, c.addManualRevenue);
+adminRoutes.delete('/manual-revenues/:id', authenticate, requireStaff, c.deleteManualRevenue);
 adminRoutes.post('/reset-test-data', authenticate, requireAdmin, c.resetTestData);
 adminRoutes.get('/audit-logs', authenticate, requireAdmin, c.getAuditLogs);
 adminRoutes.get('/notifications', authenticate, requireStaff, c.getAdminNotifications);

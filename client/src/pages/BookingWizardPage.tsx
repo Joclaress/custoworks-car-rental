@@ -34,9 +34,11 @@ import {
   HeartHandshake,
   PhoneCall,
   Plane,
+  Download,
 } from 'lucide-react';
 import { format, addDays, differenceInCalendarDays } from 'date-fns';
 import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
+import { saveFileToGallery } from '../lib/screenshot';
 
 export const BookingWizardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -105,6 +107,11 @@ export const BookingWizardPage: React.FC = () => {
 
   // Calendar Busy Dates for Selected Vehicle
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+
+  // Automatically scroll to the top of the page when changing steps (e.g. after clicking "Proceed to Customer Details" on Calendar step)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, [step]);
 
   useEffect(() => {
     const initData = async () => {
@@ -259,13 +266,18 @@ export const BookingWizardPage: React.FC = () => {
   // Recalculate quote
   const fetchQuote = async () => {
     if (!selectedVehicleId || !selectedDestinationId || !pickupAt || !returnAt) return;
+    const pDate = new Date(pickupAt);
+    const rDate = new Date(returnAt);
+    if (isNaN(pDate.getTime()) || isNaN(rDate.getTime())) return;
+    if (rDate <= pDate) return;
+
     try {
       const q = new URLSearchParams({
         vehicleId: selectedVehicleId,
         destinationId: selectedDestinationId,
         rentalType: selectedRentalType,
-        pickupAt: new Date(pickupAt).toISOString(),
-        returnAt: new Date(returnAt).toISOString(),
+        pickupAt: pDate.toISOString(),
+        returnAt: rDate.toISOString(),
         pickupMethod,
       });
       if (pickupMethod === 'DELIVERY' && deliveryZoneId) {
@@ -321,6 +333,7 @@ export const BookingWizardPage: React.FC = () => {
       return;
     }
     setStep(5);
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   };
 
   // STEP 5 -> 6: Save Customer Info & Create Draft Hold (generates Tracking Number)
@@ -1645,6 +1658,18 @@ export const BookingWizardPage: React.FC = () => {
                                   className="hidden"
                                 />
                               </label>
+
+                              {requirementFiles[req.id] && (
+                                <button
+                                  type="button"
+                                  onClick={() => saveFileToGallery(requirementFiles[req.id], `${req.name.replace(/\s+/g, '-')}.jpg`)}
+                                  className="border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
+                                  title="Save copy of this photo to your phone gallery / photos"
+                                >
+                                  <Download className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Save to Phone Gallery</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -2017,16 +2042,27 @@ export const BookingWizardPage: React.FC = () => {
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           {(paymentReceiptFile.size / 1024).toFixed(1)} KB • Receipt captured & attached
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPaymentReceiptFile(null);
-                            setPaymentReceiptPreview(null);
-                          }}
-                          className="mt-2 text-xs font-medium text-rose-600 hover:text-rose-700 border border-rose-200 bg-white px-2.5 py-1 rounded-lg"
-                        >
-                          Retake / Change Receipt
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentReceiptFile(null);
+                              setPaymentReceiptPreview(null);
+                            }}
+                            className="text-xs font-medium text-rose-600 hover:text-rose-700 border border-rose-200 bg-white px-2.5 py-1 rounded-lg"
+                          >
+                            Retake / Change Receipt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveFileToGallery(paymentReceiptFile, 'Custoworks-Payment-Receipt.jpg')}
+                            className="text-xs font-bold text-blue-700 hover:text-blue-800 border border-blue-200 bg-blue-50 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors shadow-2xs"
+                            title="Save captured receipt directly to your phone gallery"
+                          >
+                            <Download className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Save Receipt to Phone Gallery</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (

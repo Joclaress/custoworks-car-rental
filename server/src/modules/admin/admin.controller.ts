@@ -5,6 +5,12 @@ import { audit } from '../../services/audit.service';
 import { paginate } from '../../lib/utils';
 import { hashPassword } from '../auth/auth.service';
 import { AppError } from '../../lib/errors';
+import {
+  getAllManualRevenues,
+  addManualRevenue as addManualRevenueService,
+  deleteManualRevenue as deleteManualRevenueService,
+  getManualRevenueStatsForMonth,
+} from '../../services/manual-revenue.service';
 
 export async function getDashboardStats(_req: Request, res: Response) {
   const now = new Date();
@@ -126,6 +132,11 @@ export async function getDashboardStats(_req: Request, res: Response) {
   const totalRevenue = Number(revenueData._sum.amount || 0);
   const thisMonthRevenue = Number(thisMonthRevenueData._sum.amount || 0);
 
+  // Manual Trip Revenues (e.g. BIA airport pickup/drop, custom chauffeur bookings)
+  const manualStats = getManualRevenueStatsForMonth(now.getFullYear(), now.getMonth());
+  const combinedThisMonthRevenue = thisMonthRevenue + manualStats.totalGross;
+  const combinedTotalRevenue = totalRevenue + manualStats.totalGross;
+
   // Group vehicle revenues
   const vehicleRevMap = new Map<string, { id: string; name: string; plateNumber: string; category: string; totalRevenue: number; transactionCount: number }>();
   for (const vp of vehiclePayments) {
@@ -156,8 +167,11 @@ export async function getDashboardStats(_req: Request, res: Response) {
       pendingPayments,
       totalVehicles,
       availableVehicles,
-      totalRevenue,
-      thisMonthRevenue,
+      totalRevenue: combinedTotalRevenue,
+      thisMonthRevenue: combinedThisMonthRevenue,
+      onlineThisMonthRevenue: thisMonthRevenue,
+      manualThisMonthRevenue: manualStats.totalGross,
+      manualStats,
       thisMonthBookingsCount,
       monthLabel,
       revenueByVehicle,
@@ -165,6 +179,32 @@ export async function getDashboardStats(_req: Request, res: Response) {
     recentBookings,
     recentPayments,
   });
+}
+
+// ----------------------------------------------------------------------------
+// Manual Trip Revenue & Expense Logging (BIA Drops, Custom VIP Chauffeur)
+// ----------------------------------------------------------------------------
+
+export async function getManualRevenues(_req: Request, res: Response) {
+  const revenues = getAllManualRevenues();
+  const now = new Date();
+  const stats = getManualRevenueStatsForMonth(now.getFullYear(), now.getMonth());
+  res.json({ revenues, stats });
+}
+
+export async function addManualRevenue(req: Request, res: Response) {
+  const entry = addManualRevenueService(req.body);
+  const now = new Date();
+  const stats = getManualRevenueStatsForMonth(now.getFullYear(), now.getMonth());
+  res.status(201).json({ success: true, entry, stats });
+}
+
+export async function deleteManualRevenue(req: Request, res: Response) {
+  const id = String(req.params.id);
+  const success = deleteManualRevenueService(id);
+  const now = new Date();
+  const stats = getManualRevenueStatsForMonth(now.getFullYear(), now.getMonth());
+  res.json({ success, stats });
 }
 
 export async function getAdminSettings(_req: Request, res: Response) {

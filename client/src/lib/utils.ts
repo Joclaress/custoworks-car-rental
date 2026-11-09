@@ -16,6 +16,7 @@ export function formatPeso(amount: number | string | null | undefined): string {
 export function formatDate(dateString: string | Date, withTime = true): string {
   if (!dateString) return '-';
   const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '-';
   return d.toLocaleDateString('en-PH', {
     month: 'short',
     day: 'numeric',

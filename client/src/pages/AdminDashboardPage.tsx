@@ -47,11 +47,17 @@ import {
   Info,
   Upload,
   Handshake,
+  Smartphone,
+  Monitor,
+  ChevronDown,
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BOOKINGS' | 'CALENDAR' | 'VEHICLES' | 'PRICING' | 'PAYMENTS' | 'REQUIREMENTS' | 'QUOTATIONS' | 'USERS' | 'SETTINGS' | 'PARTNERS'>('OVERVIEW');
+  const [viewAsPhone, setViewAsPhone] = useState<boolean>(false);
+  const [phonePreviewUrl, setPhonePreviewUrl] = useState<'ADMIN' | 'CUSTOMER_SITE'>('ADMIN');
+  const [mobileTabMenuOpen, setMobileTabMenuOpen] = useState<boolean>(false);
 
   // Stats & Overview
   const [stats, setStats] = useState<any>(null);
@@ -262,6 +268,33 @@ export const AdminDashboardPage: React.FC = () => {
   const [releaseMarkOngoing, setReleaseMarkOngoing] = useState(true);
   const [isSubmittingRelease, setIsSubmittingRelease] = useState(false);
 
+  // Tie-Up Partner Commission State in Release Modal
+  const [releaseIsTieUp, setReleaseIsTieUp] = useState(false);
+  const [releaseTieUpPartnerName, setReleaseTieUpPartnerName] = useState('');
+  const [releaseTieUpPercent, setReleaseTieUpPercent] = useState('20');
+  const [releaseAutoLogTrip, setReleaseAutoLogTrip] = useState(true);
+
+  // Manual Trip Gross Revenue & Expense State
+  const [manualRevenues, setManualRevenues] = useState<any[]>([]);
+  const [manualStats, setManualStats] = useState<any>(null);
+  const [addTripModalOpen, setAddTripModalOpen] = useState(false);
+  const [isSubmittingTrip, setIsSubmittingTrip] = useState(false);
+  const [tripForm, setTripForm] = useState({
+    title: 'BIA Airport Pickup & Drop',
+    date: new Date().toISOString().slice(0, 10),
+    clientName: '',
+    vehicleName: 'Toyota Vios 2025 AT',
+    rentalType: 'WITH_DRIVER' as 'WITH_DRIVER' | 'SELF_DRIVE',
+    grossAmount: '7500',
+    driverFee: '1000',
+    fuelFee: '2000',
+    tollOtherFee: '0',
+    isTieUp: false,
+    tieUpPartnerName: '',
+    tieUpPercent: '20',
+    notes: '',
+  });
+
   // Vehicle Return & Rental Completion Modal State ("Done after rent")
   const [completeModalBooking, setCompleteModalBooking] = useState<Booking | null>(null);
   const [refundDepositMethodId, setRefundDepositMethodId] = useState('');
@@ -285,6 +318,10 @@ export const AdminDashboardPage: React.FC = () => {
     setReleaseRefNumber('CASH');
     setReleaseNotes('Remaining rental balance paid upon vehicle release');
     setReleaseMarkOngoing(true);
+    setReleaseIsTieUp(false);
+    setReleaseTieUpPartnerName('');
+    setReleaseTieUpPercent('20');
+    setReleaseAutoLogTrip(true);
   };
 
   const handleSubmitRelease = async (e: React.FormEvent) => {
@@ -293,6 +330,39 @@ export const AdminDashboardPage: React.FC = () => {
     setIsSubmittingRelease(true);
     try {
       const amountToPay = parseFloat(releaseAmount) || 0;
+      let finalNotes = releaseNotes.trim() || 'Rental balance collected upon pickup';
+
+      if (releaseIsTieUp) {
+        const fin = getBookingFinancials(releaseModalBooking);
+        const tieUpPct = parseFloat(releaseTieUpPercent) || 20;
+        const partnerAmt = Math.round(fin.totalAmount * (tieUpPct / 100));
+        const custoNet = fin.totalAmount - partnerAmt;
+        finalNotes += ` | [Tie-Up: ${releaseTieUpPartnerName.trim() || 'Partner'} (${tieUpPct}%) - Partner: ₱${partnerAmt.toLocaleString()} | Custoworks Net: ₱${custoNet.toLocaleString()}]`;
+
+        if (releaseAutoLogTrip) {
+          try {
+            await api.post('/admin/manual-revenues', {
+              title: `Tie-Up: ${releaseModalBooking.reference} (${releaseModalBooking.vehicle?.name || 'Partner Unit'})`,
+              date: new Date().toISOString().slice(0, 10),
+              clientName: releaseModalBooking.customerName,
+              vehicleName: releaseModalBooking.vehicle?.name || 'Tie-Up Unit',
+              rentalType: releaseModalBooking.rentalType || 'SELF_DRIVE',
+              grossAmount: fin.totalAmount,
+              driverFee: 0,
+              fuelFee: 0,
+              tollOtherFee: 0,
+              isTieUp: true,
+              tieUpPartnerName: releaseTieUpPartnerName.trim() || 'Tie-Up Fleet Partner',
+              tieUpPercent: tieUpPct,
+              notes: `Auto-recorded from Release for Booking #${releaseModalBooking.reference}`,
+            });
+            await fetchManualRevenues();
+          } catch (mErr) {
+            console.error('Error auto-logging tie-up trip revenue:', mErr);
+          }
+        }
+      }
+
       if (amountToPay > 0) {
         if (!releasePaymentMethodId) {
           alert('Please select a payment method for the balance.');
@@ -305,7 +375,7 @@ export const AdminDashboardPage: React.FC = () => {
           type: 'RENTAL_BALANCE',
           amount: amountToPay,
           referenceNumber: releaseRefNumber.trim() || 'CASH',
-          notes: releaseNotes.trim() || 'Rental balance collected upon pickup',
+          notes: finalNotes,
           paidAt: new Date().toISOString(),
         });
       }
@@ -327,6 +397,111 @@ export const AdminDashboardPage: React.FC = () => {
       alert(err.message || 'Failed to release vehicle or record payment');
     } finally {
       setIsSubmittingRelease(false);
+    }
+  };
+
+  const fetchManualRevenues = async () => {
+    try {
+      const res = await api.get<{ revenues: any[]; stats: any }>('/admin/manual-revenues');
+      setManualRevenues(res.revenues || []);
+      setManualStats(res.stats || null);
+    } catch (err) {
+      console.error('Error fetching manual revenues:', err);
+    }
+  };
+
+  const applyTripPreset = (preset: 'BIA' | 'LEGAZPI' | 'NAGA' | 'WALKIN') => {
+    if (preset === 'BIA') {
+      setTripForm((prev) => ({
+        ...prev,
+        title: 'BIA Airport Pickup & Drop (VIP Chauffeur)',
+        rentalType: 'WITH_DRIVER',
+        grossAmount: '7500',
+        driverFee: '1000',
+        fuelFee: '2000',
+        tollOtherFee: '0',
+        notes: 'VIP roundtrip airport transfer Naga City <-> Bicol International Airport (BIA)',
+      }));
+    } else if (preset === 'LEGAZPI') {
+      setTripForm((prev) => ({
+        ...prev,
+        title: 'Naga to Legazpi / Mayon Tour',
+        rentalType: 'WITH_DRIVER',
+        grossAmount: '5500',
+        driverFee: '1000',
+        fuelFee: '1500',
+        tollOtherFee: '100',
+        notes: 'Whole day Albay / Mayon sightseeing tour with dedicated driver',
+      }));
+    } else if (preset === 'NAGA') {
+      setTripForm((prev) => ({
+        ...prev,
+        title: 'Naga City 10h Chauffeur Service',
+        rentalType: 'WITH_DRIVER',
+        grossAmount: '3500',
+        driverFee: '800',
+        fuelFee: '800',
+        tollOtherFee: '0',
+        notes: 'Naga City intra-city chauffeur service (business / events)',
+      }));
+    } else if (preset === 'WALKIN') {
+      setTripForm((prev) => ({
+        ...prev,
+        title: 'Walk-in Self-Drive (24 Hours)',
+        rentalType: 'SELF_DRIVE',
+        grossAmount: '2500',
+        driverFee: '0',
+        fuelFee: '0',
+        tollOtherFee: '0',
+        notes: 'Direct OTC walk-in rental (client handles own fuel)',
+      }));
+    }
+  };
+
+  const handleAddManualTrip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const gross = parseFloat(tripForm.grossAmount) || 0;
+    if (gross <= 0) {
+      alert('Please enter a valid gross amount.');
+      return;
+    }
+    setIsSubmittingTrip(true);
+    try {
+      await api.post('/admin/manual-revenues', {
+        title: tripForm.title.trim() || 'Offline Trip Revenue',
+        date: tripForm.date,
+        clientName: tripForm.clientName.trim() || 'Walk-in Guest',
+        vehicleName: tripForm.vehicleName.trim() || 'Fleet Vehicle',
+        rentalType: tripForm.rentalType,
+        grossAmount: gross,
+        driverFee: parseFloat(tripForm.driverFee) || 0,
+        fuelFee: parseFloat(tripForm.fuelFee) || 0,
+        tollOtherFee: parseFloat(tripForm.tollOtherFee) || 0,
+        isTieUp: tripForm.isTieUp,
+        tieUpPartnerName: tripForm.tieUpPartnerName.trim() || undefined,
+        tieUpPercent: tripForm.isTieUp ? parseFloat(tripForm.tieUpPercent) || 20 : undefined,
+        notes: tripForm.notes.trim() || undefined,
+      });
+
+      alert('Manual trip recorded successfully into Monthly Gross Revenue!');
+      setAddTripModalOpen(false);
+      await fetchManualRevenues();
+      await fetchStats();
+    } catch (err: any) {
+      alert(err.message || 'Failed to save manual trip revenue');
+    } finally {
+      setIsSubmittingTrip(false);
+    }
+  };
+
+  const handleDeleteManualTrip = async (id: string, title: string) => {
+    if (!confirm(`Are you sure you want to remove "${title}" from manual revenues?`)) return;
+    try {
+      await api.delete(`/admin/manual-revenues/${id}`);
+      await fetchManualRevenues();
+      await fetchStats();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete entry');
     }
   };
 
@@ -488,6 +663,9 @@ export const AdminDashboardPage: React.FC = () => {
       const res = await api.get<{ stats: any; recentBookings: any[] }>('/admin/stats');
       setStats(res.stats);
       setRecentBookings(res.recentBookings);
+      if (res.stats?.manualStats) {
+        setManualStats(res.stats.manualStats);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -552,13 +730,14 @@ export const AdminDashboardPage: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([fetchStats(), fetchBookings(), fetchVehiclesAndMaster()]);
+      await Promise.all([fetchStats(), fetchBookings(), fetchVehiclesAndMaster(), fetchManualRevenues()]);
       setLoading(false);
     };
     init();
   }, []);
 
   useEffect(() => {
+    if (activeTab === 'OVERVIEW') fetchManualRevenues();
     if (activeTab === 'CALENDAR') fetchCalendar();
     if (activeTab === 'PAYMENTS') fetchPayments();
     if (activeTab === 'BOOKINGS') fetchBookings();
@@ -882,6 +1061,20 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const adminTabs = [
+    { id: 'OVERVIEW', label: 'Overview', icon: LayoutDashboard },
+    { id: 'BOOKINGS', label: 'Bookings', icon: Clock, badge: bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'ONGOING').length },
+    { id: 'CALENDAR', label: 'Calendar', icon: Calendar },
+    { id: 'VEHICLES', label: 'Fleet', icon: Car, badge: vehicles.length },
+    { id: 'PRICING', label: 'Pricing Matrix', icon: DollarSign },
+    { id: 'PAYMENTS', label: 'Payments', icon: Receipt, badge: stats?.pendingPayments, badgeAmber: true },
+    { id: 'REQUIREMENTS', label: 'Requirements', icon: FileCheck2 },
+    { id: 'QUOTATIONS', label: 'Quotations', icon: FileText },
+    { id: 'PARTNERS', label: 'Tie-Up Partners', icon: Handshake },
+    { id: 'USERS', label: 'Staff Accounts', icon: Users },
+    { id: 'SETTINGS', label: 'Settings', icon: Settings },
+  ];
+
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
       {/* Top Executive Command Header */}
@@ -929,6 +1122,22 @@ export const AdminDashboardPage: React.FC = () => {
               <span className="hidden sm:inline">Live Website</span>
             </a>
 
+            {/* View as Phone Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setViewAsPhone(!viewAsPhone)}
+              title="Preview how Admin & Booking look on a mobile phone"
+              className={`border text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm ${
+                viewAsPhone
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/40 shadow-amber-500/20'
+                  : 'bg-slate-800/90 hover:bg-slate-700 border-slate-700/80 text-amber-300 hover:text-white'
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">{viewAsPhone ? 'Exit Phone View' : '📱 View as Phone'}</span>
+              <span className="sm:hidden">{viewAsPhone ? 'Exit' : 'Phone'}</span>
+            </button>
+
             <button
               onClick={() => setAddVehicleModalOpen(true)}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/25 transition-all flex items-center gap-1.5"
@@ -951,54 +1160,191 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Admin Content */}
-      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-7 space-y-6">
-        {/* Modern Navigation Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-800/80 text-xs font-bold">
-          {[
-            { id: 'OVERVIEW', label: 'Overview', icon: LayoutDashboard },
-            { id: 'BOOKINGS', label: 'Bookings', icon: Clock, badge: bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'ONGOING').length },
-            { id: 'CALENDAR', label: 'Calendar', icon: Calendar },
-            { id: 'VEHICLES', label: 'Fleet', icon: Car, badge: vehicles.length },
-            { id: 'PRICING', label: 'Pricing Matrix', icon: DollarSign },
-            { id: 'PAYMENTS', label: 'Payments', icon: Receipt, badge: stats?.pendingPayments, badgeAmber: true },
-            { id: 'REQUIREMENTS', label: 'Requirements', icon: FileCheck2 },
-            { id: 'QUOTATIONS', label: 'Quotations', icon: FileText },
-            { id: 'PARTNERS', label: 'Tie-Up Partners', icon: Handshake },
-            { id: 'USERS', label: 'Staff Accounts', icon: Users },
-            { id: 'SETTINGS', label: 'Settings', icon: Settings },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all shrink-0 border ${
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500/80 shadow-lg shadow-blue-600/25'
-                    : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850 hover:border-slate-700'
-                }`}
+      {/* Phone Simulation Mode Top Bar */}
+      {viewAsPhone && (
+        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 text-xs text-amber-300 flex flex-wrap items-center justify-between gap-3 sticky top-[61px] z-30 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-extrabold text-white text-xs">
+              📱 Phone View Simulator Active (390px Mobile Smartphone)
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPhonePreviewUrl('ADMIN')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                phonePreviewUrl === 'ADMIN'
+                  ? 'bg-amber-400 text-slate-950 font-black shadow'
+                  : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+              }`}
+            >
+              Admin Mobile Console
+            </button>
+            <button
+              type="button"
+              onClick={() => setPhonePreviewUrl('CUSTOMER_SITE')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                phonePreviewUrl === 'CUSTOMER_SITE'
+                  ? 'bg-amber-400 text-slate-950 font-black shadow'
+                  : 'bg-slate-800 text-slate-300 hover:text-white border border-slate-700'
+              }`}
+            >
+              Customer Booking Flow (/book)
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewAsPhone(false)}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded-lg text-xs font-bold border border-slate-700 flex items-center gap-1"
+            >
+              <X className="w-3.5 h-3.5" /> Exit Phone View
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Admin Content Container */}
+      <div
+        className={`flex-1 mx-auto w-full transition-all duration-300 ${
+          viewAsPhone
+            ? 'max-w-[420px] my-6 bg-slate-950 border-[10px] border-slate-800 rounded-[50px] shadow-2xl shadow-black ring-4 ring-slate-800/80 px-3.5 py-4 space-y-4'
+            : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-7 space-y-6'
+        }`}
+      >
+        {/* Phone Notch & Status bar when in Phone View */}
+        {viewAsPhone && (
+          <div className="pt-1 pb-2 flex flex-col items-center border-b border-slate-800/80 mb-2 select-none">
+            <div className="w-24 h-4 bg-black rounded-full flex items-center justify-between px-3">
+              <div className="w-2 h-2 rounded-full bg-slate-900" />
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-900" />
+            </div>
+            <div className="w-full px-4 pt-1 flex items-center justify-between text-[10px] font-mono text-slate-400 font-bold">
+              <span>9:41 AM</span>
+              <span className="text-emerald-400">5G · 100% 🔋</span>
+            </div>
+          </div>
+        )}
+
+        {/* If Customer Booking preview is selected in Phone Mode */}
+        {viewAsPhone && phonePreviewUrl === 'CUSTOMER_SITE' ? (
+          <div className="rounded-2xl overflow-hidden shadow-inner bg-white">
+            <div className="bg-slate-800 px-3 py-1.5 flex items-center justify-between text-[10px] text-slate-300 border-b border-slate-700">
+              <span className="font-mono text-slate-400 truncate">https://custoworks.com/book</span>
+              <a
+                href="/book"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-400 hover:underline flex items-center gap-1 shrink-0 ml-2"
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span
-                    className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                      tab.badgeAmber
-                        ? 'bg-amber-400 text-slate-950 font-bold'
-                        : isActive
-                        ? 'bg-white/25 text-white'
-                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                <ExternalLink className="w-3 h-3" /> New tab
+              </a>
+            </div>
+            <iframe
+              src="/book"
+              title="Customer Booking Phone Simulation"
+              className="w-full h-[720px] border-0"
+            />
+          </div>
+        ) : (
+          <>
+            {/* Mobile Tab Quick Switcher (visible on real phones or in Phone View) */}
+            <div className={viewAsPhone ? 'block' : 'md:hidden'}>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMobileTabMenuOpen(!mobileTabMenuOpen)}
+                  className="w-full flex items-center justify-between bg-slate-900 border border-slate-700/80 p-2.5 rounded-xl text-left shadow-sm active:bg-slate-850"
+                >
+                  <div className="flex items-center gap-2">
+                    {React.createElement(
+                      adminTabs.find((t) => t.id === activeTab)?.icon || LayoutDashboard,
+                      { className: 'w-4 h-4 text-blue-400 shrink-0' }
+                    )}
+                    <span className="font-bold text-white text-xs truncate">
+                      Section: {adminTabs.find((t) => t.id === activeTab)?.label}
+                    </span>
+                    {adminTabs.find((t) => t.id === activeTab)?.badge ? (
+                      <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                        {adminTabs.find((t) => t.id === activeTab)?.badge}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold shrink-0">
+                    <span>Switch</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${mobileTabMenuOpen ? 'rotate-180' : ''}`} />
+                  </div>
+                </button>
+
+                {mobileTabMenuOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1.5 z-50 grid grid-cols-2 gap-1 backdrop-blur-md">
+                    {adminTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      const isActive = activeTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveTab(tab.id as any);
+                            setMobileTabMenuOpen(false);
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-lg text-left text-xs font-bold transition-all ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow'
+                              : 'hover:bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <Icon className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">{tab.label}</span>
+                          </div>
+                          {tab.badge !== undefined && tab.badge > 0 && (
+                            <span className={`text-[10px] px-1 py-0.2 rounded-full font-black ${tab.badgeAmber ? 'bg-amber-400 text-slate-950' : 'bg-slate-700 text-white'}`}>
+                              {tab.badge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modern Navigation Tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-2 border-b border-slate-800/80 text-xs font-bold">
+              {adminTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all shrink-0 border ${
+                      isActive
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-500/80 shadow-lg shadow-blue-600/25'
+                        : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-850 hover:border-slate-700'
                     }`}
                   >
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <span>{tab.label}</span>
+                    {tab.badge !== undefined && tab.badge > 0 && (
+                      <span
+                        className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                          tab.badgeAmber
+                            ? 'bg-amber-400 text-slate-950 font-bold'
+                            : isActive
+                            ? 'bg-white/25 text-white'
+                            : 'bg-slate-800 text-slate-300 border border-slate-700'
+                        }`}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
 
         {/* TAB 1: OVERVIEW METRICS */}
         {activeTab === 'OVERVIEW' && stats && (
@@ -1110,21 +1456,66 @@ export const AdminDashboardPage: React.FC = () => {
                         {stats.monthLabel || 'Current Month'}
                       </span>
                     </div>
-                    <button
-                      onClick={() => setActiveTab('PAYMENTS')}
-                      className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-md transition-all"
-                    >
-                      Inspect All Payments →
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => setAddTripModalOpen(true)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5 border border-emerald-400/30"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add Manual Gross (BIA / Offline)</span>
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('PAYMENTS')}
+                        className="bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-700 shadow-md transition-all"
+                      >
+                        Inspect Payments →
+                      </button>
+                    </div>
                   </div>
 
                   <div>
-                    <span className="text-4xl sm:text-5xl font-black text-white tracking-tight block">
-                      {formatPeso(stats.thisMonthRevenue ?? stats.totalRevenue)}
-                    </span>
+                    <div className="flex items-baseline gap-3 flex-wrap">
+                      <span className="text-4xl sm:text-5xl font-black text-white tracking-tight block">
+                        {formatPeso(stats.thisMonthRevenue ?? stats.totalRevenue)}
+                      </span>
+                      {stats.manualStats && stats.manualStats.count > 0 && (
+                        <span className="text-xs font-bold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-lg border border-emerald-500/30 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          Net Custoworks: {formatPeso((stats.onlineThisMonthRevenue || 0) + (stats.manualStats.netCustoworks || 0))}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-300 mt-1.5">
-                      Gross collected this month from reservation fees (₱1,000) and vehicle rental balances.
+                      Combined total of online reservation fees & rental balances + manual offline trips (BIA airport runs, walk-ins).
                     </p>
+
+                    {/* Financial Breakdown Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4 pt-3 border-t border-slate-800/80 text-[11px]">
+                      <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                        <span className="text-slate-400 block text-[10px] font-semibold uppercase">Online Bookings Gross</span>
+                        <span className="font-extrabold text-blue-300 text-sm mt-0.5 block">
+                          {formatPeso(stats.onlineThisMonthRevenue ?? stats.thisMonthRevenue ?? 0)}
+                        </span>
+                      </div>
+                      <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                        <span className="text-slate-400 block text-[10px] font-semibold uppercase">Manual Trips Gross</span>
+                        <span className="font-extrabold text-emerald-400 text-sm mt-0.5 block">
+                          {formatPeso(stats.manualThisMonthRevenue || stats.manualStats?.totalGross || 0)}
+                        </span>
+                      </div>
+                      <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                        <span className="text-slate-400 block text-[10px] font-semibold uppercase">Driver & Fuel Costs</span>
+                        <span className="font-extrabold text-amber-400 text-sm mt-0.5 block">
+                          - {formatPeso((stats.manualStats?.totalDriverFee || 0) + (stats.manualStats?.totalFuelFee || 0) + (stats.manualStats?.totalTollOther || 0))}
+                        </span>
+                      </div>
+                      <div className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+                        <span className="text-slate-400 block text-[10px] font-semibold uppercase">Tie-Up Payouts (20%)</span>
+                        <span className="font-extrabold text-purple-400 text-sm mt-0.5 block">
+                          - {formatPeso(stats.manualStats?.totalTieUpFee || 0)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Monthly Fleet Breakdown */}
@@ -1218,6 +1609,159 @@ export const AdminDashboardPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* MANUAL TRIPS & OFFLINE REVENUE LEDGER */}
+            <div className="bg-slate-900/90 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+              <div className="p-5 border-b border-slate-800 flex flex-wrap justify-between items-center gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h3 className="font-bold text-base text-white">Manual Trips & Offline Revenue Ledger</h3>
+                    <p className="text-slate-400 text-xs mt-0.5">
+                      BIA Airport transfers (₱7,500), customized chauffeur runs, fuel & driver allowances, and 20% tie-up payouts
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      applyTripPreset('BIA');
+                      setAddTripModalOpen(true);
+                    }}
+                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
+                  >
+                    <Plane className="w-3.5 h-3.5" />
+                    <span>Quick BIA Airport Run (₱7,500)</span>
+                  </button>
+                  <button
+                    onClick={() => setAddTripModalOpen(true)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Manual Trip</span>
+                  </button>
+                </div>
+              </div>
+
+              {manualRevenues.length === 0 ? (
+                <div className="p-8 text-center space-y-3">
+                  <p className="text-slate-400 text-xs">No manual offline trips logged yet this month.</p>
+                  <button
+                    onClick={() => {
+                      applyTripPreset('BIA');
+                      setAddTripModalOpen(true);
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all"
+                  >
+                    Add Sample BIA Airport Pickup & Drop (₱7,500)
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-850 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[11px]">
+                      <tr>
+                        <th className="p-3.5">Date</th>
+                        <th className="p-3.5">Trip / Service</th>
+                        <th className="p-3.5">Vehicle & Client</th>
+                        <th className="p-3.5 text-right">Gross Charged</th>
+                        <th className="p-3.5">Direct Expenses (Driver & Diesel)</th>
+                        <th className="p-3.5">Tie-Up Partner</th>
+                        <th className="p-3.5 text-right">Net Profit</th>
+                        <th className="p-3.5">Notes</th>
+                        <th className="p-3.5 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80 font-medium text-slate-300">
+                      {manualRevenues.map((trip) => {
+                        const totalExp = (trip.driverFee || 0) + (trip.fuelFee || 0) + (trip.tollOtherFee || 0);
+                        return (
+                          <tr key={trip.id} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="p-3.5 font-mono text-slate-400 whitespace-nowrap">
+                              {trip.date}
+                            </td>
+                            <td className="p-3.5">
+                              <span className="font-bold text-white block">{trip.title}</span>
+                              <span
+                                className={`inline-block mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  trip.rentalType === 'WITH_DRIVER'
+                                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                }`}
+                              >
+                                {trip.rentalType === 'WITH_DRIVER' ? 'With Driver' : 'Self-Drive'}
+                              </span>
+                            </td>
+                            <td className="p-3.5">
+                              <span className="font-bold text-slate-200 block">{trip.vehicleName}</span>
+                              <span className="text-[11px] text-slate-400">{trip.clientName}</span>
+                            </td>
+                            <td className="p-3.5 text-right font-mono font-black text-white text-sm">
+                              {formatPeso(trip.grossAmount)}
+                            </td>
+                            <td className="p-3.5">
+                              <div className="space-y-0.5 text-[11px]">
+                                {trip.driverFee > 0 && (
+                                  <div className="text-amber-300">
+                                    Driver: <span className="font-mono font-bold">{formatPeso(trip.driverFee)}</span>
+                                  </div>
+                                )}
+                                {trip.fuelFee > 0 && (
+                                  <div className="text-amber-300">
+                                    Fuel/Diesel: <span className="font-mono font-bold">{formatPeso(trip.fuelFee)}</span>
+                                  </div>
+                                )}
+                                {trip.tollOtherFee > 0 && (
+                                  <div className="text-slate-400">
+                                    Toll/Other: <span className="font-mono font-bold">{formatPeso(trip.tollOtherFee)}</span>
+                                  </div>
+                                )}
+                                {totalExp === 0 && <span className="text-slate-500">None (₱0)</span>}
+                              </div>
+                            </td>
+                            <td className="p-3.5">
+                              {trip.isTieUp ? (
+                                <div className="space-y-0.5">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full border border-purple-500/30">
+                                    <Handshake className="w-3 h-3" />
+                                    {trip.tieUpPercent || 20}% Partner Share
+                                  </span>
+                                  <div className="text-purple-300 font-bold text-[11px]">
+                                    - {formatPeso(trip.tieUpAmount || 0)}
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 block truncate max-w-[130px]">
+                                    {trip.tieUpPartnerName || 'Fleet Partner'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-500 text-[11px]">Direct Fleet (0%)</span>
+                              )}
+                            </td>
+                            <td className="p-3.5 text-right font-mono font-black text-emerald-400 text-sm">
+                              {formatPeso(trip.netAmount)}
+                            </td>
+                            <td className="p-3.5 text-slate-400 text-[11px] max-w-xs truncate" title={trip.notes}>
+                              {trip.notes || '—'}
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <button
+                                onClick={() => handleDeleteManualTrip(trip.id, trip.title)}
+                                title="Delete entry"
+                                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Recent Bookings Activity Table */}
@@ -2564,9 +3108,18 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
 
-      {/* View Receipt Proof Modal / Lightbox */}
+        {/* Phone View Home Indicator */}
+        {viewAsPhone && (
+          <div className="pt-3 pb-1 flex items-center justify-center border-t border-slate-800/80 mt-6 select-none">
+            <div className="w-32 h-1 bg-slate-600 rounded-full" />
+          </div>
+        )}
+      </>
+    )}
+  </div>
+
+  {/* View Receipt Proof Modal / Lightbox */}
       {viewingReceiptPayment && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-4 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
@@ -3386,6 +3939,115 @@ export const AdminDashboardPage: React.FC = () => {
                   </div>
                 )}
 
+                {/* Optional Tie-Up Partner Section */}
+                <div className="rounded-2xl border border-purple-200 bg-purple-50/60 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={releaseIsTieUp}
+                        onChange={(e) => setReleaseIsTieUp(e.target.checked)}
+                        className="w-4 h-4 text-purple-600 rounded border-purple-300 focus:ring-purple-500"
+                      />
+                      <span className="flex items-center gap-1.5">
+                        <Handshake className="w-4 h-4 text-purple-600" />
+                        Vehicle is from Tie-Up Partner / Sub-Rental (Optional)
+                      </span>
+                    </label>
+                    {releaseIsTieUp && (
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">
+                        Active Commission
+                      </span>
+                    )}
+                  </div>
+
+                  {releaseIsTieUp && (
+                    <div className="pt-2 border-t border-purple-200/80 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-bold text-slate-700 text-[11px] mb-1">
+                            Tie-Up Partner Name / Fleet Provider *
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Naga Fleet Partner / Unit Owner"
+                            value={releaseTieUpPartnerName}
+                            onChange={(e) => setReleaseTieUpPartnerName(e.target.value)}
+                            className="w-full bg-white border border-purple-300 rounded-xl p-2 font-semibold text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 text-[11px] mb-1">
+                            Partner Share / Commission %
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={releaseTieUpPercent}
+                              onChange={(e) => setReleaseTieUpPercent(e.target.value)}
+                              className="w-20 bg-white border border-purple-300 rounded-xl p-2 font-mono font-bold text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            />
+                            <div className="flex gap-1">
+                              {['20', '25', '30', '80'].map((pct) => (
+                                <button
+                                  type="button"
+                                  key={pct}
+                                  onClick={() => setReleaseTieUpPercent(pct)}
+                                  className={`text-[10px] px-2 py-1 rounded-lg border font-bold ${
+                                    releaseTieUpPercent === pct
+                                      ? 'bg-purple-600 text-white border-purple-600'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {pct}%
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Live Calculation Box */}
+                      {(() => {
+                        const pct = parseFloat(releaseTieUpPercent) || 20;
+                        const partnerPayout = Math.round(fin.totalAmount * (pct / 100));
+                        const custoNet = fin.totalAmount - partnerPayout;
+                        return (
+                          <div className="bg-white rounded-xl p-2.5 border border-purple-200 text-[11px] space-y-1">
+                            <div className="flex justify-between items-center text-slate-600">
+                              <span>Total Booking Amount:</span>
+                              <span className="font-mono font-bold text-slate-900">{formatPeso(fin.totalAmount)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-purple-700 font-bold">
+                              <span>Partner Payout ({pct}%):</span>
+                              <span className="font-mono">₱{partnerPayout.toLocaleString()}</span>
+                            </div>
+                            <div className="border-t border-purple-100 pt-1 flex justify-between items-center text-emerald-700 font-extrabold">
+                              <span>Custoworks Management Share ({100 - pct}%):</span>
+                              <span className="font-mono">₱{custoNet.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="releaseAutoLogCheck"
+                          checked={releaseAutoLogTrip}
+                          onChange={(e) => setReleaseAutoLogTrip(e.target.checked)}
+                          className="w-3.5 h-3.5 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+                        />
+                        <label htmlFor="releaseAutoLogCheck" className="text-[11px] text-slate-700 cursor-pointer">
+                          Auto-record this partner commission in <strong>Monthly Gross & Offline Ledger</strong>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                   <input
                     type="checkbox"
@@ -3788,6 +4450,336 @@ export const AdminDashboardPage: React.FC = () => {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        );
+      })()}
+      {/* 4. Add Manual Trip / Gross Revenue Modal */}
+      {addTripModalOpen && (() => {
+        const gross = parseFloat(tripForm.grossAmount) || 0;
+        const driver = parseFloat(tripForm.driverFee) || 0;
+        const fuel = parseFloat(tripForm.fuelFee) || 0;
+        const toll = parseFloat(tripForm.tollOtherFee) || 0;
+        const tieUpPct = tripForm.isTieUp ? parseFloat(tripForm.tieUpPercent) || 20 : 0;
+        const tieUpAmount = tripForm.isTieUp ? Math.round(gross * (tieUpPct / 100)) : 0;
+        const totalExpenses = driver + fuel + toll;
+        const netCustoworks = Math.max(0, gross - totalExpenses - tieUpAmount);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white text-slate-900 rounded-3xl max-w-2xl w-full p-6 space-y-5 text-xs shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto">
+              <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                      <DollarSign className="w-4 h-4" />
+                    </span>
+                    <h3 className="font-extrabold text-base text-slate-900">
+                      Add Manual Gross Revenue & Offline Trip
+                    </h3>
+                  </div>
+                  <p className="text-slate-500 text-[11px] mt-1">
+                    Record offline trips (e.g. BIA ₱7,500), walk-ins, fuel & driver allowances, and 20% tie-up partner payouts.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddTripModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Quick 1-Click Templates */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block">
+                  1-Click Quick Templates:
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applyTripPreset('BIA')}
+                    className="p-2.5 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-left transition-colors"
+                  >
+                    <span className="font-bold text-blue-900 block text-[11px]">✈️ BIA Airport</span>
+                    <span className="text-blue-700 font-extrabold text-xs block">₱7,500 Gross</span>
+                    <span className="text-[9px] text-blue-600">Driver ₱1k • Diesel ₱2k</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyTripPreset('LEGAZPI')}
+                    className="p-2.5 rounded-xl border border-purple-200 bg-purple-50/70 hover:bg-purple-100 text-left transition-colors"
+                  >
+                    <span className="font-bold text-purple-900 block text-[11px]">🌋 Mayon Tour</span>
+                    <span className="text-purple-700 font-extrabold text-xs block">₱5,500 Gross</span>
+                    <span className="text-[9px] text-purple-600">Driver ₱1k • Diesel ₱1.5k</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyTripPreset('NAGA')}
+                    className="p-2.5 rounded-xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-left transition-colors"
+                  >
+                    <span className="font-bold text-amber-900 block text-[11px]">🚗 Naga 10h</span>
+                    <span className="text-amber-700 font-extrabold text-xs block">₱3,500 Gross</span>
+                    <span className="text-[9px] text-amber-600">Driver ₱800 • Diesel ₱800</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyTripPreset('WALKIN')}
+                    className="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-left transition-colors"
+                  >
+                    <span className="font-bold text-emerald-900 block text-[11px]">🔑 Self-Drive 24h</span>
+                    <span className="text-emerald-700 font-extrabold text-xs block">₱2,500 Gross</span>
+                    <span className="text-[9px] text-emerald-600">Walk-in client rental</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Trip Form */}
+              <form onSubmit={handleAddManualTrip} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Trip / Service Title *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. BIA Airport Pickup & Drop"
+                      value={tripForm.title}
+                      onChange={(e) => setTripForm({ ...tripForm, title: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Date of Trip *</label>
+                    <input
+                      type="date"
+                      required
+                      value={tripForm.date}
+                      onChange={(e) => setTripForm({ ...tripForm, date: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-mono font-bold text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Customer / Passenger</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Executive Guest / Walk-in"
+                      value={tripForm.clientName}
+                      onChange={(e) => setTripForm({ ...tripForm, clientName: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Vehicle Used</label>
+                    <select
+                      value={tripForm.vehicleName}
+                      onChange={(e) => setTripForm({ ...tripForm, vehicleName: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-semibold text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {vehicles.map((v) => (
+                        <option key={v.id} value={`${v.name} (${v.plateNumber})`}>
+                          {v.name} ({v.plateNumber})
+                        </option>
+                      ))}
+                      <option value="Partner Fleet Vehicle">Partner Fleet Vehicle</option>
+                      <option value="Toyota Vios 2025 AT">Toyota Vios 2025 AT</option>
+                      <option value="Nissan NV350 Urvan Premium">Nissan NV350 Urvan Premium</option>
+                      <option value="Other / External Vehicle">Other / External Vehicle</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Rental Type</label>
+                    <select
+                      value={tripForm.rentalType}
+                      onChange={(e) => setTripForm({ ...tripForm, rentalType: e.target.value as any })}
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-bold text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="WITH_DRIVER">With Driver (Chauffeur)</option>
+                      <option value="SELF_DRIVE">Self-Drive</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Financial Breakdown Section */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3.5">
+                  <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Receipt className="w-4 h-4 text-emerald-600" />
+                    Trip Financial Breakdown & Direct Costs
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-700 text-[11px] mb-1">
+                        Gross Charged (PHP ₱) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="1"
+                        required
+                        value={tripForm.grossAmount}
+                        onChange={(e) => setTripForm({ ...tripForm, grossAmount: e.target.value })}
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2 font-mono font-black text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 text-[11px] mb-1">
+                        Driver Fee / Allowance (₱)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={tripForm.driverFee}
+                        onChange={(e) => setTripForm({ ...tripForm, driverFee: e.target.value })}
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2 font-mono font-bold text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 text-[11px] mb-1">
+                        Diesel / Fuel Expense (₱)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={tripForm.fuelFee}
+                        onChange={(e) => setTripForm({ ...tripForm, fuelFee: e.target.value })}
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2 font-mono font-bold text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 text-[11px] mb-1">
+                        Tolls / Other (₱)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={tripForm.tollOtherFee}
+                        onChange={(e) => setTripForm({ ...tripForm, tollOtherFee: e.target.value })}
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2 font-mono font-bold text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Optional Tie-Up Partner Option in Trip */}
+                  <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-3 space-y-2.5">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={tripForm.isTieUp}
+                        onChange={(e) => setTripForm({ ...tripForm, isTieUp: e.target.checked })}
+                        className="w-4 h-4 text-purple-600 rounded border-purple-300 focus:ring-purple-500"
+                      />
+                      <span className="flex items-center gap-1.5">
+                        <Handshake className="w-4 h-4 text-purple-600" />
+                        Vehicle is from a Tie-Up Partner or Referral
+                      </span>
+                    </label>
+
+                    {tripForm.isTieUp && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div>
+                          <label className="block font-bold text-slate-700 text-[11px] mb-1">Partner Name</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Legazpi Fleet Partner"
+                            value={tripForm.tieUpPartnerName}
+                            onChange={(e) => setTripForm({ ...tripForm, tieUpPartnerName: e.target.value })}
+                            className="w-full bg-white border border-purple-300 rounded-xl p-2 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-bold text-slate-700 text-[11px] mb-1">Partner Share %</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={tripForm.tieUpPercent}
+                              onChange={(e) => setTripForm({ ...tripForm, tieUpPercent: e.target.value })}
+                              className="w-20 bg-white border border-purple-300 rounded-xl p-2 font-mono font-bold text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            />
+                            <div className="flex gap-1">
+                              {['20', '25', '30', '80'].map((pct) => (
+                                <button
+                                  type="button"
+                                  key={pct}
+                                  onClick={() => setTripForm({ ...tripForm, tieUpPercent: pct })}
+                                  className={`text-[10px] px-2 py-1 rounded-lg border font-bold ${
+                                    tripForm.tieUpPercent === pct
+                                      ? 'bg-purple-600 text-white border-purple-600'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {pct}%
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Real-Time Live Calculation Display */}
+                  <div className="bg-slate-900 text-white rounded-2xl p-3.5 space-y-1.5 border border-slate-800">
+                    <div className="flex justify-between items-center text-slate-300 text-xs">
+                      <span>Total Gross Charged:</span>
+                      <span className="font-mono font-bold text-white text-sm">{formatPeso(gross)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-amber-400 text-xs">
+                      <span>Direct Operating Expenses (Driver + Diesel + Tolls):</span>
+                      <span className="font-mono font-bold">- {formatPeso(totalExpenses)}</span>
+                    </div>
+                    {tripForm.isTieUp && (
+                      <div className="flex justify-between items-center text-purple-300 text-xs">
+                        <span>Tie-Up Partner Commission ({tieUpPct}%):</span>
+                        <span className="font-mono font-bold">- {formatPeso(tieUpAmount)}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-slate-800 pt-2 flex justify-between items-center text-sm font-black">
+                      <span className="text-white">Net Custoworks Profit:</span>
+                      <span className="font-mono text-base text-emerald-400">{formatPeso(netCustoworks)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Notes / Trip Route Details</label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. VIP pickup at Bicol International Airport, drop off at Naga City hotel"
+                    value={tripForm.notes}
+                    onChange={(e) => setTripForm({ ...tripForm, notes: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium text-slate-900 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setAddTripModalOpen(false)}
+                    disabled={isSubmittingTrip}
+                    className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingTrip}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span>{isSubmittingTrip ? 'Saving...' : 'Save to Monthly Gross Revenue'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         );

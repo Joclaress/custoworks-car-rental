@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (fullName: string, email: string, phone: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
@@ -41,10 +41,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchCurrentUser();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const res = await api.post<{ user: User; accessToken: string }>('/auth/login', { email, password });
     api.setToken(res.accessToken);
     setUser(res.user);
+    return res.user;
   };
 
   const register = async (fullName: string, email: string, phone: string, password: string) => {

@@ -282,7 +282,7 @@ export const ReservationConfirmationCard: React.FC<ReservationConfirmationCardPr
             className="w-full sm:flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
             <Camera className="w-5 h-5 text-amber-300" />
-            {downloading ? 'Capturing Screenshot...' : downloadSuccess ? '✓ Saved to Photos!' : '📸 Save / Screenshot Confirmation Slip'}
+            {downloading ? 'Capturing High-Res Slip...' : downloadSuccess ? '✓ Saved to Photos / Gallery!' : '📸 Tap to Save to Phone Gallery / Photos'}
           </button>
 
           <button
@@ -296,7 +296,7 @@ export const ReservationConfirmationCard: React.FC<ReservationConfirmationCardPr
         </div>
 
         <p className="text-[11px] text-slate-500 text-center">
-          📱 <strong>Phone user tip:</strong> Tapping the button above automatically downloads the picture to your gallery. You can also press <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-[10px]">Power</kbd> + <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-[10px]">Volume Down</kbd> to screenshot.
+          📱 <strong>Phone user tip:</strong> Tapping <strong>"Tap to Save to Phone Gallery"</strong> will prompt your phone to save directly to your <strong>Photos / Gallery</strong> (select <em>"Save Image"</em> or <em>"Save to Photos"</em>). You can also press <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-[10px]">Power</kbd> + <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-300 text-[10px]">Volume Down</kbd> to screenshot.
         </p>
       </div>
 

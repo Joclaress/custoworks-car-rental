@@ -84,13 +84,17 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   vehicles = [],
   selectedVehicleId = '',
 }) => {
+  const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
+  const validPickup = isValidDate(selectedPickup) ? selectedPickup : null;
+  const validReturn = isValidDate(selectedReturn) ? selectedReturn : null;
+
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [selectionStart, setSelectionStart] = useState<Date | null>(selectedPickup || null);
+  const [selectionStart, setSelectionStart] = useState<Date | null>(validPickup || null);
   const [rangeStep, setRangeStep] = useState<'START' | 'END'>('START');
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [activeMobileDate, setActiveMobileDate] = useState<Date>(
-    selectedPickup && !isBefore(selectedPickup, startOfDay(new Date()))
-      ? selectedPickup
+    validPickup && !isBefore(validPickup, startOfDay(new Date()))
+      ? validPickup
       : new Date()
   );
   const [pastDateWarning, setPastDateWarning] = useState<string | null>(null);
@@ -346,8 +350,8 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
   // Selected duration calculation
   const selectedDaysCount =
-    selectedPickup && selectedReturn
-      ? Math.max(1, differenceInCalendarDays(selectedReturn, selectedPickup))
+    validPickup && validReturn && validReturn > validPickup
+      ? Math.max(1, differenceInCalendarDays(validReturn, validPickup))
       : 1;
 
   while (day <= endDate) {
@@ -359,13 +363,13 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       const inCurrentMonth = isSameMonth(cloneDay, monthStart);
       const isSelectedMobile = isSameDay(cloneDay, activeMobileDate);
 
-      const isPickup = selectedPickup && isSameDay(cloneDay, selectedPickup);
-      const isReturn = selectedReturn && isSameDay(cloneDay, selectedReturn);
+      const isPickup = validPickup && isSameDay(cloneDay, validPickup);
+      const isReturn = validReturn && isSameDay(cloneDay, validReturn);
       const isInRange =
-        selectedPickup &&
-        selectedReturn &&
-        cloneDay > selectedPickup &&
-        cloneDay < selectedReturn;
+        validPickup &&
+        validReturn &&
+        cloneDay > validPickup &&
+        cloneDay < validReturn;
 
       let dayBg = 'bg-white hover:bg-slate-50 cursor-pointer';
 
