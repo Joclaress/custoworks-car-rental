@@ -70,7 +70,7 @@ export const HomePage: React.FC = () => {
     const fetchData = async () => {
       try {
         // Fast decoupled fetch: fleet renders immediately as soon as vehicles arrive
-        const vehiclesPromise = api.get<{ data: Vehicle[] }>('/vehicles').then((res) => {
+        const vehiclesPromise = api.get<{ data: Vehicle[] }>('/vehicles', { forceRefresh: true }).then((res) => {
           if (isMounted) {
             setVehicles(res.data);
             setLoading(false);
@@ -79,7 +79,7 @@ export const HomePage: React.FC = () => {
         });
 
         const pricelistPromise = api
-          .get<{ destinations: Destination[]; vehicles: Vehicle[]; rates: any[] }>('/pricing/pricelist')
+          .get<{ destinations: Destination[]; vehicles: Vehicle[]; rates: any[] }>('/pricing/pricelist', { forceRefresh: true })
           .then((res) => {
             if (isMounted) {
               setDestinations(res.destinations);

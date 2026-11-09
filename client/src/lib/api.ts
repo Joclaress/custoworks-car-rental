@@ -1,12 +1,10 @@
 const API_BASE = (((import.meta as any).env?.VITE_API_URL as string) || '/api').replace(/\/+$/, '');
 
-const CACHE_VERSION = 'v4_sedan_1500';
+const CACHE_VERSION = 'v5_live_rates_1500';
 try {
-  if (sessionStorage.getItem('cw_cache_version') !== CACHE_VERSION) {
-    const keys = Object.keys(sessionStorage).filter((k) => k.startsWith('cw_cache_'));
-    keys.forEach((k) => sessionStorage.removeItem(k));
-    sessionStorage.setItem('cw_cache_version', CACHE_VERSION);
-  }
+  const keys = Object.keys(sessionStorage).filter((k) => k.startsWith('cw_cache_'));
+  keys.forEach((k) => sessionStorage.removeItem(k));
+  sessionStorage.setItem('cw_cache_version', CACHE_VERSION);
 } catch {}
 
 interface CacheItem {
@@ -182,16 +180,8 @@ class ApiService {
   }
 
   async get<T>(endpoint: string, options?: ApiGetOptions): Promise<T> {
-    const isPublicCatalog =
-      endpoint.startsWith('/vehicles') ||
-      endpoint.startsWith('/pricing/') ||
-      endpoint.startsWith('/calendar/vehicle/');
-    
-    const isCacheable =
-      !endpoint.includes('/admin/') &&
-      (options?.cacheTtlMs !== undefined ? options.cacheTtlMs > 0 : isPublicCatalog);
-
-    const ttl = options?.cacheTtlMs ?? (isPublicCatalog ? 300_000 : 0); // 5 min default
+    const isCacheable = Boolean(options?.cacheTtlMs && options.cacheTtlMs > 0 && !endpoint.includes('/admin/'));
+    const ttl = options?.cacheTtlMs ?? 0;
 
     if (isCacheable && !options?.forceRefresh) {
       const cached = getFromCache<T>(endpoint);
