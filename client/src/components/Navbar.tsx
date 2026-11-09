@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search, MapPin } from 'lucide-react';
+import { Car, Menu, X, User as UserIcon, Calendar, LogOut, ShieldCheck, PhoneCall, Search, MapPin, Megaphone } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -19,9 +19,10 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { label: 'Home', path: '/' },
-    { label: 'Vehicles & Fleet', path: '/vehicles' },
-    { label: 'Rates & Pricelist', path: '/rates' },
+    { label: 'Fleet', path: '/vehicles' },
+    { label: 'Rates', path: '/rates' },
     { label: 'How It Works', path: '/#process' },
+    { label: 'Local Sponsors', path: '/#sponsors' },
     { label: 'Become a Partner', path: '/partner', highlight: true },
     { label: 'Contact', path: '/#contact' },
   ];
@@ -84,6 +85,15 @@ export const Navbar: React.FC = () => {
             </a>
           </div>
           <div className="flex items-center gap-4">
+            <a
+              href="/#sponsors"
+              onClick={(e) => handleLinkClick('/#sponsors', e)}
+              className="inline-flex items-center gap-1.5 text-amber-300 hover:text-amber-200 font-bold transition-colors"
+            >
+              <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+              <span>Direct Sponsors Banner</span>
+            </a>
+            <span className="text-slate-500 hidden lg:inline">|</span>
             <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
               <ShieldCheck className="w-3.5 h-3.5" /> LTMS Verified Self-Drive & With-Driver Rentals
             </span>

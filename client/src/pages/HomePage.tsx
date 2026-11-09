@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { Destination, Vehicle } from '../types';
 import { VehicleCard } from '../components/VehicleCard';
 import { ContactSection } from '../components/ContactSection';
+import { LocalSponsorBanner } from '../components/LocalSponsorBanner';
 import {
   Calendar,
   MapPin,
@@ -1012,6 +1013,9 @@ export const HomePage: React.FC = () => {
           ))}
         </div>
       </section>
+
+      {/* 7.5 Direct Sponsors & Local Banner Placement */}
+      <LocalSponsorBanner />
 
       {/* 8. Become a Partner Callout Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">

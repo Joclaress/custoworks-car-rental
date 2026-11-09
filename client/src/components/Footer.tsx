@@ -108,6 +108,11 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/#sponsors" className="hover:text-amber-300 transition-colors flex items-center gap-1.5 text-slate-300">
+                  <span>Direct Sponsors & Local Banners</span>
+                </Link>
+              </li>
+              <li>
                 <Link to="/partner" className="text-amber-300 hover:text-amber-200 transition-colors font-bold flex items-center gap-1.5">
                   <span>Become a Partner (80% Net)</span>
                   <span className="text-[9px] bg-emerald-500 text-slate-950 font-black px-1.5 py-0.2 rounded-full">NEW</span>

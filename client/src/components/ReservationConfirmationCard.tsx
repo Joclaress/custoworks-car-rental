@@ -379,6 +379,54 @@ export const ReservationConfirmationCard: React.FC<ReservationConfirmationCardPr
           </a>
         </div>
       </div>
+
+      {/* 4. LOCAL SPONSORS & RENTER PERKS BANNER PLACEMENT */}
+      <div className="bg-gradient-to-r from-blue-900 via-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-blue-500/30 shadow-md">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold text-xs">
+              🎁
+            </span>
+            <div>
+              <h4 className="font-extrabold text-sm text-white">Direct Sponsor Renter Perks</h4>
+              <p className="text-[11px] text-slate-300">Show this reservation slip to unlock partner discounts in Naga & Bicol</p>
+            </div>
+          </div>
+          <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+            Partner Perks
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs mt-3">
+          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5">
+            <div className="font-bold text-amber-300 text-[11px]">CWC Watersports Complex</div>
+            <div className="text-[11px] text-slate-200 mt-0.5">10% OFF Cable Ski Passes with Custoworks rental</div>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5">
+            <div className="font-bold text-amber-300 text-[11px]">Villa Caceres Hotel Naga</div>
+            <div className="text-[11px] text-slate-200 mt-0.5">Free guest parking & 10% off RJ Buffet</div>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5">
+            <div className="font-bold text-amber-300 text-[11px]">Bob Marlin Resto Naga</div>
+            <div className="text-[11px] text-slate-200 mt-0.5">Complimentary Bicol Express with family platter</div>
+          </div>
+          <div className="bg-white/5 border border-white/10 rounded-xl p-2.5">
+            <div className="font-bold text-amber-300 text-[11px]">Mayon SkyDrive ATV Tours</div>
+            <div className="text-[11px] text-slate-200 mt-0.5">₱300 discount voucher on Black Lava Trail</div>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px]">
+          <span className="text-slate-400">Local business owner?</span>
+          <a
+            href="/#sponsors"
+            className="text-amber-300 hover:text-amber-200 font-bold flex items-center gap-1 transition-colors"
+          >
+            <span>Inquire for Direct Sponsor Banner Placement</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      </div>
     </div>
   );
 };
