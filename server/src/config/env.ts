@@ -38,7 +38,7 @@ const envSchema = z.object({
   SMTP_USER: z.string().default('info@custowrokscarrental.online'),
   SMTP_PASS: z.string().default('Hamagka023@@'),
   MAIL_FROM: z.string().default('Custoworks Car Rental <info@custowrokscarrental.online>'),
-  ADMIN_NOTIFY_EMAIL: z.string().optional(),
+  ADMIN_NOTIFY_EMAIL: z.string().default('custoworks1@gmail.com'),
   SMS_PROVIDER: z.string().optional(),
   SMS_API_KEY: z.string().optional(),
   SMS_SENDER_NAME: z.string().optional(),

@@ -213,9 +213,9 @@ export async function notifyBooking(type: NotificationType, bookingId: string, e
 export async function notifyAdmin(subject: string, body: string) {
   try {
     const settings = await getSettings();
-    if (env.ADMIN_NOTIFY_EMAIL) {
-      await sendEmail(env.ADMIN_NOTIFY_EMAIL, `[Admin] ${subject}`, wrapHtml(subject, body, settings.company), body);
-    }
+    const adminEmail = env.ADMIN_NOTIFY_EMAIL || 'custoworks1@gmail.com';
+    await sendEmail(adminEmail, `[Admin Alert] ${subject}`, wrapHtml(subject, body, settings.company), body);
+
     const admins = await prisma.user.findMany({ where: { role: { in: ['ADMIN', 'STAFF'] }, isActive: true }, select: { id: true } });
     if (admins.length) {
       await prisma.notification.createMany({
@@ -232,6 +232,155 @@ export async function notifyAdmin(subject: string, body: string) {
     }
   } catch (e) {
     console.error('[notifyAdmin] failed', e);
+  }
+}
+
+/** Comprehensive, beautifully formatted email alert sent immediately to custoworks1@gmail.com when a client reserves/books. */
+export async function notifyAdminBookingAlert(bookingId: string, alertTitle: string = 'New Client Booking / Reservation') {
+  try {
+    const b = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        vehicle: true,
+        destination: true,
+        fees: true,
+        customer: true,
+      },
+    });
+
+    if (!b) return;
+
+    const adminEmail = env.ADMIN_NOTIFY_EMAIL || 'custoworks1@gmail.com';
+    const sched = `${formatManila(b.pickupAt)} → ${formatManila(b.returnAt)}`;
+
+    const subject = `🚗 [New Client Reservation] #${b.reference} - ${b.customerName} (${b.vehicle?.name || 'Vehicle'})`;
+    const html = `
+      <!doctype html>
+      <html>
+      <body style="margin: 0; background-color: #f3f5f9; font-family: Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif; padding: 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #0b1f4b 0%, #1e3a8a 100%); padding: 24px; color: #ffffff; text-align: left;">
+              <span style="background: #f59e0b; color: #0f172a; font-size: 11px; font-weight: 900; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 8px;">
+                🚨 New Client Booking Alert
+              </span>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
+                ${alertTitle}
+              </h1>
+              <p style="margin: 6px 0 0; font-size: 13px; color: #cbd5e1;">
+                Tracking Reference: <strong style="color: #60a5fa; font-family: monospace; font-size: 14px;">#${b.reference}</strong>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 24px;">
+              <!-- Customer Details Card -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 12px; color: #1e3a8a; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">
+                  👤 Customer Contact Details
+                </h3>
+                <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 13px; color: #334155;">
+                  <tr>
+                    <td width="35%" style="color: #64748b; font-weight: 600;">Full Name:</td>
+                    <td style="font-weight: 800; color: #0f172a;">${b.customerName || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Philippine Mobile:</td>
+                    <td style="font-weight: 800; color: #1e40af;"><a href="tel:${b.customerPhone}" style="color: #1e40af; text-decoration: none;">${b.customerPhone || 'N/A'}</a></td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Email Address:</td>
+                    <td><a href="mailto:${b.customerEmail}" style="color: #2563eb; text-decoration: none;">${b.customerEmail || 'N/A'}</a></td>
+                  </tr>
+                  ${b.customerAddress ? `
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Complete Address:</td>
+                    <td>${b.customerAddress}</td>
+                  </tr>` : ''}
+                  ${b.emergencyContactName ? `
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Emergency Contact:</td>
+                    <td>${b.emergencyContactName} (${b.emergencyContactPhone || 'No Phone'})</td>
+                  </tr>` : ''}
+                </table>
+              </div>
+
+              <!-- Vehicle & Schedule Card -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 12px; color: #1e3a8a; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">
+                  🚗 Vehicle & Itinerary
+                </h3>
+                <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 13px; color: #334155;">
+                  <tr>
+                    <td width="35%" style="color: #64748b; font-weight: 600;">Vehicle:</td>
+                    <td style="font-weight: 800; color: #0f172a;">${b.vehicle?.name || 'Selected Vehicle'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Rental Type:</td>
+                    <td style="font-weight: 700; color: #047857;">${b.rentalType === 'WITH_DRIVER' ? 'Chauffeur / With Driver' : 'Self-Drive (Verified LTMS)'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Trip Schedule:</td>
+                    <td style="font-weight: 700;">${sched}</td>
+                  </tr>
+                  ${b.deliveryAddress ? `
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Route / Location:</td>
+                    <td style="font-weight: 700; color: #b45309;">${b.deliveryAddress}</td>
+                  </tr>` : `
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Destination:</td>
+                    <td>${b.destination?.name || 'Naga City & Surroundings'}</td>
+                  </tr>`}
+                  ${b.purpose ? `
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Purpose:</td>
+                    <td>${b.purpose}</td>
+                  </tr>` : ''}
+                </table>
+              </div>
+
+              <!-- Financials Card -->
+              <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 14px;">
+                  <tr>
+                    <td style="color: #065f46; font-weight: 700;">Total Rental Amount:</td>
+                    <td style="text-align: right; font-weight: 900; font-size: 18px; color: #047857;">₱${Number(b.totalAmount).toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #065f46; font-weight: 600; font-size: 12px;">Reservation Fee Due:</td>
+                    <td style="text-align: right; font-weight: 800; font-size: 14px; color: #0f172a;">₱${Number(b.reservationFee).toLocaleString()}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Admin Action CTA Button -->
+              <div style="text-align: center; margin-bottom: 12px;">
+                <a href="${env.CLIENT_URL}/admin" style="display: inline-block; background: #1d4ed8; color: #ffffff; font-weight: 800; font-size: 14px; padding: 14px 28px; border-radius: 12px; text-decoration: none; box-shadow: 0 4px 10px rgba(29, 78, 216, 0.3);">
+                  Open Booking in Admin Dashboard →
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #64748b;">
+              <strong>Custoworks Car Rental Services</strong> · Carnation St. CBD II Brgy. Triangulo (Beside SM), Naga City<br />
+              Hotlines: 0961 722 5326 / 0995 382 7972 · custoworks1@gmail.com
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const text = `🚨 NEW CLIENT RESERVATION: #${b.reference}\n\nCustomer: ${b.customerName} (${b.customerPhone}, ${b.customerEmail})\nVehicle: ${b.vehicle?.name}\nRental Type: ${b.rentalType}\nSchedule: ${sched}\nRoute: ${b.deliveryAddress || b.destination?.name}\nTotal: ₱${Number(b.totalAmount).toLocaleString()} (Due: ₱${Number(b.reservationFee).toLocaleString()})\n\nOpen Admin Panel: ${env.CLIENT_URL}/admin`;
+
+    await sendEmail(adminEmail, subject, html, text);
+    console.log(`📧 [Admin Alert] Dispatched new booking email to ${adminEmail} for ref=${b.reference}`);
+  } catch (err) {
+    console.error('Failed to notify admin of new booking:', err);
   }
 }
 

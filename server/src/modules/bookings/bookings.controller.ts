@@ -5,7 +5,7 @@ import { AppError } from '../../lib/errors';
 import { parse } from '../../middleware/error';
 import { paginate } from '../../lib/utils';
 import { audit } from '../../services/audit.service';
-import { notifyAdmin, notifyBooking } from '../../services/notification.service';
+import { notifyAdmin, notifyBooking, notifyAdminBookingAlert } from '../../services/notification.service';
 import { streamRentalAgreement } from '../../services/pdf.service';
 import { hashPassword } from '../auth/auth.service';
 import {
@@ -73,6 +73,11 @@ export async function createDraftBooking(req: Request, res: Response) {
   });
 
   await audit({ actorId: userId, action: 'booking.draft_created', entityType: 'booking', entityId: booking.id, req });
+  if (data.customer?.customerPhone || data.customer?.customerEmail) {
+    notifyAdminBookingAlert(booking.id, 'New Client Reservation Initiated (Draft)').catch((e) =>
+      console.warn('Draft alert failed:', e),
+    );
+  }
   res.status(201).json({ booking: fullBooking || booking });
 }
 
@@ -110,6 +115,7 @@ export async function submitBooking(req: Request, res: Response) {
   const actorId = req.user?.id ?? booking.customerId;
   await audit({ actorId, action: 'booking.submitted', entityType: 'booking', entityId: booking.id, req });
   await notifyBooking('BOOKING_SUBMITTED', booking.id);
+  await notifyAdminBookingAlert(booking.id, 'New Client Booking Submitted');
   await notifyAdmin(`New Booking Submitted: ${booking.reference}`, `Customer ${booking.customerName} submitted booking ${booking.reference}.`);
 
   res.json({ booking });

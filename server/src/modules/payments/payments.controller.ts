@@ -5,6 +5,7 @@ import { parse } from '../../middleware/error';
 import { paginate } from '../../lib/utils';
 import { audit } from '../../services/audit.service';
 import { notifyAdmin, notifyBooking } from '../../services/notification.service';
+import { env } from '../../config/env';
 import { streamPaymentReceipt } from '../../services/pdf.service';
 import { saveFile } from '../../services/storage.service';
 import { approvePayment, recordPayment, rejectPayment, submitReservationPayment } from '../../services/payment.service';
@@ -86,8 +87,8 @@ export async function submitPaymentProof(req: Request, res: Response) {
     await audit({ actorId, action: 'payment.submitted', entityType: 'payment', entityId: payment.id, req });
     await notifyBooking('PAYMENT_RECEIVED', bookingId);
     await notifyAdmin(
-      'New Payment Proof Uploaded',
-      `Payment proof for booking ${bookingId} submitted with ref ${data.referenceNumber}.`
+      `New Payment Proof Uploaded for Booking ${bookingId}`,
+      `Customer uploaded payment proof (Ref #${data.referenceNumber || 'N/A'}, Amount: ₱${Number(payment.amount).toLocaleString()}). Please review and approve in Admin Dashboard: ${env.CLIENT_URL}/admin`
     );
   }
 
