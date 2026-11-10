@@ -4,12 +4,15 @@ import {
   MapPin,
   Navigation,
   Plane,
-  Car,
-  CheckCircle,
   ArrowRight,
   Clock,
   Sparkles,
   Info,
+  Search,
+  X,
+  Loader2,
+  Route,
+  ArrowUpDown,
 } from 'lucide-react';
 
 // Fix Leaflet default icon URLs in Vite
@@ -25,11 +28,11 @@ const createPinIcon = (color: string, label: string) => {
   return L.divIcon({
     className: 'custom-map-pin',
     html: `
-      <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%);">
-        <div style="background:${color}; color:white; font-size:10px; font-weight:900; padding:2px 8px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.3); white-space:nowrap; border:2px solid white;">
+      <div style="display:flex; flex-direction:column; align-items:center; transform:translate(-50%, -100%); pointer-events:auto;">
+        <div style="background:${color}; color:white; font-size:11px; font-weight:900; padding:3px 9px; border-radius:14px; box-shadow:0 3px 8px rgba(0,0,0,0.35); white-space:nowrap; border:2px solid white; display:flex; align-items:center; gap:4px;">
           ${label}
         </div>
-        <div style="width:14px; height:14px; background:${color}; border:2px solid white; border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,0.3); margin-top:-2px;"></div>
+        <div style="width:14px; height:14px; background:${color}; border:2px solid white; border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,0.35); margin-top:-2px;"></div>
       </div>
     `,
     iconSize: [0, 0],
@@ -49,13 +52,15 @@ export const POPULAR_LOCATIONS: LocationPoint[] = [
   { name: 'Naga Airport (WNP / Pili)', lat: 13.5843, lng: 123.2755, isPreset: true },
   { name: 'Bicol International Airport (BIA / Daraga)', lat: 13.1118, lng: 123.6841, isPreset: true },
   { name: 'Legazpi City / Albay', lat: 13.1391, lng: 123.7438, isPreset: true },
+  { name: 'Caramoan Peninsula', lat: 13.7667, lng: 123.8667, isPreset: true },
   { name: 'Pili Capital / CamSur', lat: 13.5833, lng: 123.2833, isPreset: true },
   { name: 'Daet / Camarines Norte', lat: 14.1167, lng: 122.95, isPreset: true },
   { name: 'Sorsogon City / Matnog', lat: 12.9742, lng: 124.0058, isPreset: true },
+  { name: 'Ragay, Camarines Sur', lat: 13.8181, lng: 122.7889, isPreset: true },
   { name: 'Metro Manila (NAIA / Cubao)', lat: 14.5995, lng: 120.9842, isPreset: true },
 ];
 
-// Calculate distance in KM using Haversine formula
+// Calculate distance in KM using Haversine formula (fallback)
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -68,18 +73,20 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const straightKm = R * c;
-  // Multiply by road curvature factor (~1.25x in mountainous/provincial PH roads)
   return Math.round(straightKm * 1.25);
 }
 
-// Compute official or dynamic fare
+// Compute official or dynamic fare with optional road distance override
 export function computeTransferFare(
   pickup: LocationPoint,
   drop: LocationPoint,
   category: 'SEDAN' | 'SUV_MPV' | 'VAN',
+  overrideDistanceKm?: number,
+  overrideEstHours?: number,
 ): { distanceKm: number; estHours: number; price: number; isFixedRoute: boolean; routeTitle: string } {
-  const distanceKm = calculateDistanceKm(pickup.lat, pickup.lng, drop.lat, drop.lng);
-  const estHours = Math.max(0.5, Math.round((distanceKm / 45) * 10) / 10); // ~45 km/h avg speed
+  const distanceKm = overrideDistanceKm ?? calculateDistanceKm(pickup.lat, pickup.lng, drop.lat, drop.lng);
+  const estHours =
+    overrideEstHours ?? Math.max(0.5, Math.round((distanceKm / 45) * 10) / 10);
 
   const pName = pickup.name.toLowerCase();
   const dName = drop.name.toLowerCase();
@@ -116,19 +123,19 @@ export function computeTransferFare(
     };
   }
 
-  // 3. Dynamic Point-to-Point Pin Distance Rate
+  // 3. Dynamic Point-to-Point Road Distance Rate
   let baseFare = 1500;
-  let perKmRate = 30;
+  let perKmRate = 26;
   if (category === 'SUV_MPV') {
     baseFare = 2000;
-    perKmRate = 40;
+    perKmRate = 34;
   } else if (category === 'VAN') {
     baseFare = 3000;
-    perKmRate = 50;
+    perKmRate = 42;
   }
 
-  const billableKm = Math.max(0, distanceKm - 15);
-  const price = Math.round((baseFare + billableKm * perKmRate) / 100) * 100;
+  const billableKm = Math.max(0, distanceKm - 20);
+  const price = Math.round((baseFare + billableKm * perKmRate) / 50) * 50;
 
   return {
     distanceKm,
@@ -152,6 +159,13 @@ interface PointToPointTransferMapProps {
   }) => void;
 }
 
+interface SearchResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
 export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = ({
   vehicles,
   selectedVehicleId,
@@ -162,11 +176,31 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
   const mapInstanceRef = useRef<L.Map | null>(null);
   const pickupMarkerRef = useRef<L.Marker | null>(null);
   const dropMarkerRef = useRef<L.Marker | null>(null);
-  const polylineRef = useRef<L.Polyline | null>(null);
+  const roadCasingPolylineRef = useRef<L.Polyline | null>(null);
+  const roadMainPolylineRef = useRef<L.Polyline | null>(null);
 
   const [pickup, setPickup] = useState<LocationPoint>(POPULAR_LOCATIONS[0]); // Naga City Centro
   const [drop, setDrop] = useState<LocationPoint>(POPULAR_LOCATIONS[2]); // BIA Airport
   const [pinMode, setPinMode] = useState<'PICKUP' | 'DROP'>('DROP');
+
+  // Road Routing State (OSRM)
+  const [isRouting, setIsRouting] = useState(false);
+  const [roadCoordinates, setRoadCoordinates] = useState<[number, number][] | null>(null);
+  const [roadDistanceKm, setRoadDistanceKm] = useState<number | null>(null);
+  const [roadDurationHours, setRoadDurationHours] = useState<number | null>(null);
+
+  // Address Search State
+  const [pickupSearchQuery, setPickupSearchQuery] = useState('');
+  const [dropSearchQuery, setDropSearchQuery] = useState('');
+  const [pickupResults, setPickupResults] = useState<SearchResult[]>([]);
+  const [dropResults, setDropResults] = useState<SearchResult[]>([]);
+  const [isSearchingPickup, setIsSearchingPickup] = useState(false);
+  const [isSearchingDrop, setIsSearchingDrop] = useState(false);
+  const [showPickupDropdown, setShowPickupDropdown] = useState(false);
+  const [showDropDropdown, setShowDropDropdown] = useState(false);
+
+  const pickupSearchRef = useRef<HTMLDivElement>(null);
+  const dropSearchRef = useRef<HTMLDivElement>(null);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
   const category: 'SEDAN' | 'SUV_MPV' | 'VAN' =
@@ -176,7 +210,169 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
       ? 'SUV_MPV'
       : 'SEDAN';
 
-  const fareDetails = computeTransferFare(pickup, drop, category);
+  const fareDetails = computeTransferFare(
+    pickup,
+    drop,
+    category,
+    roadDistanceKm ?? undefined,
+    roadDurationHours ?? undefined,
+  );
+
+  // Close search dropdowns on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (pickupSearchRef.current && !pickupSearchRef.current.contains(e.target as Node)) {
+        setShowPickupDropdown(false);
+      }
+      if (dropSearchRef.current && !dropSearchRef.current.contains(e.target as Node)) {
+        setShowDropDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  // Fetch real road route from OSRM driving service
+  useEffect(() => {
+    let active = true;
+    const fetchRoadRoute = async () => {
+      setIsRouting(true);
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${pickup.lng},${pickup.lat};${drop.lng},${drop.lat}?overview=full&geometries=geojson`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error('OSRM routing service unavailable');
+        const data = await res.json();
+
+        if (active && data.code === 'Ok' && data.routes && data.routes[0]) {
+          const route = data.routes[0];
+          // OSRM provides [longitude, latitude] -> Leaflet requires [latitude, longitude]
+          const latLngs: [number, number][] = route.geometry.coordinates.map(
+            (c: [number, number]) => [c[1], c[0]],
+          );
+          const distanceKm = Math.round(route.distance / 1000);
+          const durationHours = Math.max(0.5, Math.round((route.duration / 3600) * 10) / 10);
+
+          setRoadCoordinates(latLngs);
+          setRoadDistanceKm(distanceKm);
+          setRoadDurationHours(durationHours);
+          setIsRouting(false);
+          return;
+        }
+      } catch (err: any) {
+        console.warn('OSRM road route fetch fallback to straight line:', err?.message || err);
+      }
+
+      if (active) {
+        setRoadCoordinates(null);
+        setRoadDistanceKm(null);
+        setRoadDurationHours(null);
+        setIsRouting(false);
+      }
+    };
+
+    fetchRoadRoute();
+    return () => {
+      active = false;
+    };
+  }, [pickup.lat, pickup.lng, drop.lat, drop.lng]);
+
+  // Geocoding Search handler (Nominatim - 100% Free OpenStreetMap)
+  const searchNominatim = async (query: string, type: 'PICKUP' | 'DROP') => {
+    if (!query || query.trim().length < 2) {
+      if (type === 'PICKUP') setPickupResults([]);
+      else setDropResults([]);
+      return;
+    }
+
+    if (type === 'PICKUP') setIsSearchingPickup(true);
+    else setIsSearchingDrop(true);
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        query.trim(),
+      )}&countrycodes=ph&limit=5&addressdetails=1`;
+
+      const res = await fetch(url, {
+        headers: {
+          'Accept-Language': 'en',
+        },
+      });
+
+      if (res.ok) {
+        const list = await res.json();
+        if (type === 'PICKUP') {
+          setPickupResults(list);
+          setShowPickupDropdown(true);
+        } else {
+          setDropResults(list);
+          setShowDropDropdown(true);
+        }
+      }
+    } catch (err) {
+      console.warn('Nominatim search failed:', err);
+    } finally {
+      if (type === 'PICKUP') setIsSearchingPickup(false);
+      else setIsSearchingDrop(false);
+    }
+  };
+
+  // Debounced Search triggers
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (pickupSearchQuery.trim()) {
+        searchNominatim(pickupSearchQuery, 'PICKUP');
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [pickupSearchQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (dropSearchQuery.trim()) {
+        searchNominatim(dropSearchQuery, 'DROP');
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [dropSearchQuery]);
+
+  // Select location from search results
+  const handleSelectSearchResult = (result: SearchResult, type: 'PICKUP' | 'DROP') => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    const shortName = result.display_name.split(',').slice(0, 2).join(',').trim();
+
+    const newLoc: LocationPoint = {
+      name: shortName || result.display_name,
+      lat,
+      lng,
+      isPreset: false,
+    };
+
+    if (type === 'PICKUP') {
+      setPickup(newLoc);
+      setPickupSearchQuery(shortName);
+      setShowPickupDropdown(false);
+    } else {
+      setDrop(newLoc);
+      setDropSearchQuery(shortName);
+      setShowDropDropdown(false);
+    }
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([lat, lng], 13);
+    }
+  };
+
+  // Swap pickup & dropoff
+  const handleSwapLocations = () => {
+    const oldP = pickup;
+    const oldD = drop;
+    setPickup(oldD);
+    setDrop(oldP);
+    setPickupSearchQuery(oldD.name);
+    setDropSearchQuery(oldP.name);
+  };
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -205,12 +401,22 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
       draggable: true,
     }).addTo(map);
 
-    const line = L.polyline(
+    // Outer glow casing line (for highway road appearance)
+    const roadCasing = L.polyline(
       [
         [pickup.lat, pickup.lng],
         [drop.lat, drop.lng],
       ],
-      { color: '#2563eb', weight: 4, dashArray: '6, 8', opacity: 0.85 },
+      { color: '#1e3a8a', weight: 8, opacity: 0.35 },
+    ).addTo(map);
+
+    // Main vibrant road line
+    const roadMain = L.polyline(
+      [
+        [pickup.lat, pickup.lng],
+        [drop.lat, drop.lng],
+      ],
+      { color: '#2563eb', weight: 5, opacity: 0.95 },
     ).addTo(map);
 
     // Marker drag handlers
@@ -237,7 +443,8 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
 
     pickupMarkerRef.current = pMarker;
     dropMarkerRef.current = dMarker;
-    polylineRef.current = line;
+    roadCasingPolylineRef.current = roadCasing;
+    roadMainPolylineRef.current = roadMain;
     mapInstanceRef.current = map;
 
     return () => {
@@ -246,25 +453,65 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
     };
   }, []);
 
-  // Update markers and polyline when points change
+  // Update markers, road polyline, and view bounds when coordinates or road geometry change
   useEffect(() => {
-    if (!pickupMarkerRef.current || !dropMarkerRef.current || !polylineRef.current || !mapInstanceRef.current) return;
+    if (
+      !pickupMarkerRef.current ||
+      !dropMarkerRef.current ||
+      !roadMainPolylineRef.current ||
+      !mapInstanceRef.current
+    ) {
+      return;
+    }
 
     pickupMarkerRef.current.setLatLng([pickup.lat, pickup.lng]);
     dropMarkerRef.current.setLatLng([drop.lat, drop.lng]);
-    polylineRef.current.setLatLngs([
-      [pickup.lat, pickup.lng],
-      [drop.lat, drop.lng],
-    ]);
 
-    const bounds = L.latLngBounds([
-      [pickup.lat, pickup.lng],
-      [drop.lat, drop.lng],
-    ]);
-    mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
-  }, [pickup, drop]);
+    // If real highway/road geometry is available from OSRM, render following the roads
+    if (roadCoordinates && roadCoordinates.length > 0) {
+      roadMainPolylineRef.current.setLatLngs(roadCoordinates);
+      roadMainPolylineRef.current.setStyle({
+        color: '#2563eb',
+        weight: 5,
+        opacity: 0.95,
+        dashArray: undefined,
+      });
 
-  // Locate current position
+      if (roadCasingPolylineRef.current) {
+        roadCasingPolylineRef.current.setLatLngs(roadCoordinates);
+        roadCasingPolylineRef.current.setStyle({
+          color: '#1e3a8a',
+          weight: 8,
+          opacity: 0.4,
+        });
+      }
+
+      const bounds = L.latLngBounds(roadCoordinates);
+      mapInstanceRef.current.fitBounds(bounds, { padding: [45, 45], maxZoom: 14 });
+    } else {
+      // Fallback: straight dashed line
+      const lineCoords: [number, number][] = [
+        [pickup.lat, pickup.lng],
+        [drop.lat, drop.lng],
+      ];
+      roadMainPolylineRef.current.setLatLngs(lineCoords);
+      roadMainPolylineRef.current.setStyle({
+        color: '#2563eb',
+        weight: 4,
+        dashArray: '6, 8',
+        opacity: 0.85,
+      });
+
+      if (roadCasingPolylineRef.current) {
+        roadCasingPolylineRef.current.setLatLngs(lineCoords);
+      }
+
+      const bounds = L.latLngBounds(lineCoords);
+      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+    }
+  }, [pickup, drop, roadCoordinates]);
+
+  // Locate current GPS position
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser.');
@@ -278,12 +525,13 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
           lng: pos.coords.longitude,
         };
         setPickup(userLoc);
+        setPickupSearchQuery('Your Current Location (GPS)');
         if (mapInstanceRef.current) {
           mapInstanceRef.current.setView([userLoc.lat, userLoc.lng], 13);
         }
       },
       () => {
-        alert('Unable to retrieve your current location. Please tap/drag on the map.');
+        alert('Unable to retrieve your current location. Please tap or drag on the map.');
       },
     );
   };
@@ -298,14 +546,163 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
           </span>
           <h2 className="text-xl md:text-2xl font-black">Interactive Route & Fare Estimator</h2>
           <p className="text-xs text-blue-100 mt-1 max-w-xl leading-relaxed">
-            Choose your pick-up point and drop-off destination by tapping the map, dragging the pins, or choosing from popular hubs. Transparent official rates!
+            Search places or drag the pins. The route follows the <strong>actual main highway and provincial roads</strong> with transparent chauffeur fares!
           </p>
         </div>
 
         <div className="bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20 text-center shrink-0">
-          <span className="text-[11px] text-blue-200 block font-semibold">Transfer Fare</span>
+          <span className="text-[11px] text-blue-200 block font-semibold">Chauffeur Transfer Fare</span>
           <span className="text-2xl md:text-3xl font-black text-amber-300">₱{fareDetails.price.toLocaleString()}</span>
-          <span className="text-[10px] text-blue-200 block font-bold">{fareDetails.distanceKm} km · Dedicated Chauffeur</span>
+          <span className="text-[10px] text-blue-200 block font-bold">
+            {fareDetails.distanceKm} km · {fareDetails.isFixedRoute ? 'Official Fixed Rate' : 'Road Route Fare'}
+          </span>
+        </div>
+      </div>
+
+      {/* SEARCH BAR SECTION: PICKUP & DROPOFF AUTOCOMPLETE */}
+      <div className="bg-white p-4 rounded-3xl border-2 border-slate-200/90 shadow-sm">
+        <div className="flex flex-col md:flex-row items-center gap-3">
+          {/* Pickup Search Box */}
+          <div ref={pickupSearchRef} className="relative flex-1 w-full">
+            <label className="text-[11px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+              Pick-up Location Search:
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-emerald-600">
+                <Search className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={pickupSearchQuery || (showPickupDropdown ? '' : pickup.name)}
+                onChange={(e) => {
+                  setPickupSearchQuery(e.target.value);
+                  setShowPickupDropdown(true);
+                }}
+                onFocus={() => {
+                  if (pickupSearchQuery.trim()) setShowPickupDropdown(true);
+                }}
+                placeholder="Search pick-up address (e.g. SM City Naga, Hotel, Centro)..."
+                className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border-2 border-emerald-300/80 focus:border-emerald-600 focus:bg-white rounded-2xl text-xs font-bold text-slate-800 transition-all outline-none"
+              />
+              {isSearchingPickup ? (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+                </div>
+              ) : pickupSearchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPickupSearchQuery('');
+                    setPickupResults([]);
+                  }}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            {/* Pickup Dropdown Suggestions */}
+            {showPickupDropdown && pickupResults.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border-2 border-emerald-300 shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                {pickupResults.map((res) => (
+                  <button
+                    key={res.place_id}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(res, 'PICKUP')}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-emerald-50 border-b border-slate-100 last:border-none flex items-start gap-2.5 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-extrabold text-xs text-slate-900 leading-tight">
+                        {res.display_name.split(',')[0]}
+                      </p>
+                      <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                        {res.display_name}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Swap Button */}
+          <button
+            type="button"
+            onClick={handleSwapLocations}
+            title="Swap Pickup and Drop-off locations"
+            className="p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all border border-slate-300 shrink-0 self-end md:self-center mt-2 md:mt-5"
+          >
+            <ArrowUpDown className="w-4 h-4 rotate-90 md:rotate-0" />
+          </button>
+
+          {/* Dropoff Search Box */}
+          <div ref={dropSearchRef} className="relative flex-1 w-full">
+            <label className="text-[11px] font-extrabold text-red-800 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block animate-pulse" />
+              Drop-off Destination Search:
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-red-600">
+                <Search className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={dropSearchQuery || (showDropDropdown ? '' : drop.name)}
+                onChange={(e) => {
+                  setDropSearchQuery(e.target.value);
+                  setShowDropDropdown(true);
+                }}
+                onFocus={() => {
+                  if (dropSearchQuery.trim()) setShowDropDropdown(true);
+                }}
+                placeholder="Search drop-off place (e.g. Caramoan, BIA Airport, Legazpi, Daet)..."
+                className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border-2 border-red-300/80 focus:border-red-600 focus:bg-white rounded-2xl text-xs font-bold text-slate-800 transition-all outline-none"
+              />
+              {isSearchingDrop ? (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <Loader2 className="w-4 h-4 text-red-600 animate-spin" />
+                </div>
+              ) : dropSearchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDropSearchQuery('');
+                    setDropResults([]);
+                  }}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            {/* Dropdown Suggestions */}
+            {showDropDropdown && dropResults.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-2xl border-2 border-red-300 shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                {dropResults.map((res) => (
+                  <button
+                    key={res.place_id}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(res, 'DROP')}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-red-50 border-b border-slate-100 last:border-none flex items-start gap-2.5 transition-colors"
+                  >
+                    <MapPin className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-extrabold text-xs text-slate-900 leading-tight">
+                        {res.display_name.split(',')[0]}
+                      </p>
+                      <p className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                        {res.display_name}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -351,25 +748,50 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
           </div>
 
           {/* Leaflet Map Container */}
-          <div className="relative rounded-3xl overflow-hidden border-2 border-slate-300 shadow-md h-[420px] bg-slate-100">
+          <div className="relative rounded-3xl overflow-hidden border-2 border-slate-300 shadow-md h-[440px] bg-slate-100">
             <div ref={mapContainerRef} className="w-full h-full z-10" />
 
-            {/* Overlay hint */}
-            <div className="absolute top-3 left-3 z-[400] bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-200 text-[11px] font-bold text-slate-800 shadow-xs flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 text-brand-blue" />
-              <span>Drag the 🟢 Green (Pickup) or 🔴 Red (Drop-off) pins anywhere</span>
+            {/* Highway Route Status Indicator Overlay */}
+            <div className="absolute top-3 left-3 z-[400] flex flex-col gap-1.5 pointer-events-none">
+              <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-200 text-[11px] font-bold text-slate-800 shadow-sm flex items-center gap-1.5">
+                {isRouting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 text-brand-blue animate-spin" />
+                    <span>Calculating main road route...</span>
+                  </>
+                ) : roadCoordinates ? (
+                  <>
+                    <Route className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="text-blue-900 font-extrabold">
+                      🛣️ Main Road Route: {fareDetails.distanceKm} km (~{fareDetails.estHours} hrs)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Info className="w-3.5 h-3.5 text-brand-blue" />
+                    <span>Drag the 🟢 Green (Pickup) or 🔴 Red (Drop-off) pins anywhere</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom hint */}
+            <div className="absolute bottom-3 left-3 z-[400] bg-slate-900/80 backdrop-blur-md text-white px-3 py-1 rounded-lg text-[10px] font-medium shadow-sm">
+              Follows highways, provincial roads, and bridges
             </div>
           </div>
 
           {/* Preset Buttons */}
           <div className="space-y-2 pt-1">
-            <span className="text-xs font-bold text-slate-700 block">Popular Transfer Destinations:</span>
+            <span className="text-xs font-bold text-slate-700 block">Popular Transfer Hubs & Destinations:</span>
             <div className="flex flex-wrap gap-2 text-xs">
               <button
                 type="button"
                 onClick={() => {
                   setPickup(POPULAR_LOCATIONS[0]);
                   setDrop(POPULAR_LOCATIONS[2]); // BIA Airport
+                  setPickupSearchQuery(POPULAR_LOCATIONS[0].name);
+                  setDropSearchQuery(POPULAR_LOCATIONS[2].name);
                 }}
                 className={`px-3 py-1.5 rounded-xl font-bold border transition-all flex items-center gap-1.5 ${
                   drop.name.includes('BIA') || drop.name.includes('Bicol')
@@ -377,7 +799,7 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                <Plane className="w-3.5 h-3.5 text-amber-600" /> BIA Airport (Daraga) · Sedan ₱4.5k
+                <Plane className="w-3.5 h-3.5 text-amber-600" /> ✈️ BIA Airport (Daraga) · Sedan ₱4.5k
               </button>
 
               <button
@@ -385,6 +807,8 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                 onClick={() => {
                   setPickup(POPULAR_LOCATIONS[0]);
                   setDrop(POPULAR_LOCATIONS[1]); // Naga Airport
+                  setPickupSearchQuery(POPULAR_LOCATIONS[0].name);
+                  setDropSearchQuery(POPULAR_LOCATIONS[1].name);
                 }}
                 className={`px-3 py-1.5 rounded-xl font-bold border transition-all flex items-center gap-1.5 ${
                   drop.name.includes('Naga Airport')
@@ -392,7 +816,24 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                <Plane className="w-3.5 h-3.5 text-brand-blue" /> Naga Airport (Pili) · Sedan ₱1.8k
+                <Plane className="w-3.5 h-3.5 text-brand-blue" /> ✈️ Naga Airport (Pili) · Sedan ₱1.8k
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPickup(POPULAR_LOCATIONS[0]);
+                  setDrop(POPULAR_LOCATIONS[4]); // Caramoan
+                  setPickupSearchQuery(POPULAR_LOCATIONS[0].name);
+                  setDropSearchQuery(POPULAR_LOCATIONS[4].name);
+                }}
+                className={`px-3 py-1.5 rounded-xl font-bold border transition-all flex items-center gap-1.5 ${
+                  drop.name.includes('Caramoan')
+                    ? 'bg-emerald-100 text-emerald-950 border-emerald-300 ring-2 ring-emerald-400'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                🏝️ Caramoan Peninsula
               </button>
 
               <button
@@ -400,6 +841,8 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                 onClick={() => {
                   setPickup(POPULAR_LOCATIONS[0]);
                   setDrop(POPULAR_LOCATIONS[3]); // Legazpi
+                  setPickupSearchQuery(POPULAR_LOCATIONS[0].name);
+                  setDropSearchQuery(POPULAR_LOCATIONS[3].name);
                 }}
                 className="px-3 py-1.5 rounded-xl font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
               >
@@ -410,7 +853,9 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                 type="button"
                 onClick={() => {
                   setPickup(POPULAR_LOCATIONS[0]);
-                  setDrop(POPULAR_LOCATIONS[5]); // Daet
+                  setDrop(POPULAR_LOCATIONS[6]); // Daet
+                  setPickupSearchQuery(POPULAR_LOCATIONS[0].name);
+                  setDropSearchQuery(POPULAR_LOCATIONS[6].name);
                 }}
                 className="px-3 py-1.5 rounded-xl font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
               >
@@ -421,7 +866,9 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                 type="button"
                 onClick={() => {
                   setPickup(POPULAR_LOCATIONS[0]);
-                  setDrop(POPULAR_LOCATIONS[6]); // Sorsogon
+                  setDrop(POPULAR_LOCATIONS[7]); // Sorsogon
+                  setPickupSearchQuery(POPULAR_LOCATIONS[0].name);
+                  setDropSearchQuery(POPULAR_LOCATIONS[7].name);
                 }}
                 className="px-3 py-1.5 rounded-xl font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
               >
@@ -471,12 +918,14 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
               {/* Distance and Estimated Time Metrics */}
               <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-200 font-bold">
                 <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-center">
-                  <span className="text-[10px] text-slate-400 uppercase block font-semibold">Distance</span>
+                  <span className="text-[10px] text-slate-400 uppercase block font-semibold flex items-center justify-center gap-1">
+                    <Route className="w-3 h-3 text-slate-400" /> Highway Distance
+                  </span>
                   <span className="text-base font-black text-slate-900">{fareDetails.distanceKm} km</span>
                 </div>
                 <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-center">
                   <span className="text-[10px] text-slate-400 uppercase block font-semibold flex items-center justify-center gap-1">
-                    <Clock className="w-3 h-3 text-slate-400" /> Est. Time
+                    <Clock className="w-3 h-3 text-slate-400" /> Est. Driving Time
                   </span>
                   <span className="text-base font-black text-slate-900">~{fareDetails.estHours} hrs</span>
                 </div>
@@ -490,7 +939,13 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                 {vehicles.map((v) => {
                   const isSelected = v.id === selectedVehicle?.id;
                   const vCat = v.category === 'VAN' ? 'VAN' : v.category === 'SUV_MPV' ? 'SUV_MPV' : 'SEDAN';
-                  const vFare = computeTransferFare(pickup, drop, vCat);
+                  const vFare = computeTransferFare(
+                    pickup,
+                    drop,
+                    vCat,
+                    roadDistanceKm ?? undefined,
+                    roadDurationHours ?? undefined,
+                  );
 
                   return (
                     <div
@@ -521,7 +976,7 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
                           ₱{vFare.price.toLocaleString()}
                         </span>
                         <span className="text-[10px] font-semibold text-slate-500">
-                          {fareDetails.isFixedRoute ? 'Official Fixed Rate' : 'All-in Point Transfer'}
+                          {fareDetails.isFixedRoute ? 'Official Fixed Rate' : 'All-in Road Transfer'}
                         </span>
                       </div>
                     </div>
