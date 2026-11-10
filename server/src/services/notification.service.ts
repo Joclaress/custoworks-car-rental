@@ -11,11 +11,11 @@ let transporter: Transporter | null = null;
 function getTransport(): Transporter {
   if (transporter) return transporter;
 
-  const host = env.SMTP_HOST || 'smtp.gmail.com';
-  const port = env.SMTP_PORT || 587;
-  const secure = env.SMTP_SECURE ?? false;
-  const user = env.SMTP_USER || 'custoworks1@gmail.com';
-  const pass = env.SMTP_PASS || 'fzataexaujzygovd';
+  const host = env.SMTP_HOST || 'smtp.hostinger.com';
+  const port = env.SMTP_PORT || 465;
+  const secure = env.SMTP_SECURE ?? true;
+  const user = env.SMTP_USER || 'info@custowrokscarrental.online';
+  const pass = env.SMTP_PASS || 'Hamagka023@@';
 
   if (user && pass) {
     transporter = nodemailer.createTransport({
