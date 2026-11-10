@@ -147,6 +147,22 @@ export async function updateDestination(req: Request, res: Response) {
   res.json({ destination: updated });
 }
 
+export async function deleteDestination(req: Request, res: Response) {
+  const id = String(req.params.id);
+  const existing = await prisma.destination.findUnique({ where: { id } });
+  if (!existing) throw AppError.notFound('Destination not found');
+
+  // Soft delete destination so historical bookings remain intact
+  await prisma.destination.update({
+    where: { id },
+    data: { deletedAt: new Date(), isActive: false },
+  });
+
+  await audit({ actorId: req.user!.id, action: 'destination.delete', entityType: 'destination', entityId: id, req });
+  invalidateCache();
+  res.json({ message: `Destination "${existing.name}" deleted successfully` });
+}
+
 export async function getVehicleRateMatrix(req: Request, res: Response) {
   const vehicleId = String(req.params.vehicleId);
   const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });

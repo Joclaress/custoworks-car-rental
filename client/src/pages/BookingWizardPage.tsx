@@ -64,18 +64,18 @@ const DESTINATION_META: Record<string, DestinationMeta> = {
     rateVan: '₱3,800 (12h) / ₱4,800 (24h)',
   },
   'naga-airport': {
-    badgeText: '🛬 Naga Airport · Sedan ₱1.5k • Innova ₱2.5k • Van ₱3.5k',
+    badgeText: '🛬 Naga Airport · Sedan ₱1.8k • Innova ₱2.5k • Van ₱3.5k',
     badgeClass: 'bg-blue-100 text-blue-950 border border-blue-300',
-    rateSedan: '₱1,500 (12h) / ₱2,000 (24h)',
-    rateSuv: '₱2,000 (12h) / ₱2,500 (24h)',
-    rateVan: '₱3,500 (12h) / ₱3,500 (24h)',
+    rateSedan: '₱1,800 (Pickup & Drop)',
+    rateSuv: '₱2,500 (Pickup & Drop)',
+    rateVan: '₱3,500 (Pickup & Drop)',
   },
   'bicol-intl-airport': {
-    badgeText: '✈️ BIA Airport · Sedan ₱2k • Innova ₱3k • Van ₱7.5k',
+    badgeText: '✈️ BIA Airport · Sedan ₱4.5k • Innova ₱6k • Van ₱7.5k',
     badgeClass: 'bg-amber-100 text-amber-950 border border-amber-300',
-    rateSedan: '₱2,000 (12h) / ₱2,500 (24h)',
-    rateSuv: '₱3,000 (12h) / ₱3,500 (24h)',
-    rateVan: '₱7,500 (12h) / ₱7,500 (24h)',
+    rateSedan: '₱4,500 (Pickup & Drop)',
+    rateSuv: '₱6,000 (Pickup & Drop)',
+    rateVan: '₱7,500 (Pickup & Drop)',
   },
   'albay-daet': {
     badgeText: '🌋 Albay / Daet · Sedan ₱2k • SUV ₱2.5k • Van ₱4.2k',
@@ -1145,7 +1145,12 @@ export const BookingWizardPage: React.FC = () => {
                   return (
                     <div
                       key={d.id}
-                      onClick={() => setSelectedDestinationId(d.id)}
+                      onClick={() => {
+                        setSelectedDestinationId(d.id);
+                        if (isAirport) {
+                          setSelectedRentalType('WITH_DRIVER');
+                        }
+                      }}
                       className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
                         isSelected
                           ? 'border-brand-blue bg-blue-50/50 shadow-sm ring-1 ring-brand-blue'
@@ -1207,57 +1212,73 @@ export const BookingWizardPage: React.FC = () => {
               </div>
 
               {/* Quick Duration Shortcuts */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <CalendarCheck2 className="w-4 h-4 text-brand-blue" />
-                    Quick Duration Preset (or select on Calendar):
-                  </span>
-                  <span className="text-xs font-black text-brand-blue bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-                    {Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)))} Day{differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)) > 1 ? 's' : ''} Rental
+              {isAirportTransfer ? (
+                <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                  <div>
+                    <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wider">
+                      ✈️ {selectedDestination?.name || 'Airport Transfer'} (Pickup & Drop)
+                    </span>
+                    <p className="text-slate-600 mt-0.5 font-medium">
+                      Airport transfers are scheduled as a dedicated <strong>1-Day Chauffeur Service</strong>. Simply tap your desired flight/trip date on the calendar below!
+                    </p>
+                  </div>
+                  <span className="font-extrabold text-brand-blue bg-white px-3 py-1.5 rounded-xl border border-amber-300 shrink-0 text-center shadow-xs">
+                    1-Day Trip (Tap Date)
                   </span>
                 </div>
+              ) : (
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <CalendarCheck2 className="w-4 h-4 text-brand-blue" />
+                      Quick Duration Preset (or select on Calendar):
+                    </span>
+                    <span className="text-xs font-black text-brand-blue bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
+                      {Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)))} Day{differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)) > 1 ? 's' : ''} Rental
+                    </span>
+                  </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { days: 1, label: '1 Day (24h)' },
-                    { days: 2, label: '2 Days' },
-                    { days: 3, label: '3 Days' },
-                    { days: 4, label: '4 Days' },
-                    { days: 5, label: '5 Days' },
-                    { days: 7, label: '1 Week (7 Days)' },
-                    { days: 15, label: '15 Days' },
-                    { days: 30, label: '1 Month' },
-                  ].map((btn) => {
-                    const daysDiff = differenceInCalendarDays(new Date(returnAt), new Date(pickupAt));
-                    const isActive = daysDiff === btn.days;
-                    return (
-                      <button
-                        key={btn.days}
-                        type="button"
-                        onClick={() => {
-                          let start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
-                          const todayStart = new Date();
-                          todayStart.setHours(0, 0, 0, 0);
-                          if (start < todayStart) {
-                            start = new Date();
-                          }
-                          const end = addDays(start, btn.days);
-                          setPickupAt(format(start, "yyyy-MM-dd'T'HH:mm"));
-                          setReturnAt(format(end, "yyyy-MM-dd'T'HH:mm"));
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          isActive
-                            ? 'bg-brand-blue text-white shadow-xs ring-2 ring-blue-300'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        {btn.label}
-                      </button>
-                    );
-                  })}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { days: 1, label: '1 Day (24h)' },
+                      { days: 2, label: '2 Days' },
+                      { days: 3, label: '3 Days' },
+                      { days: 4, label: '4 Days' },
+                      { days: 5, label: '5 Days' },
+                      { days: 7, label: '1 Week (7 Days)' },
+                      { days: 15, label: '15 Days' },
+                      { days: 30, label: '1 Month' },
+                    ].map((btn) => {
+                      const daysDiff = differenceInCalendarDays(new Date(returnAt), new Date(pickupAt));
+                      const isActive = daysDiff === btn.days;
+                      return (
+                        <button
+                          key={btn.days}
+                          type="button"
+                          onClick={() => {
+                            let start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
+                            const todayStart = new Date();
+                            todayStart.setHours(0, 0, 0, 0);
+                            if (start < todayStart) {
+                              start = new Date();
+                            }
+                            const end = addDays(start, btn.days);
+                            setPickupAt(format(start, "yyyy-MM-dd'T'HH:mm"));
+                            setReturnAt(format(end, "yyyy-MM-dd'T'HH:mm"));
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            isActive
+                              ? 'bg-brand-blue text-white shadow-xs ring-2 ring-blue-300'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {btn.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Date Pickers */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
@@ -1286,7 +1307,7 @@ export const BookingWizardPage: React.FC = () => {
                       }
                       setError(null);
                       setPickupAt(val);
-                      if (returnAt && new Date(returnAt) <= d) {
+                      if (isAirportTransfer || (returnAt && new Date(returnAt) <= d)) {
                         setReturnAt(format(addDays(d, 1), "yyyy-MM-dd'T'HH:mm"));
                       }
                     }}
@@ -1299,12 +1320,13 @@ export const BookingWizardPage: React.FC = () => {
                       Return Date & Time
                     </label>
                     <span className="text-[10px] font-bold text-slate-500">
-                      Must be after pick-up
+                      {isAirportTransfer ? '1-Day Chauffeur Trip' : 'Must be after pick-up'}
                     </span>
                   </div>
                   <input
                     type="datetime-local"
                     value={returnAt}
+                    disabled={isAirportTransfer}
                     min={pickupAt || format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1317,7 +1339,11 @@ export const BookingWizardPage: React.FC = () => {
                       setError(null);
                       setReturnAt(val);
                     }}
-                    className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    className={`w-full border rounded-xl p-2.5 text-xs font-semibold focus:outline-none ${
+                      isAirportTransfer
+                        ? 'bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed'
+                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-brand-blue'
+                    }`}
                   />
                 </div>
               </div>
@@ -1329,6 +1355,7 @@ export const BookingWizardPage: React.FC = () => {
                 selectedVehicleId={selectedVehicleId}
                 selectedPickup={new Date(pickupAt)}
                 selectedReturn={new Date(returnAt)}
+                singleDayMode={isAirportTransfer}
                 onSelectRange={(p, r) => {
                   const todayStart = new Date();
                   todayStart.setHours(0, 0, 0, 0);
@@ -1338,7 +1365,8 @@ export const BookingWizardPage: React.FC = () => {
                   }
                   setError(null);
                   setPickupAt(format(p, "yyyy-MM-dd'T'HH:mm"));
-                  setReturnAt(format(r, "yyyy-MM-dd'T'HH:mm"));
+                  const returnDate = isAirportTransfer ? addDays(p, 1) : r;
+                  setReturnAt(format(returnDate, "yyyy-MM-dd'T'HH:mm"));
                 }}
               />
 

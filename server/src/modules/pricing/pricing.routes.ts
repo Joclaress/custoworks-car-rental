@@ -14,6 +14,7 @@ pricingRoutes.get('/additional-fees', c.listAdditionalFees);
 pricingRoutes.get('/admin/destinations', authenticate, requireStaff, c.adminListDestinations);
 pricingRoutes.post('/destinations', authenticate, requireStaff, c.createDestination);
 pricingRoutes.patch('/destinations/:id', authenticate, requireStaff, c.updateDestination);
+pricingRoutes.delete('/destinations/:id', authenticate, requireStaff, c.deleteDestination);
 
 // Admin rate matrix
 pricingRoutes.get('/matrix/:vehicleId', authenticate, requireStaff, c.getVehicleRateMatrix);

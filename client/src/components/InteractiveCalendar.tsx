@@ -73,6 +73,7 @@ interface InteractiveCalendarProps {
   readOnly?: boolean;
   vehicles?: any[];
   selectedVehicleId?: string;
+  singleDayMode?: boolean;
 }
 
 export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
@@ -83,6 +84,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   readOnly = false,
   vehicles = [],
   selectedVehicleId = '',
+  singleDayMode = false,
 }) => {
   const isValidDate = (d: any): d is Date => d instanceof Date && !isNaN(d.getTime());
   const validPickup = isValidDate(selectedPickup) ? selectedPickup : null;
@@ -316,6 +318,13 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
     if (!readOnly && onSelectRange) {
       const details = getDayDetails(date);
       if (details.totalAvailable === 0 && details.state === 'RESERVED') return;
+
+      if (singleDayMode) {
+        setSelectionStart(date);
+        setRangeStep('START');
+        onSelectRange(date, addDays(date, 1));
+        return;
+      }
 
       if (rangeStep === 'START' || !selectionStart) {
         // Step 1: Pick-up date clicked
@@ -764,28 +773,45 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
           {!readOnly && onSelectRange && (
             <div className="pt-1.5 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectionStart(activeMobileDate);
-                  setRangeStep('END');
-                  onSelectRange(activeMobileDate, addDays(activeMobileDate, 1));
-                }}
-                className="flex-1 py-2 px-2.5 bg-brand-blue active:bg-blue-600 text-white font-bold text-xs rounded-xl shadow text-center transition-all"
-              >
-                Set Pick-up ({format(activeMobileDate, 'MMM d')})
-              </button>
-              {selectionStart && !isBefore(activeMobileDate, selectionStart) && (
+              {singleDayMode ? (
                 <button
                   type="button"
                   onClick={() => {
-                    onSelectRange(selectionStart, activeMobileDate);
+                    setSelectionStart(activeMobileDate);
                     setRangeStep('START');
+                    onSelectRange(activeMobileDate, addDays(activeMobileDate, 1));
                   }}
-                  className="flex-1 py-2 px-2.5 bg-emerald-600 active:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow text-center transition-all"
+                  className="w-full py-2.5 px-3 bg-brand-blue active:bg-blue-600 text-white font-black text-xs rounded-xl shadow text-center transition-all flex items-center justify-center gap-1.5"
                 >
-                  Set Return ({format(activeMobileDate, 'MMM d')})
+                  <CalendarCheck2 className="w-4 h-4" />
+                  Select Trip Date ({format(activeMobileDate, 'MMM d')})
                 </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectionStart(activeMobileDate);
+                      setRangeStep('END');
+                      onSelectRange(activeMobileDate, addDays(activeMobileDate, 1));
+                    }}
+                    className="flex-1 py-2 px-2.5 bg-brand-blue active:bg-blue-600 text-white font-bold text-xs rounded-xl shadow text-center transition-all"
+                  >
+                    Set Pick-up ({format(activeMobileDate, 'MMM d')})
+                  </button>
+                  {selectionStart && !isBefore(activeMobileDate, selectionStart) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectRange(selectionStart, activeMobileDate);
+                        setRangeStep('START');
+                      }}
+                      className="flex-1 py-2 px-2.5 bg-emerald-600 active:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow text-center transition-all"
+                    >
+                      Set Return ({format(activeMobileDate, 'MMM d')})
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}

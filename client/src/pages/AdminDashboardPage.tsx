@@ -957,6 +957,23 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const handleDeleteDestination = async (destId: string, destName: string) => {
+    if (!window.confirm(`Are you sure you want to delete destination "${destName}"? This will remove it from the booking wizard and rate matrices.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/pricing/destinations/${destId}`);
+      alert(`Destination "${destName}" deleted successfully.`);
+      await fetchVehiclesAndMaster();
+      if (matrixVehicleId) {
+        const res = await api.get<{ vehicle: Vehicle; destinations: Destination[]; rates: any[] }>(`/pricing/matrix/${matrixVehicleId}`);
+        setMatrixDestinations(res.destinations);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete destination');
+    }
+  };
+
   // Add maintenance block
   const handleCreateBlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2266,7 +2283,22 @@ export const AdminDashboardPage: React.FC = () => {
                         {/* Self Drive Row */}
                         <tr className="hover:bg-slate-800/40">
                           <td className="p-3.5 font-bold text-white" rowSpan={2}>
-                            {d.name}
+                            <div className="flex items-center justify-between gap-2 group">
+                              <div>
+                                <span className="block text-white font-extrabold">{d.name}</span>
+                                {d.description && (
+                                  <span className="text-[10px] text-slate-400 font-normal block max-w-[200px] truncate">{d.description}</span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteDestination(d.id, d.name)}
+                                title={`Delete "${d.name}"`}
+                                className="opacity-70 hover:opacity-100 p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                           <td className="p-3.5 font-semibold text-emerald-400">Self Drive</td>
                           {['HOURS_12', 'HOURS_24', 'WEEKLY', 'MONTHLY'].map((dur) => {
