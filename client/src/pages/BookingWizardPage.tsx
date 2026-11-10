@@ -39,6 +39,7 @@ import {
 import { format, addDays, differenceInCalendarDays } from 'date-fns';
 import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
 import { saveFileToGallery } from '../lib/screenshot';
+import { PointToPointTransferMap, LocationPoint } from '../components/PointToPointTransferMap';
 
 interface DestinationMeta {
   badgeText: string;
@@ -124,6 +125,13 @@ export const BookingWizardPage: React.FC = () => {
   const [additionalFees, setAdditionalFees] = useState<any[]>([]);
 
   // Wizard State
+  const [bookingMode, setBookingMode] = useState<'RENTAL' | 'TRANSFER'>('RENTAL');
+  const [transferData, setTransferData] = useState<{
+    pickup: LocationPoint;
+    drop: LocationPoint;
+    distanceKm: number;
+    price: number;
+  } | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(searchParams.get('vehicleId') || '');
   const [selectedRentalType, setSelectedRentalType] = useState<'SELF_DRIVE' | 'WITH_DRIVER'>('SELF_DRIVE');
   const [selectedDestinationId, setSelectedDestinationId] = useState<string>('');
@@ -269,6 +277,12 @@ export const BookingWizardPage: React.FC = () => {
         const paramRentalType = searchParams.get('rentalType');
         const paramCategory = searchParams.get('category');
         const paramTransfer = searchParams.get('transfer') || searchParams.get('serviceType');
+        const paramMode = searchParams.get('mode') || searchParams.get('service');
+
+        if (paramMode === 'transfer' || paramTransfer) {
+          setBookingMode('TRANSFER');
+          setSelectedRentalType('WITH_DRIVER');
+        }
 
         if (paramRentalType === 'WITH_DRIVER' || paramRentalType === 'SELF_DRIVE') {
           setSelectedRentalType(paramRentalType);
@@ -349,6 +363,41 @@ export const BookingWizardPage: React.FC = () => {
       sessionStorage.setItem('cw_current_booking', JSON.stringify(createdBooking));
     }
   }, [createdBooking]);
+
+  // Handle Point-to-Point Map Transfer Selection
+  const handleConfirmTransfer = (data: {
+    pickup: LocationPoint;
+    drop: LocationPoint;
+    vehicleId: string;
+    distanceKm: number;
+    price: number;
+  }) => {
+    setTransferData(data);
+    setSelectedVehicleId(data.vehicleId);
+    setSelectedRentalType('WITH_DRIVER');
+    setPickupMethod('DELIVERY');
+    const transferRouteLabel = `Pick-up: ${data.pickup.name} ➔ Drop-off: ${data.drop.name} (${data.distanceKm} km)`;
+    setDeliveryAddress(transferRouteLabel);
+    setPurpose(`Pickup & Drop Shuttle: ${data.pickup.name} to ${data.drop.name}`);
+
+    const pName = data.pickup.name.toLowerCase();
+    const dName = data.drop.name.toLowerCase();
+
+    if (pName.includes('bia') || dName.includes('bia') || pName.includes('daraga') || dName.includes('daraga')) {
+      const bia = destinations.find((d) => d.slug === 'bicol-intl-airport');
+      if (bia) setSelectedDestinationId(bia.id);
+    } else if (pName.includes('naga airport') || dName.includes('naga airport') || pName.includes('wnp') || dName.includes('wnp')) {
+      const nagaAir = destinations.find((d) => d.slug === 'naga-airport');
+      if (nagaAir) setSelectedDestinationId(nagaAir.id);
+    } else {
+      const nagaCity = destinations.find((d) => d.slug === 'naga-city');
+      if (nagaCity) setSelectedDestinationId(nagaCity.id);
+    }
+
+    // Advance directly to Step 4 (Schedule / Calendar 1-Day Tap)
+    setStep(4);
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  };
 
   // Auto-fetch or refresh requirements when on Step 6
   useEffect(() => {
@@ -820,10 +869,60 @@ export const BookingWizardPage: React.FC = () => {
           </div>
         )}
 
+        {/* Service Switcher Tabs (Only on initial selection steps 1-3) */}
+        {step <= 3 && (
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 mb-6 max-w-xl mx-auto shadow-inner">
+            <button
+              type="button"
+              onClick={() => {
+                setBookingMode('RENTAL');
+                setStep(1);
+              }}
+              className={`flex-1 py-3 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
+                bookingMode === 'RENTAL'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 ring-1 ring-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Car className="w-4 h-4 text-brand-blue" />
+              <span>🚗 Car Rental (Daily)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setBookingMode('TRANSFER');
+                setSelectedRentalType('WITH_DRIVER');
+                const biaDest = destinations.find((d) => d.slug === 'bicol-intl-airport');
+                if (biaDest) setSelectedDestinationId(biaDest.id);
+                setStep(1);
+              }}
+              className={`flex-1 py-3 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
+                bookingMode === 'TRANSFER'
+                  ? 'bg-white text-brand-blue shadow-sm border border-slate-200/80 ring-2 ring-blue-500/20'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Plane className="w-4 h-4 text-amber-500" />
+              <span>🚖 Pickup & Drop (Map)</span>
+            </button>
+          </div>
+        )}
+
         {/* Wizard Container */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-6 md:p-8">
-          {/* STEP 1: SELECT VEHICLE */}
-          {step === 1 && (
+          {/* STEP 1 (TRANSFER MODE): POINT-TO-POINT PIN MAP & PRICE COMPUTATION */}
+          {step === 1 && bookingMode === 'TRANSFER' && (
+            <PointToPointTransferMap
+              vehicles={vehicles}
+              selectedVehicleId={selectedVehicleId}
+              onSelectVehicleId={setSelectedVehicleId}
+              onConfirmTransfer={handleConfirmTransfer}
+            />
+          )}
+
+          {/* STEP 1 (RENTAL MODE): SELECT VEHICLE */}
+          {step === 1 && bookingMode === 'RENTAL' && (
             <div className="space-y-6">
               <div>
                 <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 1 of 8</span>
@@ -1210,6 +1309,27 @@ export const BookingWizardPage: React.FC = () => {
                 <h2 className="text-2xl font-black text-slate-900">Schedule & Calendar Availability</h2>
                 <p className="text-xs text-slate-500 mt-1">Select your exact pickup and return dates and times.</p>
               </div>
+
+              {/* Point-to-Point Pinned Route Card (if from Map) */}
+              {transferData && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-brand-blue tracking-wider block">
+                      📍 Pinned Transfer Route (Point-to-Point)
+                    </span>
+                    <p className="font-black text-slate-900 text-sm mt-0.5">
+                      {transferData.pickup.name} ➔ {transferData.drop.name}
+                    </p>
+                    <span className="text-slate-500 font-semibold">
+                      {transferData.distanceKm} km · Dedicated Chauffeur Service
+                    </span>
+                  </div>
+                  <div className="text-left sm:text-right shrink-0 bg-white/80 p-2.5 rounded-xl border border-blue-100">
+                    <span className="text-[10px] text-slate-500 block font-semibold">Transfer Rate</span>
+                    <span className="text-xl font-black text-brand-blue">₱{transferData.price.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Quick Duration Shortcuts */}
               {isAirportTransfer ? (

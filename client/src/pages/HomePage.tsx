@@ -214,7 +214,7 @@ export const HomePage: React.FC = () => {
               Book brand-new sedans, spacious MPVs, and 15-passenger vans online in minutes. Enjoy instant price calculations, verified LTMS compliance, and guaranteed vehicle availability.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <a
                 href="#search-bar"
                 className="bg-brand-blue hover:bg-blue-600 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-all hover:translate-y-[-2px]"
@@ -222,8 +222,14 @@ export const HomePage: React.FC = () => {
                 <Search className="w-4 h-4" /> Check Availability & Rates
               </a>
               <Link
+                to="/book?mode=transfer"
+                className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-amber-500/25 flex items-center gap-2 transition-all hover:translate-y-[-2px]"
+              >
+                <Plane className="w-4 h-4 text-slate-950" /> Pickup & Drop Map
+              </Link>
+              <Link
                 to="/vehicles"
-                className="bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold text-sm px-6 py-3.5 rounded-xl backdrop-blur-sm transition-all"
+                className="bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold text-sm px-5 py-3.5 rounded-xl backdrop-blur-sm transition-all"
               >
                 Browse Fleet
               </Link>
