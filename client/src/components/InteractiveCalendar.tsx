@@ -322,7 +322,11 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       if (singleDayMode) {
         setSelectionStart(date);
         setRangeStep('START');
-        onSelectRange(date, addDays(date, 1));
+        const pDate = new Date(date);
+        pDate.setHours(9, 0, 0, 0);
+        const rDate = new Date(date);
+        rDate.setHours(21, 0, 0, 0);
+        onSelectRange(pDate, rDate);
         return;
       }
 
@@ -373,8 +377,9 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
       const isSelectedMobile = isSameDay(cloneDay, activeMobileDate);
 
       const isPickup = validPickup && isSameDay(cloneDay, validPickup);
-      const isReturn = validReturn && isSameDay(cloneDay, validReturn);
+      const isReturn = !singleDayMode && validReturn && isSameDay(cloneDay, validReturn);
       const isInRange =
+        !singleDayMode &&
         validPickup &&
         validReturn &&
         cloneDay > validPickup &&
@@ -450,12 +455,12 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
             ) : null}
 
             {isPickup && (
-              <span className="hidden sm:inline text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-bold ml-1">
-                Pick-up
+              <span className="hidden sm:inline text-[9px] bg-emerald-500/90 px-1.5 py-0.5 rounded text-white font-bold ml-1 shadow-2xs">
+                {singleDayMode ? 'Pickup & Drop' : 'Pick-up'}
               </span>
             )}
-            {isReturn && (
-              <span className="hidden sm:inline text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-bold ml-1">
+            {!singleDayMode && isReturn && (
+              <span className="hidden sm:inline text-[9px] bg-blue-500/90 px-1.5 py-0.5 rounded text-white font-bold ml-1 shadow-2xs">
                 Return
               </span>
             )}
@@ -634,9 +639,14 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-          {!readOnly && rangeStep === 'END' && (
+          {!readOnly && !singleDayMode && rangeStep === 'END' && (
             <span className="text-[11px] sm:text-xs font-bold text-amber-300 animate-pulse bg-amber-950/60 border border-amber-400/30 px-2 sm:px-3 py-1 rounded-xl">
               👉 Tap Return Date
+            </span>
+          )}
+          {!readOnly && singleDayMode && (
+            <span className="text-[11px] sm:text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-400/30 px-2 sm:px-3 py-1 rounded-xl">
+              ✓ Same-Day Pickup & Drop (Today Only)
             </span>
           )}
 
@@ -779,7 +789,11 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
                   onClick={() => {
                     setSelectionStart(activeMobileDate);
                     setRangeStep('START');
-                    onSelectRange(activeMobileDate, addDays(activeMobileDate, 1));
+                    const pDate = new Date(activeMobileDate);
+                    pDate.setHours(9, 0, 0, 0);
+                    const rDate = new Date(activeMobileDate);
+                    rDate.setHours(21, 0, 0, 0);
+                    onSelectRange(pDate, rDate);
                   }}
                   className="w-full py-2.5 px-3 bg-brand-blue active:bg-blue-600 text-white font-black text-xs rounded-xl shadow text-center transition-all flex items-center justify-center gap-1.5"
                 >

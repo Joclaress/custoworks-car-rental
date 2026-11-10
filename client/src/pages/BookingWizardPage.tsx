@@ -394,6 +394,14 @@ export const BookingWizardPage: React.FC = () => {
       if (nagaCity) setSelectedDestinationId(nagaCity.id);
     }
 
+    // Set same-day schedule (Today only!)
+    const todayTrip = new Date();
+    todayTrip.setHours(9, 0, 0, 0);
+    const todayDrop = new Date(todayTrip);
+    todayDrop.setHours(21, 0, 0, 0); // Same-day 9:00 PM
+    setPickupAt(format(todayTrip, "yyyy-MM-dd'T'HH:mm"));
+    setReturnAt(format(todayDrop, "yyyy-MM-dd'T'HH:mm"));
+
     // Advance directly to Step 4 (Schedule / Calendar 1-Day Tap)
     setStep(4);
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
@@ -496,6 +504,7 @@ export const BookingWizardPage: React.FC = () => {
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
   const selectedDestination = destinations.find((d) => d.id === selectedDestinationId);
   const isAirportTransfer = selectedDestination?.slug === 'bicol-intl-airport' || selectedDestination?.slug === 'naga-airport';
+  const isTransfer = bookingMode === 'TRANSFER' || isAirportTransfer || Boolean(transferData);
 
   // STEP 4 -> 5: Proceed to Customer Information (no customer account required)
   const handleProceedToCustomerInfo = () => {
@@ -1332,18 +1341,18 @@ export const BookingWizardPage: React.FC = () => {
               )}
 
               {/* Quick Duration Shortcuts */}
-              {isAirportTransfer ? (
+              {isTransfer ? (
                 <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
                   <div>
                     <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wider">
-                      ✈️ {selectedDestination?.name || 'Airport Transfer'} (Pickup & Drop)
+                      ✈️ {transferData ? 'Point-to-Point Shuttle' : selectedDestination?.name || 'Pickup & Drop'} (Same-Day Trip)
                     </span>
                     <p className="text-slate-600 mt-0.5 font-medium">
-                      Airport transfers are scheduled as a dedicated <strong>1-Day Chauffeur Service</strong>. Simply tap your desired flight/trip date on the calendar below!
+                      Pickup and drop-off is scheduled as a <strong>Same-Day Chauffeur Trip (Today Only)</strong>. Simply tap your desired trip date on the calendar below!
                     </p>
                   </div>
                   <span className="font-extrabold text-brand-blue bg-white px-3 py-1.5 rounded-xl border border-amber-300 shrink-0 text-center shadow-xs">
-                    1-Day Trip (Tap Date)
+                    Same-Day (Today Only)
                   </span>
                 </div>
               ) : (
@@ -1427,7 +1436,14 @@ export const BookingWizardPage: React.FC = () => {
                       }
                       setError(null);
                       setPickupAt(val);
-                      if (isAirportTransfer || (returnAt && new Date(returnAt) <= d)) {
+                      if (isTransfer) {
+                        const sameDayDrop = new Date(d);
+                        sameDayDrop.setHours(21, 0, 0, 0); // 9:00 PM same day
+                        if (sameDayDrop <= d) {
+                          sameDayDrop.setHours(23, 59, 0, 0);
+                        }
+                        setReturnAt(format(sameDayDrop, "yyyy-MM-dd'T'HH:mm"));
+                      } else if (returnAt && new Date(returnAt) <= d) {
                         setReturnAt(format(addDays(d, 1), "yyyy-MM-dd'T'HH:mm"));
                       }
                     }}
@@ -1437,16 +1453,16 @@ export const BookingWizardPage: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Return Date & Time
+                      {isTransfer ? 'Same-Day Drop-off Schedule' : 'Return Date & Time'}
                     </label>
-                    <span className="text-[10px] font-bold text-slate-500">
-                      {isAirportTransfer ? '1-Day Chauffeur Trip' : 'Must be after pick-up'}
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      {isTransfer ? 'Same-Day (Today Only)' : 'Must be after pick-up'}
                     </span>
                   </div>
                   <input
                     type="datetime-local"
                     value={returnAt}
-                    disabled={isAirportTransfer}
+                    disabled={isTransfer}
                     min={pickupAt || format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -1460,7 +1476,7 @@ export const BookingWizardPage: React.FC = () => {
                       setReturnAt(val);
                     }}
                     className={`w-full border rounded-xl p-2.5 text-xs font-semibold focus:outline-none ${
-                      isAirportTransfer
+                      isTransfer
                         ? 'bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed'
                         : 'bg-white border-slate-300 focus:ring-2 focus:ring-brand-blue'
                     }`}
@@ -1475,7 +1491,7 @@ export const BookingWizardPage: React.FC = () => {
                 selectedVehicleId={selectedVehicleId}
                 selectedPickup={new Date(pickupAt)}
                 selectedReturn={new Date(returnAt)}
-                singleDayMode={isAirportTransfer}
+                singleDayMode={isTransfer}
                 onSelectRange={(p, r) => {
                   const todayStart = new Date();
                   todayStart.setHours(0, 0, 0, 0);
@@ -1484,9 +1500,17 @@ export const BookingWizardPage: React.FC = () => {
                     return;
                   }
                   setError(null);
-                  setPickupAt(format(p, "yyyy-MM-dd'T'HH:mm"));
-                  const returnDate = isAirportTransfer ? addDays(p, 1) : r;
-                  setReturnAt(format(returnDate, "yyyy-MM-dd'T'HH:mm"));
+                  const pDate = new Date(p);
+                  pDate.setHours(9, 0, 0, 0);
+                  setPickupAt(format(pDate, "yyyy-MM-dd'T'HH:mm"));
+
+                  if (isTransfer) {
+                    const sameDayDrop = new Date(pDate);
+                    sameDayDrop.setHours(21, 0, 0, 0); // 9:00 PM same day!
+                    setReturnAt(format(sameDayDrop, "yyyy-MM-dd'T'HH:mm"));
+                  } else {
+                    setReturnAt(format(r, "yyyy-MM-dd'T'HH:mm"));
+                  }
                 }}
               />
 
