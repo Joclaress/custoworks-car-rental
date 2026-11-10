@@ -1,4 +1,9 @@
-const API_BASE = (((import.meta as any).env?.VITE_API_URL as string) || '/api').replace(/\/+$/, '');
+const API_BASE = (
+  ((import.meta as any).env?.VITE_API_URL as string) ||
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? '/api'
+    : 'https://custoworks-car-rental.onrender.com/api')
+).replace(/\/+$/, '');
 
 const CACHE_VERSION = 'v6_rates_1500_permanent';
 try {
