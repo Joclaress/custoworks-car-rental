@@ -154,6 +154,75 @@ export const BookingWizardPage: React.FC = () => {
   const [purpose, setPurpose] = useState<string>('Personal Vacation / Travel');
   const [flightNumber, setFlightNumber] = useState<string>('');
 
+  // Renter Information Field-level Validation Errors & Touched State
+  const [renterErrors, setRenterErrors] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    emergencyPhone?: string;
+  }>({});
+  const [renterTouched, setRenterTouched] = useState<{
+    name?: boolean;
+    email?: boolean;
+    phone?: boolean;
+    address?: boolean;
+    emergencyPhone?: boolean;
+  }>({});
+
+  const validateRenterInfo = (fieldValues?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    emergencyPhone?: string;
+  }) => {
+    const nameVal = (fieldValues?.name !== undefined ? fieldValues.name : customerName).trim();
+    const emailVal = (fieldValues?.email !== undefined ? fieldValues.email : customerEmail).trim();
+    const phoneVal = (fieldValues?.phone !== undefined ? fieldValues.phone : customerPhone).replace(/[\s\-]/g, '');
+    const addressVal = (fieldValues?.address !== undefined ? fieldValues.address : customerAddress).trim();
+    const emerPhoneVal = (fieldValues?.emergencyPhone !== undefined ? fieldValues.emergencyPhone : emergencyPhone).replace(/[\s\-]/g, '');
+
+    const errors: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+      emergencyPhone?: string;
+    } = {};
+
+    if (!nameVal) {
+      errors.name = 'Full name is required as shown on your license or valid ID.';
+    } else if (nameVal.length < 3) {
+      errors.name = 'Please enter your complete legal name.';
+    }
+
+    if (!emailVal) {
+      errors.email = 'Email address is required for booking confirmation & contract.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+      errors.email = 'Please enter a valid email address (e.g. name@example.com).';
+    }
+
+    // Philippine mobile number validation: must start with 09 and be exactly 11 digits
+    if (!phoneVal) {
+      errors.phone = 'Philippine mobile number is required.';
+    } else if (!/^09\d{9}$/.test(phoneVal)) {
+      errors.phone = 'Must be an 11-digit Philippine mobile number starting with 09 (e.g. 09953827972).';
+    }
+
+    if (!addressVal) {
+      errors.address = 'Complete address is required.';
+    } else if (addressVal.length < 5) {
+      errors.address = 'Please provide your street/barangay, city, and province.';
+    }
+
+    if (emerPhoneVal && !/^09\d{9}$/.test(emerPhoneVal)) {
+      errors.emergencyPhone = 'Must be an 11-digit Philippine mobile number starting with 09 (e.g. 09953827972).';
+    }
+
+    return errors;
+  };
+
   // Server Quote & Created Draft
   const [quote, setQuote] = useState<PricingQuote | null>(null);
   const [createdBooking, setCreatedBooking] = useState<any | null>(null);
@@ -406,8 +475,19 @@ export const BookingWizardPage: React.FC = () => {
   // STEP 5 -> 6: Save Customer Info & Create Draft Hold (generates Tracking Number)
   const handleSaveCustomerInfo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
-      setError('Please fill in all required customer details (Name, Email, Mobile number, Complete address)');
+    setRenterTouched({
+      name: true,
+      email: true,
+      phone: true,
+      address: true,
+      emergencyPhone: true,
+    });
+
+    const validationErrors = validateRenterInfo();
+    setRenterErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setError('Please resolve the highlighted field errors below to proceed.');
       return;
     }
     setError(null);
@@ -1394,94 +1474,221 @@ export const BookingWizardPage: React.FC = () => {
 
           {/* STEP 5: CUSTOMER INFORMATION */}
           {step === 5 && (
-            <form onSubmit={handleSaveCustomerInfo} className="space-y-6">
+            <form onSubmit={handleSaveCustomerInfo} noValidate className="space-y-6">
               <div>
                 <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 5 of 8</span>
                 <h2 className="text-2xl font-black text-slate-900">Renter Information</h2>
                 <p className="text-xs text-slate-500 mt-1">Please provide accurate contact details for booking verification.</p>
               </div>
 
+              {/* Error Summary Banner */}
+              {Object.keys(renterErrors).length > 0 && Object.values(renterErrors).some(Boolean) && (
+                <div className="p-4 bg-red-50 border-2 border-red-300 rounded-2xl text-red-800 text-xs font-bold flex items-center gap-3 shadow-xs animate-shake">
+                  <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                  <div>
+                    <span className="block font-black text-sm text-red-900">Please correct the required fields below</span>
+                    <span className="font-medium text-red-700">All fields marked with an asterisk (*) and valid Philippine mobile number are required to proceed.</span>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Full Name (As shown on License / ID) *
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Full Name (As shown on License / ID) *</span>
+                    {renterErrors.name && (
+                      <span className="text-red-500 text-[11px] font-semibold lowercase tracking-normal">required</span>
+                    )}
                   </label>
                   <input
                     type="text"
-                    required
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
+                    onChange={(e) => {
+                      setCustomerName(e.target.value);
+                      if (renterTouched.name) {
+                        const errs = validateRenterInfo({ name: e.target.value });
+                        setRenterErrors((prev) => ({ ...prev, name: errs.name }));
+                      }
+                    }}
+                    onBlur={() => {
+                      setRenterTouched((prev) => ({ ...prev, name: true }));
+                      const errs = validateRenterInfo({ name: customerName });
+                      setRenterErrors((prev) => ({ ...prev, name: errs.name }));
+                    }}
                     placeholder="e.g. Juan Dela Cruz"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
+                      renterErrors.name
+                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
+                    }`}
                   />
+                  {renterErrors.name && (
+                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.name}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Email Address *
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Email Address *</span>
+                    {renterErrors.email && (
+                      <span className="text-red-500 text-[11px] font-semibold lowercase tracking-normal">invalid email</span>
+                    )}
                   </label>
                   <input
                     type="email"
-                    required
                     value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    onChange={(e) => {
+                      setCustomerEmail(e.target.value);
+                      if (renterTouched.email) {
+                        const errs = validateRenterInfo({ email: e.target.value });
+                        setRenterErrors((prev) => ({ ...prev, email: errs.email }));
+                      }
+                    }}
+                    onBlur={() => {
+                      setRenterTouched((prev) => ({ ...prev, email: true }));
+                      const errs = validateRenterInfo({ email: customerEmail });
+                      setRenterErrors((prev) => ({ ...prev, email: errs.email }));
+                    }}
                     placeholder="e.g. juan@example.com"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
+                      renterErrors.email
+                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
+                    }`}
                   />
+                  {renterErrors.email && (
+                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Philippine Mobile Number *
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Philippine Mobile Number *</span>
+                    <span className="text-slate-400 text-[11px] font-normal normal-case">11 digits (09XXXXXXXXX)</span>
                   </label>
                   <input
-                    type="text"
-                    required
+                    type="tel"
+                    maxLength={11}
                     value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="e.g. 0995 382 7972"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      setCustomerPhone(cleaned);
+                      if (renterTouched.phone) {
+                        const errs = validateRenterInfo({ phone: cleaned });
+                        setRenterErrors((prev) => ({ ...prev, phone: errs.phone }));
+                      }
+                    }}
+                    onBlur={() => {
+                      setRenterTouched((prev) => ({ ...prev, phone: true }));
+                      const errs = validateRenterInfo({ phone: customerPhone });
+                      setRenterErrors((prev) => ({ ...prev, phone: errs.phone }));
+                    }}
+                    placeholder="e.g. 09953827972"
+                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
+                      renterErrors.phone
+                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
+                    }`}
                   />
+                  {renterErrors.phone ? (
+                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.phone}
+                    </p>
+                  ) : (
+                    <p className="text-slate-500 text-[11px] mt-1 font-medium">
+                      Example: <strong className="text-brand-blue font-bold">09953827972</strong> (Used for booking SMS & confirmation updates)
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Complete Address *
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Complete Address *</span>
+                    {renterErrors.address && (
+                      <span className="text-red-500 text-[11px] font-semibold lowercase tracking-normal">required</span>
+                    )}
                   </label>
                   <input
                     type="text"
-                    required
                     value={customerAddress}
-                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    onChange={(e) => {
+                      setCustomerAddress(e.target.value);
+                      if (renterTouched.address) {
+                        const errs = validateRenterInfo({ address: e.target.value });
+                        setRenterErrors((prev) => ({ ...prev, address: errs.address }));
+                      }
+                    }}
+                    onBlur={() => {
+                      setRenterTouched((prev) => ({ ...prev, address: true }));
+                      const errs = validateRenterInfo({ address: customerAddress });
+                      setRenterErrors((prev) => ({ ...prev, address: errs.address }));
+                    }}
                     placeholder="Street, Barangay, City, Province"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
+                      renterErrors.address
+                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
+                    }`}
                   />
+                  {renterErrors.address && (
+                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.address}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Emergency Contact Person
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Emergency Contact Person</span>
+                    <span className="text-slate-400 text-[11px] font-normal normal-case">Optional</span>
                   </label>
                   <input
                     type="text"
                     value={emergencyName}
                     onChange={(e) => setEmergencyName(e.target.value)}
-                    placeholder="Name of contact"
+                    placeholder="Name of contact person"
                     className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Emergency Contact Phone
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Emergency Contact Phone</span>
+                    <span className="text-slate-400 text-[11px] font-normal normal-case">Optional</span>
                   </label>
                   <input
-                    type="text"
+                    type="tel"
+                    maxLength={11}
                     value={emergencyPhone}
-                    onChange={(e) => setEmergencyPhone(e.target.value)}
-                    placeholder="Contact number"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      setEmergencyPhone(cleaned);
+                      if (renterTouched.emergencyPhone) {
+                        const errs = validateRenterInfo({ emergencyPhone: cleaned });
+                        setRenterErrors((prev) => ({ ...prev, emergencyPhone: errs.emergencyPhone }));
+                      }
+                    }}
+                    onBlur={() => {
+                      setRenterTouched((prev) => ({ ...prev, emergencyPhone: true }));
+                      const errs = validateRenterInfo({ emergencyPhone: emergencyPhone });
+                      setRenterErrors((prev) => ({ ...prev, emergencyPhone: errs.emergencyPhone }));
+                    }}
+                    placeholder="e.g. 09953827972"
+                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
+                      renterErrors.emergencyPhone
+                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
+                    }`}
                   />
+                  {renterErrors.emergencyPhone && (
+                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.emergencyPhone}
+                    </p>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2">
