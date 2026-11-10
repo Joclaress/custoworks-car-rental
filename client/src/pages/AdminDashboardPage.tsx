@@ -71,6 +71,7 @@ export const AdminDashboardPage: React.FC = () => {
   // Bookings state
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingFilterStatus, setBookingFilterStatus] = useState<string>('');
+  const [bookingServiceFilter, setBookingServiceFilter] = useState<'ALL' | 'RENTAL' | 'TRANSFER'>('ALL');
   const [bookingSearch, setBookingSearch] = useState<string>('');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookingSubTab, setBookingSubTab] = useState<'SCHEDULE' | 'ALL'>('ALL');
@@ -1891,10 +1892,29 @@ export const AdminDashboardPage: React.FC = () => {
                 >
                   ✅ Completed
                 </button>
-                {bookingFilterStatus && (
+
+                <div className="h-5 w-px bg-slate-700 hidden sm:block mx-1" />
+
+                <button
+                  type="button"
+                  onClick={() => setBookingServiceFilter((prev) => (prev === 'TRANSFER' ? 'ALL' : 'TRANSFER'))}
+                  className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all border flex items-center gap-1.5 ${
+                    bookingServiceFilter === 'TRANSFER'
+                      ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-400/40'
+                      : 'bg-slate-800/80 text-amber-300 border-slate-700 hover:bg-slate-750'
+                  }`}
+                >
+                  <Plane className="w-3.5 h-3.5" />
+                  <span>🚖 Transfers ({bookings.filter((b) => b.destination?.slug?.includes('airport') || (b.deliveryAddress && b.deliveryAddress.includes('➔'))).length})</span>
+                </button>
+
+                {(bookingFilterStatus || bookingServiceFilter !== 'ALL') && (
                   <button
                     type="button"
-                    onClick={() => setBookingFilterStatus('')}
+                    onClick={() => {
+                      setBookingFilterStatus('');
+                      setBookingServiceFilter('ALL');
+                    }}
                     className="text-xs text-slate-400 hover:text-white underline font-semibold px-1"
                   >
                     Clear Filter
@@ -1927,7 +1947,7 @@ export const AdminDashboardPage: React.FC = () => {
                     <tr>
                       <th className="p-3.5">Ref #</th>
                       <th className="p-3.5">Customer</th>
-                      <th className="p-3.5">Vehicle</th>
+                      <th className="p-3.5">Vehicle & Route</th>
                       <th className="p-3.5">Schedule</th>
                       <th className="p-3.5">Payment & Balance</th>
                       <th className="p-3.5">Status</th>
@@ -1935,7 +1955,17 @@ export const AdminDashboardPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/80 font-medium text-slate-300">
-                    {bookings.map((b) => {
+                    {bookings
+                      .filter((b) => {
+                        if (bookingServiceFilter === 'TRANSFER') {
+                          return b.destination?.slug?.includes('airport') || (b.deliveryAddress && b.deliveryAddress.includes('➔'));
+                        }
+                        if (bookingServiceFilter === 'RENTAL') {
+                          return !(b.destination?.slug?.includes('airport') || (b.deliveryAddress && b.deliveryAddress.includes('➔')));
+                        }
+                        return true;
+                      })
+                      .map((b) => {
                       const fin = getBookingFinancials(b);
                       const isOverdue = b.status === 'ONGOING' && new Date() >= new Date(b.returnAt);
 
@@ -1963,6 +1993,11 @@ export const AdminDashboardPage: React.FC = () => {
                             {b.destination?.slug?.includes('airport') && (
                               <span className="inline-flex items-center gap-1 text-[9px] font-black bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.2 rounded mt-0.5">
                                 ✈️ Airport Transfer
+                              </span>
+                            )}
+                            {b.deliveryAddress && b.deliveryAddress.includes('➔') && (
+                              <span className="block text-[10px] font-bold text-sky-300 bg-sky-950/60 border border-sky-600/40 px-2 py-0.5 rounded-md mt-1 max-w-[220px] truncate" title={b.deliveryAddress}>
+                                📍 {b.deliveryAddress}
                               </span>
                             )}
                           </td>
@@ -4259,8 +4294,13 @@ export const AdminDashboardPage: React.FC = () => {
                   <p className="text-slate-500">
                     Type: <strong>{viewBookingModal.rentalType === 'SELF_DRIVE' ? 'Self-Drive' : 'With Driver'}</strong> • Destination: {viewBookingModal.destination?.name || 'Local'}
                   </p>
-                  {viewBookingModal.pickupMethod === 'DELIVERY' && (
-                    <p className="text-blue-600 truncate">Delivery: {viewBookingModal.deliveryAddress || 'Requested'}</p>
+                  {viewBookingModal.deliveryAddress && (
+                    <div className="bg-sky-50 border border-sky-200 p-2.5 rounded-xl text-xs space-y-0.5 mt-2">
+                      <span className="font-extrabold text-brand-blue uppercase text-[10px] block flex items-center gap-1">
+                        📍 Pinned Pickup & Drop Route:
+                      </span>
+                      <p className="font-bold text-slate-900 leading-snug">{viewBookingModal.deliveryAddress}</p>
+                    </div>
                   )}
                 </div>
               </div>
