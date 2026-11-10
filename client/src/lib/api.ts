@@ -169,6 +169,19 @@ class ApiService {
         const errJson = await response.json();
         errorMsg = errJson.error?.message || errJson.message || errorMsg;
         errorDetails = errJson.error?.details || null;
+
+        // If generic validation failed, enrich with first field issue
+        if ((errorMsg === 'Validation failed' || errorMsg === 'Unprocessable Entity') && Array.isArray(errorDetails) && errorDetails.length > 0) {
+          const first = errorDetails[0];
+          if (first && first.path) {
+            const isPhone = String(first.path).toLowerCase().includes('phone');
+            if (isPhone) {
+              errorMsg = 'Philippine mobile number is incorrect (must be 11 digits starting with 09, e.g. 09953827972)';
+            } else {
+              errorMsg = `${first.path}: ${first.message || 'invalid'}`;
+            }
+          }
+        }
       } catch {
         errorMsg = response.statusText || errorMsg;
       }

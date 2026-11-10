@@ -9,10 +9,28 @@ import { isProd } from '../config/env';
 export function parse<T>(schema: ZodType<T>, data: unknown): T {
   const r = schema.safeParse(data);
   if (!r.success) {
-    throw AppError.unprocessable(
-      'Validation failed',
-      r.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
-    );
+    const issues = r.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message }));
+    const first = issues[0];
+    let specificMessage = 'Validation failed';
+    if (first) {
+      const isPhone = first.path.toLowerCase().includes('phone');
+      const isEmail = first.path.toLowerCase().includes('email');
+      const isName = first.path.toLowerCase().includes('name');
+      const isAddress = first.path.toLowerCase().includes('address');
+
+      if (isPhone) {
+        specificMessage = 'Philippine mobile number is incorrect (must be 11 digits starting with 09, e.g. 09953827972)';
+      } else if (isEmail) {
+        specificMessage = `Email address is invalid: ${first.message}`;
+      } else if (isName) {
+        specificMessage = `Full name is required: ${first.message}`;
+      } else if (isAddress) {
+        specificMessage = `Address is required: ${first.message}`;
+      } else {
+        specificMessage = `${first.path}: ${first.message}`;
+      }
+    }
+    throw AppError.unprocessable(specificMessage, issues);
   }
   return r.data;
 }
