@@ -40,6 +40,73 @@ import { format, addDays, differenceInCalendarDays } from 'date-fns';
 import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
 import { saveFileToGallery } from '../lib/screenshot';
 
+interface DestinationMeta {
+  badgeText: string;
+  badgeClass: string;
+  rateSedan: string;
+  rateSuv: string;
+  rateVan: string;
+}
+
+const DESTINATION_META: Record<string, DestinationMeta> = {
+  'naga-city': {
+    badgeText: '🏙️ Naga City · Sedan ₱1.5k • SUV ₱2k • Van ₱3.5k',
+    badgeClass: 'bg-emerald-100 text-emerald-950 border border-emerald-300',
+    rateSedan: '₱1,500 (12h) / ₱2,000 (24h)',
+    rateSuv: '₱2,000 (12h) / ₱2,500 (24h)',
+    rateVan: '₱3,500 (12h) / ₱4,500 (24h)',
+  },
+  'camarines-sur': {
+    badgeText: '📍 CamSur · Sedan ₱1.7k • SUV ₱2.2k • Van ₱3.8k',
+    badgeClass: 'bg-sky-100 text-sky-950 border border-sky-300',
+    rateSedan: '₱1,700 (12h) / ₱2,200 (24h)',
+    rateSuv: '₱2,200 (12h) / ₱2,700 (24h)',
+    rateVan: '₱3,800 (12h) / ₱4,800 (24h)',
+  },
+  'naga-airport': {
+    badgeText: '🛬 Naga Airport · Sedan ₱1.5k • Innova ₱2.5k • Van ₱3.5k',
+    badgeClass: 'bg-blue-100 text-blue-950 border border-blue-300',
+    rateSedan: '₱1,500 (12h) / ₱2,000 (24h)',
+    rateSuv: '₱2,000 (12h) / ₱2,500 (24h)',
+    rateVan: '₱3,500 (12h) / ₱3,500 (24h)',
+  },
+  'bicol-intl-airport': {
+    badgeText: '✈️ BIA Airport · Sedan ₱2k • Innova ₱3k • Van ₱7.5k',
+    badgeClass: 'bg-amber-100 text-amber-950 border border-amber-300',
+    rateSedan: '₱2,000 (12h) / ₱2,500 (24h)',
+    rateSuv: '₱3,000 (12h) / ₱3,500 (24h)',
+    rateVan: '₱7,500 (12h) / ₱7,500 (24h)',
+  },
+  'albay-daet': {
+    badgeText: '🌋 Albay / Daet · Sedan ₱2k • SUV ₱2.5k • Van ₱4.2k',
+    badgeClass: 'bg-purple-100 text-purple-950 border border-purple-300',
+    rateSedan: '₱2,000 (12h) / ₱2,500 (24h)',
+    rateSuv: '₱2,500 (12h) / ₱3,000 (24h)',
+    rateVan: '₱4,200 (12h) / ₱5,200 (24h)',
+  },
+  'sorsogon-labo': {
+    badgeText: '🌊 Sorsogon / Labo · Sedan ₱2.5k • SUV ₱3k • Van ₱5.8k',
+    badgeClass: 'bg-teal-100 text-teal-950 border border-teal-300',
+    rateSedan: '₱2,500 (12h) / ₱3,000 (24h)',
+    rateSuv: '₱3,000 (12h) / ₱3,500 (24h)',
+    rateVan: '₱7,000 (12h) / ₱5,800 (24h)',
+  },
+  'manila': {
+    badgeText: '🛣️ Manila Express · Sedan ₱4.5k • SUV ₱5.5k • Van ₱7.5k',
+    badgeClass: 'bg-rose-100 text-rose-950 border border-rose-300',
+    rateSedan: '₱4,500 (12h) / ₱5,000 (24h)',
+    rateSuv: '₱5,500 (12h) / ₱6,000 (24h)',
+    rateVan: '₱9,000 (12h) / ₱7,500 (24h)',
+  },
+  'baguio': {
+    badgeText: '🌲 Baguio · Sedan ₱5.5k • SUV ₱6.5k • Van ₱9k',
+    badgeClass: 'bg-indigo-100 text-indigo-950 border border-indigo-300',
+    rateSedan: '₱5,500 (12h)',
+    rateSuv: '₱6,500 (12h) / ₱7,000 (24h)',
+    rateVan: '₱10,000 (12h) / ₱9,000 (24h)',
+  },
+};
+
 export const BookingWizardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -980,12 +1047,26 @@ export const BookingWizardPage: React.FC = () => {
                   const isBia = d.slug === 'bicol-intl-airport';
                   const isNagaAirport = d.slug === 'naga-airport';
                   const isAirport = isBia || isNagaAirport;
+                  const meta = DESTINATION_META[d.slug] || {
+                    badgeText: `📍 ${d.name}`,
+                    badgeClass: 'bg-slate-100 text-slate-800 border border-slate-300',
+                    rateSedan: 'From ₱1,500',
+                    rateSuv: 'From ₱2,000',
+                    rateVan: 'From ₱3,500',
+                  };
+
+                  let vehicleRate = meta.rateSedan;
+                  if (selectedVehicle?.category === 'VAN') {
+                    vehicleRate = meta.rateVan;
+                  } else if (selectedVehicle?.category === 'SUV_MPV') {
+                    vehicleRate = meta.rateSuv;
+                  }
 
                   return (
                     <div
                       key={d.id}
                       onClick={() => setSelectedDestinationId(d.id)}
-                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all ${
+                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
                         isSelected
                           ? 'border-brand-blue bg-blue-50/50 shadow-sm ring-1 ring-brand-blue'
                           : isAirport
@@ -993,23 +1074,27 @@ export const BookingWizardPage: React.FC = () => {
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
-                      {isBia && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2">
-                          ✈️ BIA Airport · Van ₱7.5k • Innova ₱6k • Sedan ₱4.5k
+                      <div>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider mb-2.5 ${meta.badgeClass}`}>
+                          {meta.badgeText}
                         </span>
-                      )}
-                      {isNagaAirport && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black bg-blue-100 text-blue-900 px-2 py-0.5 rounded-md uppercase tracking-wider mb-2">
-                          🛬 Naga Airport · Van ₱3.5k • Innova ₱2.5k • Sedan ₱1.8k
-                        </span>
-                      )}
-                      <div className="flex justify-between items-center mb-1">
-                        <h4 className="font-extrabold text-base text-slate-900">{d.name}</h4>
-                        {isSelected && <CheckCircle className="w-5 h-5 text-brand-blue shrink-0" />}
+                        <div className="flex justify-between items-center mb-1">
+                          <h4 className="font-extrabold text-base text-slate-900">{d.name}</h4>
+                          {isSelected && <CheckCircle className="w-5 h-5 text-brand-blue shrink-0" />}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {d.description || `Applicable for travels within ${d.name} and neighboring areas.`}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500">
-                        {d.description || `Applicable for travels within ${d.name} and neighboring areas.`}
-                      </p>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-semibold truncate max-w-[130px]" title={selectedVehicle?.name}>
+                          {selectedVehicle ? `${selectedVehicle.name}:` : 'Official Rate:'}
+                        </span>
+                        <span className="font-extrabold text-brand-blue bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/80">
+                          {vehicleRate}
+                        </span>
+                      </div>
                     </div>
                   );
                 })}
