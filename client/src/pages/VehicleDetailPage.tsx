@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { Vehicle } from '../types';
 import { InteractiveCalendar } from '../components/InteractiveCalendar';
 import { formatPeso } from '../lib/utils';
+import { MapRouteAdsCarousel } from '../components/MapRouteAdsCarousel';
 import {
   Users,
   Gauge,
@@ -498,6 +499,11 @@ export const VehicleDetailPage: React.FC = () => {
             selectedVehicleId={vehicle.id}
             readOnly={true}
           />
+        </div>
+
+        {/* Local Sponsors & Partner Ad Slots Carousel */}
+        <div className="pt-4">
+          <MapRouteAdsCarousel />
         </div>
       </div>
     </div>

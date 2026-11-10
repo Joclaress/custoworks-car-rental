@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { Vehicle } from '../types';
 import { VehicleCard } from '../components/VehicleCard';
 import { Search, Filter, RotateCcw, Car, Calculator, ArrowRight } from 'lucide-react';
+import { MapRouteAdsCarousel } from '../components/MapRouteAdsCarousel';
 
 export const VehiclesPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -79,6 +80,11 @@ export const VehiclesPage: React.FC = () => {
             <span>Official Pricelist & Calculator</span>
             <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
           </Link>
+        </div>
+
+        {/* Route Partners & Local Sponsor Ad Slots Carousel */}
+        <div className="mb-8">
+          <MapRouteAdsCarousel />
         </div>
 
         {/* Layout: Sidebar + Grid */}

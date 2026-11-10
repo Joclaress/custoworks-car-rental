@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Car, Phone, MapPin, ShieldCheck, Clock, CheckCircle2 } from 'lucide-react';
+import { MapRouteAdsCarousel } from './MapRouteAdsCarousel';
 
 export const Footer: React.FC = () => {
   const location = useLocation();
@@ -12,7 +13,12 @@ export const Footer: React.FC = () => {
 
   return (
     <footer className="bg-brand-navy-dark border-t border-brand-navy-light/40 text-slate-400 text-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      {/* Universal Route Sponsors & Partner Ad Slots on Every Page */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-4">
+        <MapRouteAdsCarousel />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t border-white/5">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Column 1: Company Profile */}
           <div className="space-y-4">

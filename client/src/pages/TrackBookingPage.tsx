@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { Booking, BookingRequirement } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { formatPeso, formatDate } from '../lib/utils';
+import { MapRouteAdsCarousel } from '../components/MapRouteAdsCarousel';
 import {
   Search,
   Car,
@@ -241,6 +242,11 @@ export const TrackBookingPage: React.FC = () => {
                 <span>{error}</span>
               </div>
             )}
+          </div>
+
+          {/* Local Partner & Travel Sponsor Ads Carousel */}
+          <div className="max-w-4xl mx-auto mt-8">
+            <MapRouteAdsCarousel />
           </div>
         </div>
 

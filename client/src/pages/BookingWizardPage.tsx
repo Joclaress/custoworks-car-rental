@@ -40,6 +40,7 @@ import { format, addDays, differenceInCalendarDays } from 'date-fns';
 import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
 import { saveFileToGallery } from '../lib/screenshot';
 import { PointToPointTransferMap, LocationPoint } from '../components/PointToPointTransferMap';
+import { MapRouteAdsCarousel } from '../components/MapRouteAdsCarousel';
 
 interface DestinationMeta {
   badgeText: string;
@@ -1113,6 +1114,11 @@ export const BookingWizardPage: React.FC = () => {
                 >
                   Next: Select Rental Option <ArrowRight className="w-4 h-4" />
                 </button>
+              </div>
+
+              {/* Local Sponsors & Partner Perks Ad Carousel */}
+              <div className="pt-2">
+                <MapRouteAdsCarousel />
               </div>
             </div>
           )}
@@ -2738,6 +2744,11 @@ export const BookingWizardPage: React.FC = () => {
                 >
                   Return to Home
                 </button>
+              </div>
+
+              {/* Local Partner Perks & Sponsors for Your Trip */}
+              <div className="pt-4 max-w-xl mx-auto">
+                <MapRouteAdsCarousel />
               </div>
             </div>
           )}
