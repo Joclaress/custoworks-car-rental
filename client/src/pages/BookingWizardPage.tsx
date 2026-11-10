@@ -161,6 +161,7 @@ export const BookingWizardPage: React.FC = () => {
   const [emergencyPhone, setEmergencyPhone] = useState<string>('');
   const [purpose, setPurpose] = useState<string>('Personal Vacation / Travel');
   const [flightNumber, setFlightNumber] = useState<string>('');
+  const [passengerSignName, setPassengerSignName] = useState<string>('');
 
   // Renter Information Field-level Validation Errors & Touched State
   const [renterErrors, setRenterErrors] = useState<{
@@ -471,16 +472,25 @@ export const BookingWizardPage: React.FC = () => {
         rentalType: selectedRentalType,
         pickupAt: pDate.toISOString(),
         returnAt: rDate.toISOString(),
-        pickupMethod,
+        pickupMethod: isTransfer ? 'OFFICE' : pickupMethod,
       });
-      if (pickupMethod === 'DELIVERY' && deliveryZoneId) {
+      if (!isTransfer && pickupMethod === 'DELIVERY' && deliveryZoneId) {
         q.set('deliveryZoneId', deliveryZoneId);
       }
       surchargeIds.forEach((id) => q.append('surchargeIds', id));
       if (promoCode) q.set('promoCode', promoCode);
 
       const res = await api.get<{ quote: PricingQuote }>(`/pricing/quote?${q.toString()}`);
-      setQuote(res.quote);
+      let finalQuote = res.quote;
+      if (transferData && transferData.price && (!isAirportTransfer || transferData.price !== 4500)) {
+        finalQuote = {
+          ...res.quote,
+          rentalFee: transferData.price,
+          totalAmount: transferData.price,
+          balanceDue: Math.max(0, transferData.price - res.quote.reservationFee),
+        };
+      }
+      setQuote(finalQuote);
       setError(null);
     } catch (err: any) {
       setError(err.message || 'Unable to calculate quote for selected dates');
@@ -552,13 +562,13 @@ export const BookingWizardPage: React.FC = () => {
     setSubmitting(true);
 
     const finalPurpose = flightNumber
-      ? `${purpose || 'Airport Transfer'} (Flight: ${flightNumber})`
+      ? `${purpose || 'Airport Transfer'} (Flight: ${flightNumber}${passengerSignName ? `, Signboard: ${passengerSignName}` : ''})`
       : purpose;
     const finalDeliveryAddress =
-      pickupMethod === 'DELIVERY'
+      isTransfer
+        ? deliveryAddress || (flightNumber ? `Airport Meetup - Flight ${flightNumber}` : null)
+        : pickupMethod === 'DELIVERY'
         ? deliveryAddress
-        : isAirportTransfer && flightNumber
-        ? `Airport Meetup - Flight ${flightNumber}`
         : null;
 
     try {
@@ -569,8 +579,8 @@ export const BookingWizardPage: React.FC = () => {
           rentalType: selectedRentalType,
           pickupAt: new Date(pickupAt).toISOString(),
           returnAt: new Date(returnAt).toISOString(),
-          pickupMethod,
-          deliveryZoneId: pickupMethod === 'DELIVERY' ? deliveryZoneId : null,
+          pickupMethod: isTransfer ? 'DELIVERY' : pickupMethod,
+          deliveryZoneId: (!isTransfer && pickupMethod === 'DELIVERY') ? deliveryZoneId : null,
           deliveryAddress: finalDeliveryAddress,
           surchargeIds,
           promoCode: promoCode || null,
@@ -591,8 +601,8 @@ export const BookingWizardPage: React.FC = () => {
           rentalType: selectedRentalType,
           pickupAt: new Date(pickupAt).toISOString(),
           returnAt: new Date(returnAt).toISOString(),
-          pickupMethod,
-          deliveryZoneId: pickupMethod === 'DELIVERY' ? deliveryZoneId : null,
+          pickupMethod: isTransfer ? 'DELIVERY' : pickupMethod,
+          deliveryZoneId: (!isTransfer && pickupMethod === 'DELIVERY') ? deliveryZoneId : null,
           deliveryAddress: finalDeliveryAddress,
           surchargeIds,
           promoCode: promoCode || null,
@@ -1514,62 +1524,97 @@ export const BookingWizardPage: React.FC = () => {
                 }}
               />
 
-              {/* Delivery or Office Pickup Selection */}
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4 text-xs">
-                <span className="font-bold text-sm text-slate-800 block">Vehicle Handover Option</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pickupMethod"
-                      checked={pickupMethod === 'OFFICE'}
-                      onChange={() => setPickupMethod('OFFICE')}
-                    />
-                    <span className="font-semibold text-slate-800">Office Pickup (Naga City) – Free</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="pickupMethod"
-                      checked={pickupMethod === 'DELIVERY'}
-                      onChange={() => setPickupMethod('DELIVERY')}
-                    />
-                    <span className="font-semibold text-slate-800">Doorstep Delivery / Airport Drop</span>
-                  </label>
-                </div>
+              {/* Handover / Location Options */}
+              {isTransfer ? (
+                <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3 text-xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
+                      📍 Dedicated Chauffeur Pickup & Drop
+                    </span>
+                    <span className="text-emerald-700 bg-emerald-100 border border-emerald-300 font-bold px-2.5 py-0.5 rounded-full text-[10px]">
+                      Chauffeur Meetup Included · No Delivery Surcharge
+                    </span>
+                  </div>
 
-                {pickupMethod === 'DELIVERY' && (
-                  <div className="space-y-3 pt-2">
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2">
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1">Select Delivery Zone</label>
-                      <select
-                        value={deliveryZoneId}
-                        onChange={(e) => setDeliveryZoneId(e.target.value)}
-                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium"
-                      >
-                        {additionalFees
-                          .filter((f) => f.type === 'DELIVERY')
-                          .map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.name} ({formatPeso(f.amount)})
-                            </option>
-                          ))}
-                      </select>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Trip Route</span>
+                      <p className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5">
+                        {deliveryAddress || 'Point-to-Point Shuttle'}
+                      </p>
                     </div>
 
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1">Delivery Address / Hotel / Terminal</label>
+                      <label className="block text-[11px] font-bold text-slate-700 mt-2 mb-1">
+                        Specific Landmark / Pickup Instructions (Optional)
+                      </label>
                       <input
                         type="text"
-                        value={deliveryAddress}
-                        onChange={(e) => setDeliveryAddress(e.target.value)}
-                        placeholder="e.g. Naga City Airport, Pili, or Hotel name..."
-                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium"
+                        value={customerAddress}
+                        onChange={(e) => setCustomerAddress(e.target.value)}
+                        placeholder="e.g. Hotel Lobby, Terminal 2 Arrival Gate, specific house #..."
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
                       />
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4 text-xs">
+                  <span className="font-bold text-sm text-slate-800 block">Vehicle Handover Option</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="pickupMethod"
+                        checked={pickupMethod === 'OFFICE'}
+                        onChange={() => setPickupMethod('OFFICE')}
+                      />
+                      <span className="font-semibold text-slate-800">Office Pickup (Naga City) – Free</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="pickupMethod"
+                        checked={pickupMethod === 'DELIVERY'}
+                        onChange={() => setPickupMethod('DELIVERY')}
+                      />
+                      <span className="font-semibold text-slate-800">Doorstep Delivery / Airport Drop</span>
+                    </label>
+                  </div>
+
+                  {pickupMethod === 'DELIVERY' && (
+                    <div className="space-y-3 pt-2">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Select Delivery Zone</label>
+                        <select
+                          value={deliveryZoneId}
+                          onChange={(e) => setDeliveryZoneId(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium"
+                        >
+                          {additionalFees
+                            .filter((f) => f.type === 'DELIVERY')
+                            .map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.name} ({formatPeso(f.amount)})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Delivery Address / Hotel / Terminal</label>
+                        <input
+                          type="text"
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          placeholder="e.g. Naga City Airport, Pili, or Hotel name..."
+                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Airport Flight Details & Meetup */}
               {isAirportTransfer && (
@@ -1593,13 +1638,13 @@ export const BookingWizardPage: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Terminal Meetup / Passenger Sign Name
+                        Signboard / Passenger Name for Meetup
                       </label>
                       <input
                         type="text"
-                        value={deliveryAddress}
-                        onChange={(e) => setDeliveryAddress(e.target.value)}
-                        placeholder="e.g. BIA Arrival Exit Gate (Name on signboard)"
+                        value={passengerSignName}
+                        onChange={(e) => setPassengerSignName(e.target.value)}
+                        placeholder="e.g. Juan Dela Cruz"
                         className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
                       />
                     </div>
@@ -1612,16 +1657,28 @@ export const BookingWizardPage: React.FC = () => {
 
               {/* Instant Quote Preview */}
               {quote && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex justify-between items-center text-xs">
+                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-xs shadow-xs">
                   <div>
-                    <span className="font-extrabold text-emerald-900 block text-sm">
-                      {quote.rentalDays} Day(s) / {quote.rentalHours} Hours ({quote.ratePlanLabel})
+                    <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider block">
+                      {isTransfer ? '✨ All-in Chauffeur Transfer Rate' : 'Rental Duration & Rate'}
                     </span>
-                    <span className="text-emerald-700">Estimated Total: {formatPeso(quote.totalAmount)}</span>
+                    <span className="font-extrabold text-slate-900 text-sm block mt-0.5">
+                      {isTransfer
+                        ? `${selectedVehicle?.name} · Same-Day Transfer`
+                        : `${quote.rentalDays} Day(s) / ${quote.rentalHours} Hours (${quote.ratePlanLabel})`}
+                    </span>
+                    <span className="text-slate-600 font-bold block mt-0.5">
+                      Estimated Total: <strong className="text-brand-blue text-sm">{formatPeso(quote.totalAmount)}</strong>
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-emerald-800 block">Due Now (Reservation)</span>
-                    <span className="text-base font-extrabold text-emerald-950">{formatPeso(quote.reservationFee)}</span>
+                  <div className="text-left sm:text-right shrink-0 bg-white p-3 rounded-xl border border-emerald-200">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Due Now (Reservation)</span>
+                    <span className="text-2xl font-black text-brand-blue block">
+                      ₱1,000.00
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">
+                      Remaining {formatPeso(Math.max(0, quote.totalAmount - 1000))} balance paid upon meetup
+                    </span>
                   </div>
                 </div>
               )}
