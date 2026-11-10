@@ -14,6 +14,7 @@ import {
   Route,
   ArrowUpDown,
 } from 'lucide-react';
+import { MapRouteAdsCarousel } from './MapRouteAdsCarousel';
 
 // Fix Leaflet default icon URLs in Vite
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -780,6 +781,9 @@ export const PointToPointTransferMap: React.FC<PointToPointTransferMapProps> = (
               Follows highways, provincial roads, and bridges
             </div>
           </div>
+
+          {/* Route Sponsor & Partner Ad Slots Carousel */}
+          <MapRouteAdsCarousel />
 
           {/* Preset Buttons */}
           <div className="space-y-2 pt-1">
