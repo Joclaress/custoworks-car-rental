@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { Vehicle, Destination, PricingQuote, PaymentMethod, BookingRequirement } from '../types';
@@ -110,6 +110,7 @@ const DESTINATION_META: Record<string, DestinationMeta> = {
 
 export const BookingWizardPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
@@ -407,6 +408,17 @@ export const BookingWizardPage: React.FC = () => {
     setStep(4);
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   };
+
+  // Handle incoming transfer route from Rates Calculator or external link
+  useEffect(() => {
+    const incomingTransfer = (location.state as any)?.transferData;
+    if (incomingTransfer && destinations.length > 0) {
+      setBookingMode('TRANSFER');
+      handleConfirmTransfer(incomingTransfer);
+    } else if (searchParams.get('mode') === 'transfer') {
+      setBookingMode('TRANSFER');
+    }
+  }, [location.state, searchParams, destinations]);
 
   // Auto-fetch or refresh requirements when on Step 6
   useEffect(() => {

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Vehicle, Destination, VehicleCategory, RentalType, RateDuration } from '../types';
 import { formatPeso } from '../lib/utils';
+import { PointToPointTransferMap, LocationPoint } from '../components/PointToPointTransferMap';
 import {
   Car,
   Calculator,
@@ -87,8 +88,22 @@ export const PriceListPage: React.FC = () => {
 
   // Calculator Mode: STANDARD vs AIRPORT_KM
   const [calculatorMode, setCalculatorMode] = useState<'STANDARD' | 'AIRPORT_KM'>(() => {
-    return searchParams.get('mode') === 'airport' ? 'AIRPORT_KM' : 'STANDARD';
+    return searchParams.get('mode') === 'airport' || searchParams.get('mode') === 'transfer' ? 'AIRPORT_KM' : 'STANDARD';
   });
+
+  const handleConfirmTransferFromRates = (transferData: {
+    pickup: LocationPoint;
+    drop: LocationPoint;
+    vehicleId: string;
+    distanceKm: number;
+    price: number;
+  }) => {
+    navigate('/book?mode=transfer', {
+      state: {
+        transferData,
+      },
+    });
+  };
 
   // Airport & Chauffeur Transfer Calculator State
   const [transferRouteKey, setTransferRouteKey] = useState<string>('BIA_AIRPORT');
@@ -575,7 +590,7 @@ export const PriceListPage: React.FC = () => {
               }`}
             >
               <Plane className="w-4 h-4 text-brand-blue" />
-              <span>✈️ BIA Airport & Chauffeur Matrix (By KM)</span>
+              <span>🚖 Pickup & Drop / Airport Route (Interactive Map)</span>
               <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full uppercase">
                 Van ₱7.5k • Innova ₱6k • Sedan ₱4.5k
               </span>
@@ -583,443 +598,13 @@ export const PriceListPage: React.FC = () => {
           </div>
 
           {calculatorMode === 'AIRPORT_KM' ? (
-            <div className="p-6 lg:p-8 space-y-8 animate-fadeIn">
-              {/* Top Row: Route Selection & Presets */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <span className="text-xs font-black uppercase tracking-wider text-brand-blue flex items-center gap-1.5">
-                      <Plane className="w-4 h-4" /> Destination & Transfer Hub
-                    </span>
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                      Naga City Chauffeur & Airport Transfer Matrix
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Pick your destination or use the distance slider to calculate transfer rates by kilometer with professional driver.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl self-start sm:self-auto border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => setTransferTripType('ROUNDTRIP')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        transferTripType === 'ROUNDTRIP'
-                          ? 'bg-brand-blue text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      🔁 Pickup & Drop (Roundtrip)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTransferTripType('ONEWAY')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        transferTripType === 'ONEWAY'
-                          ? 'bg-brand-blue text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      ➡️ One-Way Drop / Meetup
-                    </button>
-                  </div>
-                </div>
-
-                {/* Popular Route Presets */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                  {[
-                    {
-                      key: 'BIA_AIRPORT',
-                      label: '✈️ BIA Airport (Daraga)',
-                      km: '95 km',
-                      highlight: true,
-                      tag: 'Van ₱7.5k • Innova ₱6k • Sedan ₱4.5k',
-                    },
-                    {
-                      key: 'NAGA_AIRPORT',
-                      label: '🛬 Naga Airport (Pili)',
-                      km: '15 km',
-                      highlight: false,
-                      tag: 'Van ₱3.5k • Innova ₱2.5k • Sedan ₱1.8k',
-                    },
-                    {
-                      key: 'LEGAZPI',
-                      label: '🌋 Legazpi / Mayon',
-                      km: '85 km',
-                      highlight: false,
-                      tag: 'Van ₱7k • Innova ₱5.3k • Sedan ₱4.3k',
-                    },
-                    {
-                      key: 'DAET',
-                      label: '🏖️ Daet / Bagasbas',
-                      km: '140 km',
-                      highlight: false,
-                      tag: 'Van ₱7k • Innova ₱5.3k • Sedan ₱4.3k',
-                    },
-                    {
-                      key: 'SORSOGON',
-                      label: '🌊 Sorsogon / Matnog',
-                      km: '180 km',
-                      highlight: false,
-                      tag: 'Van ₱8.5k • Innova ₱6.3k • Sedan ₱4.8k',
-                    },
-                    {
-                      key: 'CUSTOM_KM',
-                      label: '📏 Custom Matrix by KM',
-                      km: 'Slider',
-                      highlight: false,
-                      tag: 'Enter any distance',
-                    },
-                  ].map((preset) => {
-                    const isSelected = transferRouteKey === preset.key;
-                    return (
-                      <button
-                        key={preset.key}
-                        type="button"
-                        onClick={() => {
-                          setTransferRouteKey(preset.key);
-                          if (preset.key === 'CUSTOM_KM' && transferCustomKm === 95) {
-                            setTransferCustomKm(100);
-                          }
-                        }}
-                        className={`p-3 rounded-2xl border text-left transition-all relative ${
-                          isSelected
-                            ? 'bg-blue-50/80 border-brand-blue ring-2 ring-brand-blue/30 shadow-sm'
-                            : 'bg-white hover:bg-slate-50 border-slate-200'
-                        } ${preset.highlight ? 'border-amber-300' : ''}`}
-                      >
-                        {preset.highlight && (
-                          <span className="absolute -top-2 right-2 text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.2 rounded-full uppercase">
-                            Official
-                          </span>
-                        )}
-                        <p className="text-xs font-black text-slate-900 truncate">{preset.label}</p>
-                        <p className="text-[11px] font-bold text-brand-blue mt-0.5">{preset.km}</p>
-                        <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">{preset.tag}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Distance & Route Details Banner */}
-                <div className="bg-gradient-to-r from-slate-900 via-brand-navy to-slate-900 text-white p-5 rounded-2xl shadow-sm space-y-4">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-200 px-2 py-0.5 rounded-full border border-blue-400/30">
-                          {transferMatrix.routeInfo.badge}
-                        </span>
-                        <span className="text-xs text-slate-300">
-                          Estimated Drive: <strong className="text-white">{transferMatrix.routeInfo.estDriveTime}</strong>
-                        </span>
-                      </div>
-                      <h4 className="text-lg font-black text-white">{transferMatrix.routeInfo.name}</h4>
-                      <p className="text-xs text-slate-300">{transferMatrix.routeInfo.desc}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 bg-white/10 px-4 py-2.5 rounded-xl border border-white/15 self-start md:self-auto">
-                      <div className="text-right">
-                        <span className="text-[10px] uppercase font-bold text-blue-300 block">Total Distance</span>
-                        <span className="text-base font-black text-white">
-                          {transferMatrix.isRoundtrip
-                            ? `${transferMatrix.km * 2} KM Roundtrip`
-                            : `${transferMatrix.km} KM One-Way`}
-                        </span>
-                      </div>
-                      <span className="text-xl">📍</span>
-                    </div>
-                  </div>
-
-                  {/* Custom Distance Slider */}
-                  <div className="pt-3 border-t border-white/10 space-y-2">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-300 font-bold flex items-center gap-1.5">
-                        <Gauge className="w-4 h-4 text-blue-400" />
-                        Adjust Distance from Naga City:
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min={10}
-                          max={500}
-                          value={transferCustomKm}
-                          onChange={(e) => {
-                            setTransferRouteKey('CUSTOM_KM');
-                            setTransferCustomKm(Math.max(10, Math.min(500, Number(e.target.value) || 10)));
-                          }}
-                          className="w-20 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-xs font-black text-amber-300 text-center focus:outline-none focus:border-brand-blue"
-                        />
-                        <span className="font-extrabold text-amber-300">KM One-Way</span>
-                      </div>
-                    </div>
-                    <input
-                      type="range"
-                      min={10}
-                      max={500}
-                      step={5}
-                      value={transferCustomKm}
-                      onChange={(e) => {
-                        setTransferRouteKey('CUSTOM_KM');
-                        setTransferCustomKm(Number(e.target.value));
-                      }}
-                      className="w-full accent-amber-400 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-                      <span>15 km (Pili Airport)</span>
-                      <span>95 km (Bicol Int'l Airport)</span>
-                      <span>140 km (Daet)</span>
-                      <span>180 km (Sorsogon)</span>
-                      <span>420 km (Manila)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3 Vehicle Categories Side-by-Side Comparison */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-black text-sm uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                    <Car className="w-4 h-4 text-brand-blue" />
-                    Available Chauffeur Vehicles & All-In Rates
-                  </h4>
-                  <span className="text-xs text-slate-500 font-semibold">
-                    {transferTripType === 'ROUNDTRIP' ? 'Roundtrip (Pickup & Drop)' : 'One-Way Transfer'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Card 1: Sedan */}
-                  <div className="bg-white rounded-3xl border-2 border-slate-200 hover:border-brand-blue p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-                    <div className="space-y-4">
-                      <div className="h-36 rounded-2xl overflow-hidden bg-slate-100 relative">
-                        <img
-                          src="/images/vehicle-vios.jpg"
-                          alt="Sedan Type"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <span className="absolute top-2.5 left-2.5 text-[10px] font-black bg-slate-900/80 text-white px-2.5 py-1 rounded-full backdrop-blur-xs">
-                          SEDAN TYPE
-                        </span>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h5 className="font-black text-lg text-slate-900">Toyota Vios / Mirage G4</h5>
-                          <span className="text-[11px] font-bold text-slate-500">Automatic</span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">Ideal for individuals, couples, or light business travel.</p>
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-semibold">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-brand-blue" /> 4-5 Seats
-                        </span>
-                        <span>•</span>
-                        <span>🧳 2-3 Suitcases</span>
-                        <span>•</span>
-                        <span>❄️ Aircon</span>
-                      </div>
-
-                      <ul className="space-y-1.5 text-xs text-slate-600">
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Professional uniformed driver included</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Flight tracking & terminal meetup</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Fuel-efficient smooth sedan ride</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="pt-5 mt-5 border-t border-slate-100 space-y-3">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                          Chauffeur Transfer Rate
-                        </span>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-3xl font-black text-slate-900">
-                            {formatPeso(transferMatrix.rates.sedan)}
-                          </span>
-                          <span className="text-xs font-semibold text-slate-500">
-                            {transferTripType === 'ROUNDTRIP' ? '/ roundtrip' : '/ one-way'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          ~₱{(transferMatrix.rates.sedan / (transferMatrix.km * (transferMatrix.isRoundtrip ? 2 : 1))).toFixed(2)} / km
-                        </p>
-                      </div>
-
-                      <Link
-                        to={`/book?category=SEDAN&rentalType=WITH_DRIVER`}
-                        className="w-full bg-slate-900 hover:bg-brand-navy text-white font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 text-xs transition-all shadow-sm active:scale-95"
-                      >
-                        <span>Book Sedan ({formatPeso(transferMatrix.rates.sedan)})</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-
-                  {/* Card 2: SUV / MPV (Innova) - Featured */}
-                  <div className="bg-gradient-to-b from-blue-50/50 via-white to-white rounded-3xl border-2 border-brand-blue p-6 shadow-md hover:shadow-lg transition-all flex flex-col justify-between relative group">
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-black bg-brand-blue text-white px-3 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-amber-300" /> Recommended for Airport
-                    </span>
-
-                    <div className="space-y-4">
-                      <div className="h-36 rounded-2xl overflow-hidden bg-slate-100 relative">
-                        <img
-                          src="/images/vehicle-innova.jpg"
-                          alt="SUV / MPV Type"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <span className="absolute top-2.5 left-2.5 text-[10px] font-black bg-brand-blue text-white px-2.5 py-1 rounded-full">
-                          SUV / MPV TYPE
-                        </span>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h5 className="font-black text-lg text-slate-900">Toyota Innova AT / Xpander</h5>
-                          <span className="text-[11px] font-bold text-brand-blue font-mono">Captain Seats</span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">Best family choice with spacious 3 rows & luggage room.</p>
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs text-slate-600 bg-blue-50/60 p-2.5 rounded-xl border border-blue-100 font-semibold">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-brand-blue" /> 7-8 Seats
-                        </span>
-                        <span>•</span>
-                        <span>🧳 4-5 Large Bags</span>
-                        <span>•</span>
-                        <span>💪 Powerful Diesel/AT</span>
-                      </div>
-
-                      <ul className="space-y-1.5 text-xs text-slate-600">
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Professional uniformed driver included</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Higher road clearance for Bicol highways</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Generous trunk space for balikbayan boxes</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="pt-5 mt-5 border-t border-slate-100 space-y-3">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-blue block">
-                          Chauffeur Transfer Rate
-                        </span>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-3xl font-black text-brand-blue">
-                            {formatPeso(transferMatrix.rates.innova)}
-                          </span>
-                          <span className="text-xs font-semibold text-slate-500">
-                            {transferTripType === 'ROUNDTRIP' ? '/ roundtrip' : '/ one-way'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          ~₱{(transferMatrix.rates.innova / (transferMatrix.km * (transferMatrix.isRoundtrip ? 2 : 1))).toFixed(2)} / km
-                        </p>
-                      </div>
-
-                      <Link
-                        to={`/book?category=SUV_MPV&rentalType=WITH_DRIVER`}
-                        className="w-full bg-brand-blue hover:bg-blue-600 text-white font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 text-xs transition-all shadow-md shadow-blue-500/25 active:scale-95"
-                      >
-                        <span>Book Innova ({formatPeso(transferMatrix.rates.innova)})</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Van */}
-                  <div className="bg-white rounded-3xl border-2 border-slate-200 hover:border-brand-blue p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-                    <div className="space-y-4">
-                      <div className="h-36 rounded-2xl overflow-hidden bg-slate-100 relative">
-                        <img
-                          src="/images/vehicle-nv350.jpg"
-                          alt="Van Type"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <span className="absolute top-2.5 left-2.5 text-[10px] font-black bg-indigo-900 text-white px-2.5 py-1 rounded-full">
-                          VAN TYPE
-                        </span>
-                      </div>
-
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h5 className="font-black text-lg text-slate-900">Nissan NV350 Urvan</h5>
-                          <span className="text-[11px] font-bold text-slate-500">15-Seater</span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5">Maximum seating and cargo space for tourist groups & barkada.</p>
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 font-semibold">
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5 text-brand-blue" /> 12-15 Seats
-                        </span>
-                        <span>•</span>
-                        <span>🧳 8-10 Suitcases</span>
-                        <span>•</span>
-                        <span>❄️ Dual Cold A/C</span>
-                      </div>
-
-                      <ul className="space-y-1.5 text-xs text-slate-600">
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Professional uniformed driver included</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Accommodates large group transfers together</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Dual high-output airconditioning</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="pt-5 mt-5 border-t border-slate-100 space-y-3">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                          Chauffeur Transfer Rate
-                        </span>
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-3xl font-black text-slate-900">
-                            {formatPeso(transferMatrix.rates.van)}
-                          </span>
-                          <span className="text-xs font-semibold text-slate-500">
-                            {transferTripType === 'ROUNDTRIP' ? '/ roundtrip' : '/ one-way'}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          ~₱{(transferMatrix.rates.van / (transferMatrix.km * (transferMatrix.isRoundtrip ? 2 : 1))).toFixed(2)} / km
-                        </p>
-                      </div>
-
-                      <Link
-                        to={`/book?category=VAN&rentalType=WITH_DRIVER`}
-                        className="w-full bg-slate-900 hover:bg-brand-navy text-white font-extrabold py-3 rounded-xl flex items-center justify-center gap-2 text-xs transition-all shadow-sm active:scale-95"
-                      >
-                        <span>Book Van ({formatPeso(transferMatrix.rates.van)})</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="p-4 sm:p-6 lg:p-8 space-y-6 animate-fadeIn">
+              <PointToPointTransferMap
+                vehicles={data?.vehicles || []}
+                selectedVehicleId={calcVehicleId || (data?.vehicles[0]?.id || '')}
+                onSelectVehicleId={setCalcVehicleId}
+                onConfirmTransfer={handleConfirmTransferFromRates}
+              />
 
               {/* Terms & Notes Banner (From Owner's Official Rate Sheets) */}
               <div className="bg-amber-50/80 border-2 border-amber-200/80 rounded-2xl p-5 text-xs text-amber-950 space-y-3">
