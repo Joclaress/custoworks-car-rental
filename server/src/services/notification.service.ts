@@ -481,3 +481,109 @@ export async function notifyAdminBookingAlert(bookingId: string, alertTitle: str
   }
 }
 
+/** Comprehensive email alert sent to custoworks1@gmail.com when someone submits a Tie-Up Partner Fleet Application. */
+export async function notifyAdminPartnerApplicationAlert(app: any) {
+  try {
+    const adminEmail = env.ADMIN_NOTIFY_EMAIL || 'custoworks1@gmail.com';
+    const vehicleDesc = `${app.year} ${app.vehicleMake} ${app.vehicleModel} (${app.category || 'Vehicle'})`;
+    const subject = `🤝 [New Tie-Up Fleet Partner Application] ${app.fullName} - ${vehicleDesc}`;
+
+    const html = `
+      <!doctype html>
+      <html>
+      <body style="margin: 0; background-color: #f3f5f9; font-family: Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif; padding: 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%); padding: 24px; color: #ffffff; text-align: left;">
+              <span style="background: #10b981; color: #064e3b; font-size: 11px; font-weight: 900; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 8px;">
+                🤝 New Fleet Partner Application
+              </span>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
+                Tie-Up Fleet Partner Application Submitted
+              </h1>
+              <p style="margin: 6px 0 0; font-size: 13px; color: #a7f3d0;">
+                Applicant: <strong style="color: #ffffff; font-size: 14px;">${app.fullName}</strong> (${app.city || 'Naga City'})
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 24px;">
+              <!-- Partner & Vehicle Details Card -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 12px; font-size: 14px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                  Vehicle Information
+                </h3>
+                <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 13px; color: #334155;">
+                  <tr>
+                    <td width="150" style="color: #64748b; font-weight: 600;">Vehicle:</td>
+                    <td style="font-weight: 800; color: #047857;">${vehicleDesc}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Transmission:</td>
+                    <td><strong>${app.transmission === 'AT' ? 'Automatic (AT)' : 'Manual (MT)'}</strong></td>
+                  </tr>
+                  ${app.plateNumber ? `<tr><td style="color: #64748b; font-weight: 600;">Plate Number:</td><td><strong>${app.plateNumber}</strong></td></tr>` : ''}
+                  ${app.color ? `<tr><td style="color: #64748b; font-weight: 600;">Color:</td><td>${app.color}</td></tr>` : ''}
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Rental Preference:</td>
+                    <td>${app.rentalTypePreference === 'WITH_DRIVER' ? 'With Driver Only' : 'Self-Drive (LTMS Verified)'}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Revenue Split:</td>
+                    <td><strong>80% Partner Net / 20% Custoworks Fee</strong></td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Contact Card -->
+              <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 12px; font-size: 14px; font-weight: 700; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #dbeafe; padding-bottom: 8px;">
+                  Partner Contact Details
+                </h3>
+                <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 13px; color: #334155;">
+                  <tr>
+                    <td width="150" style="color: #64748b; font-weight: 600;">Phone / Mobile:</td>
+                    <td><a href="tel:${app.phone}" style="color: #2563eb; font-weight: 800; text-decoration: none;">${app.phone}</a></td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Email:</td>
+                    <td><a href="mailto:${app.email}" style="color: #2563eb; text-decoration: none;">${app.email}</a></td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Location:</td>
+                    <td>${app.city || 'Naga City, Camarines Sur'}</td>
+                  </tr>
+                  ${app.notes ? `<tr><td style="color: #64748b; font-weight: 600;">Notes / Remarks:</td><td>${app.notes}</td></tr>` : ''}
+                </table>
+              </div>
+
+              <!-- Admin Action CTA Button -->
+              <div style="text-align: center; margin-bottom: 12px;">
+                <a href="${env.CLIENT_URL}/admin" style="display: inline-block; background: #047857; color: #ffffff; font-weight: 800; font-size: 14px; padding: 14px 28px; border-radius: 12px; text-decoration: none; box-shadow: 0 4px 10px rgba(4, 120, 87, 0.3);">
+                  View Partner in Admin Dashboard →
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #64748b;">
+              <strong>Custoworks Car Rental Services</strong> · Carnation St. CBD II Brgy. Triangulo (Beside SM), Naga City<br />
+              Tie-Up Fleet Partnership Program · custoworks1@gmail.com
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const text = `🤝 NEW TIE-UP FLEET PARTNER APPLICATION\n\nApplicant: ${app.fullName}\nPhone: ${app.phone}\nEmail: ${app.email}\nCity: ${app.city}\nVehicle: ${vehicleDesc}\nTransmission: ${app.transmission}\nPlate: ${app.plateNumber || 'N/A'}\nSplit: 80% Partner / 20% Custoworks\n\nOpen Admin Panel: ${env.CLIENT_URL}/admin`;
+
+    await sendEmail(adminEmail, subject, html, text);
+    console.log(`📧 [Admin Alert] Dispatched partner application email to ${adminEmail} for applicant=${app.fullName}`);
+  } catch (err) {
+    console.error('Failed to notify admin of new partner application:', err);
+  }
+}
+

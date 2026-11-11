@@ -4,6 +4,7 @@ import { prisma } from '../../lib/prisma';
 import { parse } from '../../middleware/error';
 import { authenticate, requireStaff } from '../../middleware/auth';
 import { AppError } from '../../lib/errors';
+import { notifyAdminPartnerApplicationAlert } from '../../services/notification.service';
 
 export const partnerRoutes = Router();
 
@@ -122,6 +123,11 @@ partnerRoutes.post('/apply', async (req: Request, res: Response) => {
       notes: data.notes || null,
     },
   });
+
+  // Notify admin via email immediately
+  notifyAdminPartnerApplicationAlert(application).catch((e) =>
+    console.error('Error dispatching partner email alert:', e)
+  );
 
   res.status(201).json({
     ok: true,
