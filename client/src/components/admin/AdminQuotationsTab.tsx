@@ -249,7 +249,7 @@ export const AdminQuotationsTab: React.FC = () => {
 
       if (sendEmailAfterSave) {
         setSendingEmailId(savedQuote.id);
-        const sendRes = await api.post<{ success: boolean; message?: string }>(`/contact/admin/quotations/${savedQuote.id}/send`, {});
+        const sendRes = await api.post<{ success: boolean; message?: string }>(`/contact/admin/quotations/${savedQuote.id}/send`, savedQuote);
         if (sendRes.success) {
           setActionSuccess(`Quotation #${savedQuote.id} saved and emailed to ${savedQuote.customerEmail}!`);
         } else {
@@ -276,7 +276,7 @@ export const AdminQuotationsTab: React.FC = () => {
     setActionError(null);
     setActionSuccess(null);
     try {
-      const res = await api.post<{ success: boolean; message: string }>(`/contact/admin/quotations/${quote.id}/send`, {});
+      const res = await api.post<{ success: boolean; message: string }>(`/contact/admin/quotations/${quote.id}/send`, quote);
       if (res.success) {
         setActionSuccess(`Quotation #${quote.id} emailed to ${quote.customerEmail}!`);
         setQuotations((prev) =>

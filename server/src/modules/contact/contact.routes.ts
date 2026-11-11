@@ -250,9 +250,17 @@ contactRoutes.get('/admin/quotations/:id/pdf', async (req: Request, res: Respons
 contactRoutes.post('/admin/quotations/:id/send', async (req: Request, res: Response) => {
   const id = String(req.params.id);
   const quotations = getQuotations();
-  const target = quotations.find((q) => q.id === id);
+  let target = quotations.find((q) => q.id === id);
+
+  // If quotation not found on disk (e.g. server redeployed or restarted), recover it from the request body
+  if (!target && req.body && (req.body.id === id || req.body.customerEmail)) {
+    const recovered = { ...req.body, id } as Quotation;
+    saveQuotation(recovered);
+    target = recovered;
+  }
+
   if (!target) {
-    return res.status(404).json({ success: false, error: 'Quotation not found' });
+    return res.status(404).json({ success: false, error: `Quotation #${id} was not found on server. Please re-open and save.` });
   }
 
   const sendResult = await sendQuotationEmail(target);
