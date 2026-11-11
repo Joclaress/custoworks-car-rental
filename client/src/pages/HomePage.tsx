@@ -117,10 +117,31 @@ export const HomePage: React.FC = () => {
     navigate(`/vehicles?${params.toString()}`);
   };
 
+  const displayedFleet = vehicles
+    .filter((v) => {
+      if (v.isPublished === false) return false;
+      const lower = v.name.toLowerCase();
+      if (
+        lower.includes('(unit 2)') ||
+        lower.includes('(unit 3)') ||
+        lower.includes('(unit 4)') ||
+        lower.includes('(unit 5)')
+      ) {
+        return false;
+      }
+      return true;
+    })
+    .map((v) => {
+      if (v.model === 'Mirage G4' && v.name.includes('(Unit 1)')) {
+        return { ...v, name: 'Mitsubishi Mirage G4 AT' };
+      }
+      return v;
+    });
+
   const filteredVehicles =
     selectedCategory === 'ALL'
-      ? vehicles
-      : vehicles.filter((v) => v.category === selectedCategory);
+      ? displayedFleet
+      : displayedFleet.filter((v) => v.category === selectedCategory);
 
   const getDynamicRatesForDestination = (destId: string) => {
     // Sedans

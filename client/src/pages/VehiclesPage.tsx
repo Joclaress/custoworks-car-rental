@@ -259,9 +259,29 @@ export const VehiclesPage: React.FC = () => {
               </div>
             ) : (
               <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 transition-opacity duration-200 ${loading ? 'opacity-60' : 'opacity-100'}`}>
-                {vehicles.map((v) => (
-                  <VehicleCard key={v.id} vehicle={v} />
-                ))}
+                {vehicles
+                  .filter((v) => {
+                    if (v.isPublished === false) return false;
+                    const lower = v.name.toLowerCase();
+                    if (
+                      lower.includes('(unit 2)') ||
+                      lower.includes('(unit 3)') ||
+                      lower.includes('(unit 4)') ||
+                      lower.includes('(unit 5)')
+                    ) {
+                      return false;
+                    }
+                    return true;
+                  })
+                  .map((v) => {
+                    if (v.model === 'Mirage G4' && v.name.includes('(Unit 1)')) {
+                      return { ...v, name: 'Mitsubishi Mirage G4 AT' };
+                    }
+                    return v;
+                  })
+                  .map((v) => (
+                    <VehicleCard key={v.id} vehicle={v} />
+                  ))}
               </div>
             )}
           </div>

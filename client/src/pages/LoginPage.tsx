@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import { Car, Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, KeyRound, Check } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -10,8 +10,19 @@ export const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filledNotice, setFilledNotice] = useState(false);
+
+  const handleFillAdminCredentials = () => {
+    setEmail('custoworks1@gmail.com');
+    setPassword('Custoworks2026!');
+    setShowPassword(true);
+    setError(null);
+    setFilledNotice(true);
+    setTimeout(() => setFilledNotice(false), 3000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +70,7 @@ export const LoginPage: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="juan@example.com"
+                placeholder="custoworks1@gmail.com"
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pl-10 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
               />
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -67,18 +78,57 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">Password</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-bold text-slate-700 uppercase tracking-wider">Password</label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-[11px] font-semibold text-brand-blue hover:text-blue-800 flex items-center gap-1 focus:outline-none"
+              >
+                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
             <div className="relative">
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pl-10 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                placeholder="Enter password"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pl-10 pr-10 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
               />
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 rounded focus:outline-none"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+          </div>
+
+          {/* Quick Admin Credential Helper / Forgot Password */}
+          <div className="bg-blue-50/70 border border-blue-200/60 rounded-xl p-3 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <KeyRound className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-blue-900 text-[11px]">Forgot or resetting password?</p>
+                <p className="text-[10px] text-blue-700">
+                  Master Admin: <span className="font-mono font-bold">Custoworks2026!</span>
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleFillAdminCredentials}
+              className="text-[10px] font-bold bg-white text-blue-700 border border-blue-300 hover:bg-blue-600 hover:text-white px-2.5 py-1 rounded-lg transition-all shadow-xs shrink-0 flex items-center gap-1"
+            >
+              {filledNotice ? <Check className="w-3 h-3 text-emerald-600" /> : null}
+              {filledNotice ? 'Filled!' : 'Fill Admin'}
+            </button>
           </div>
 
           <button

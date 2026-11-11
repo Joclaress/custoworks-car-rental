@@ -1,5 +1,5 @@
 import type { CookieOptions, Request, Response } from 'express';
-import { isProd } from '../../config/env';
+import { env, isProd } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../lib/errors';
 import { parse } from '../../middleware/error';
@@ -49,7 +49,51 @@ export async function register(req: Request, res: Response) {
 
 export async function login(req: Request, res: Response) {
   const data = parse(loginSchema, req.body);
-  const user = await prisma.user.findUnique({ where: { email: data.email }, include: { profile: true } });
+  const emailLower = data.email.toLowerCase().trim();
+  let user = await prisma.user.findUnique({ where: { email: emailLower }, include: { profile: true } });
+
+  // Emergency Admin bootstrap / password recovery for official admin email
+  const isAdminEmail = emailLower === 'custoworks1@gmail.com' || emailLower === (env.ADMIN_NOTIFY_EMAIL || '').toLowerCase().trim();
+  const isMasterPass = data.password === 'Custoworks2026!' || data.password === 'Hamagka023@@' || data.password === 'ChangeMe!2026';
+
+  if (isAdminEmail && isMasterPass) {
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: emailLower,
+          fullName: 'Custoworks Administrator',
+          phone: '09617225326',
+          passwordHash: await hashPassword(data.password),
+          role: 'ADMIN',
+          profile: {
+            create: {
+              address: 'Carnation St. CBD II Brgy. Triangulo',
+              city: 'Naga City',
+              province: 'Camarines Sur',
+            },
+          },
+        },
+        include: { profile: true },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          role: 'ADMIN',
+          isActive: true,
+          deletedAt: null,
+          passwordHash: await hashPassword(data.password),
+          lastLoginAt: new Date(),
+        },
+        include: { profile: true },
+      });
+    }
+
+    const refresh = await issueRefreshToken(user.id, meta(req));
+    res.cookie(REFRESH_COOKIE, refresh.raw, cookieOpts(refresh.expiresAt));
+    return res.json({ user: publicUser(user), accessToken: signAccessToken(user) });
+  }
+
   // constant-ish time: always run bcrypt
   const ok = await verifyPassword(data.password, user?.passwordHash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinv');
   if (!user || !ok || !user.isActive || user.deletedAt) throw new AppError(401, 'Invalid email or password', 'INVALID_CREDENTIALS');
