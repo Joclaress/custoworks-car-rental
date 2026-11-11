@@ -71,9 +71,13 @@ async function sendViaResend(
     };
   });
 
-  const fromSender = env.MAIL_FROM?.includes('<')
-    ? env.MAIL_FROM
-    : `Custoworks Car Rental <${env.MAIL_FROM || 'onboarding@resend.dev'}>`;
+  let fromSender = process.env.RESEND_FROM || env.MAIL_FROM;
+  // If sending to registered owner test email, allow onboarding@resend.dev sandbox
+  if (to.toLowerCase().includes('jerichooclares009@gmail.com') && !process.env.RESEND_FROM) {
+    fromSender = 'Custoworks Car Rental <onboarding@resend.dev>';
+  } else if (!fromSender || fromSender.includes('custowrokscarrental.online')) {
+    fromSender = 'Custoworks Car Rental <info@custoworkscarrental.online>';
+  }
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
