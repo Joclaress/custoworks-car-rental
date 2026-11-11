@@ -8,6 +8,7 @@ import { AdminQuotationsTab } from '../components/admin/AdminQuotationsTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminPartnersTab } from '../components/admin/AdminPartnersTab';
 import { AdminDailyDispatchSchedule } from '../components/admin/AdminDailyDispatchSchedule';
+import { PartnerDispatchModal } from '../components/admin/PartnerDispatchModal';
 import { formatPeso, formatDate } from '../lib/utils';
 import {
   LayoutDashboard,
@@ -50,6 +51,8 @@ import {
   Smartphone,
   Monitor,
   ChevronDown,
+  Share2,
+  MessageSquare,
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
@@ -314,6 +317,8 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Full Booking Details Inspector Modal
   const [viewBookingModal, setViewBookingModal] = useState<Booking | null>(null);
+  // Partner Group Chat Dispatch Modal
+  const [dispatchBookingModal, setDispatchBookingModal] = useState<Booking | null>(null);
 
   const openReleaseModal = (b: Booking) => {
     setReleaseModalBooking(b);
@@ -2028,6 +2033,14 @@ export const AdminDashboardPage: React.FC = () => {
                             <StatusBadge status={b.status} />
                           </td>
                           <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => setDispatchBookingModal(b)}
+                              className="bg-emerald-950/70 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 font-bold px-2 py-1.5 rounded-lg text-[11px] inline-flex items-center gap-1 transition-colors"
+                              title="Dispatch booking to Tie-Up Partner Group Chat (Messenger/Viber)"
+                            >
+                              <MessageSquare className="w-3 h-3" /> Dispatch GC
+                            </button>
                             <button
                               type="button"
                               onClick={() => openViewBookingModal(b)}
@@ -4413,6 +4426,18 @@ export const AdminDashboardPage: React.FC = () => {
                     <Trash2 className="w-3.5 h-3.5" />
                     Delete Record
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDispatchBookingModal(viewBookingModal);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                    title="Format and copy dispatch alert for Partner Group Chat"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    Dispatch to Partner GC
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -4450,6 +4475,15 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         );
       })()}
+
+      {/* Partner Group Chat Dispatch Modal */}
+      {dispatchBookingModal && (
+        <PartnerDispatchModal
+          booking={dispatchBookingModal}
+          onClose={() => setDispatchBookingModal(null)}
+        />
+      )}
+
       {/* 4. Add Manual Trip / Gross Revenue Modal */}
       {addTripModalOpen && (() => {
         const gross = parseFloat(tripForm.grossAmount) || 0;
