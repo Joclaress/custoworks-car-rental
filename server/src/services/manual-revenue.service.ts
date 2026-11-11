@@ -33,33 +33,20 @@ function ensureDataDir() {
 export function getAllManualRevenues(): ManualTripRevenue[] {
   ensureDataDir();
   if (!fs.existsSync(REVENUES_FILE)) {
-    // Provide standard sample entries matching user's exact operational scenarios
-    const initialSample: ManualTripRevenue[] = [
-      {
-        id: 'mr-bia-sample-1',
-        date: new Date().toISOString().slice(0, 10),
-        title: 'BIA Airport Pickup & Drop (VIP Chauffeur)',
-        clientName: 'VIP Executive Guest',
-        vehicleName: 'Nissan NV350 Urvan Premium (Unit 1)',
-        rentalType: 'WITH_DRIVER',
-        grossAmount: 7500,
-        driverFee: 1000,
-        fuelFee: 2000,
-        tollOtherFee: 200,
-        isTieUp: false,
-        netAmount: 4300,
-        notes: 'Roundtrip airport transfer Naga City <-> Bicol International Airport',
-        createdAt: new Date().toISOString(),
-      },
-    ];
-    fs.writeFileSync(REVENUES_FILE, JSON.stringify(initialSample, null, 2), 'utf-8');
-    return initialSample;
+    fs.writeFileSync(REVENUES_FILE, JSON.stringify([], null, 2), 'utf-8');
+    return [];
   }
 
   try {
     const raw = fs.readFileSync(REVENUES_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const list = Array.isArray(parsed) ? parsed : [];
+    // Filter out initial sample if present
+    const cleaned = list.filter((r) => r.id !== 'mr-bia-sample-1');
+    if (cleaned.length !== list.length) {
+      fs.writeFileSync(REVENUES_FILE, JSON.stringify(cleaned, null, 2), 'utf-8');
+    }
+    return cleaned;
   } catch (err) {
     console.error('Failed to read manual revenues file:', err);
     return [];

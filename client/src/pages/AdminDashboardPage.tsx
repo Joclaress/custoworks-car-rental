@@ -289,14 +289,14 @@ export const AdminDashboardPage: React.FC = () => {
   const [addTripModalOpen, setAddTripModalOpen] = useState(false);
   const [isSubmittingTrip, setIsSubmittingTrip] = useState(false);
   const [tripForm, setTripForm] = useState({
-    title: 'BIA Airport Pickup & Drop',
+    title: '',
     date: new Date().toISOString().slice(0, 10),
     clientName: '',
-    vehicleName: 'Toyota Vios 2025 AT',
-    rentalType: 'WITH_DRIVER' as 'WITH_DRIVER' | 'SELF_DRIVE',
-    grossAmount: '7500',
-    driverFee: '1000',
-    fuelFee: '2000',
+    vehicleName: '',
+    rentalType: 'SELF_DRIVE' as 'WITH_DRIVER' | 'SELF_DRIVE',
+    grossAmount: '',
+    driverFee: '0',
+    fuelFee: '0',
     tollOtherFee: '0',
     isTieUp: false,
     tieUpPartnerName: '',
@@ -1561,23 +1561,30 @@ export const AdminDashboardPage: React.FC = () => {
                   <div>
                     <h3 className="font-bold text-base text-white">Manual Trips & Offline Revenue Ledger</h3>
                     <p className="text-slate-400 text-xs mt-0.5">
-                      BIA Airport transfers (₱7,500), customized chauffeur runs, fuel & driver allowances, and 20% tie-up payouts
+                      Log walk-in rentals, airport transfers, fuel & driver allowances, and tie-up partner payouts
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
-                      applyTripPreset('BIA');
+                      setTripForm({
+                        title: '',
+                        date: new Date().toISOString().slice(0, 10),
+                        clientName: '',
+                        vehicleName: '',
+                        rentalType: 'SELF_DRIVE',
+                        grossAmount: '',
+                        driverFee: '0',
+                        fuelFee: '0',
+                        tollOtherFee: '0',
+                        isTieUp: false,
+                        tieUpPartnerName: '',
+                        tieUpPercent: '20',
+                        notes: '',
+                      });
                       setAddTripModalOpen(true);
                     }}
-                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5"
-                  >
-                    <Plane className="w-3.5 h-3.5" />
-                    <span>Quick BIA Airport Run (₱7,500)</span>
-                  </button>
-                  <button
-                    onClick={() => setAddTripModalOpen(true)}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-md transition-all flex items-center gap-1.5"
                   >
                     <Plus className="w-4 h-4" />
@@ -1591,12 +1598,26 @@ export const AdminDashboardPage: React.FC = () => {
                   <p className="text-slate-400 text-xs">No manual offline trips logged yet this month.</p>
                   <button
                     onClick={() => {
-                      applyTripPreset('BIA');
+                      setTripForm({
+                        title: '',
+                        date: new Date().toISOString().slice(0, 10),
+                        clientName: '',
+                        vehicleName: '',
+                        rentalType: 'SELF_DRIVE',
+                        grossAmount: '',
+                        driverFee: '0',
+                        fuelFee: '0',
+                        tollOtherFee: '0',
+                        isTieUp: false,
+                        tieUpPartnerName: '',
+                        tieUpPercent: '20',
+                        notes: '',
+                      });
                       setAddTripModalOpen(true);
                     }}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all"
                   >
-                    Add Sample BIA Airport Pickup & Drop (₱7,500)
+                    + Add New Trip Record
                   </button>
                 </div>
               ) : (
@@ -4509,7 +4530,7 @@ export const AdminDashboardPage: React.FC = () => {
                     </h3>
                   </div>
                   <p className="text-slate-500 text-[11px] mt-1">
-                    Record offline trips (e.g. BIA ₱7,500), walk-ins, fuel & driver allowances, and 20% tie-up partner payouts.
+                    Record offline walk-in rentals, airport transfers, fuel & driver allowances, and tie-up partner payouts.
                   </p>
                 </div>
                 <button
