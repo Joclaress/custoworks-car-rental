@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff, KeyRound, Check } from 'lucide-react';
+import { Car, Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,16 +13,6 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filledNotice, setFilledNotice] = useState(false);
-
-  const handleFillAdminCredentials = () => {
-    setEmail('custoworks1@gmail.com');
-    setPassword('Custoworks2026!');
-    setShowPassword(true);
-    setError(null);
-    setFilledNotice(true);
-    setTimeout(() => setFilledNotice(false), 3000);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,27 +98,6 @@ export const LoginPage: React.FC = () => {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-          </div>
-
-          {/* Quick Admin Credential Helper / Forgot Password */}
-          <div className="bg-blue-50/70 border border-blue-200/60 rounded-xl p-3 flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <KeyRound className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-blue-900 text-[11px]">Forgot or resetting password?</p>
-                <p className="text-[10px] text-blue-700">
-                  Master Admin: <span className="font-mono font-bold">Custoworks2026!</span>
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleFillAdminCredentials}
-              className="text-[10px] font-bold bg-white text-blue-700 border border-blue-300 hover:bg-blue-600 hover:text-white px-2.5 py-1 rounded-lg transition-all shadow-xs shrink-0 flex items-center gap-1"
-            >
-              {filledNotice ? <Check className="w-3 h-3 text-emerald-600" /> : null}
-              {filledNotice ? 'Filled!' : 'Fill Admin'}
-            </button>
           </div>
 
           <button
