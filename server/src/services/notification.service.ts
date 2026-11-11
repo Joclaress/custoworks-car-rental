@@ -5,31 +5,39 @@ import { formatManila, peso } from '../lib/utils';
 import { getSettings } from './settings.service';
 
 // ---------------------------------------------------------------------------
-// Transport
+// Transport & Email Dispatcher
 // ---------------------------------------------------------------------------
 let transporter: Transporter | null = null;
+
+function createSmtpTransport(port: number, secure: boolean): Transporter {
+  const host = env.SMTP_HOST || 'smtp.hostinger.com';
+  const user = env.SMTP_USER || 'info@custowrokscarrental.online';
+  const pass = env.SMTP_PASS || 'Hamagka023@@';
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 6000,
+    greetingTimeout: 6000,
+    socketTimeout: 8000,
+  });
+}
+
 function getTransport(): Transporter {
   if (transporter) return transporter;
 
-  const host = env.SMTP_HOST || 'smtp.hostinger.com';
-  const port = env.SMTP_PORT || 465;
-  const secure = env.SMTP_SECURE ?? true;
   const user = env.SMTP_USER || 'info@custowrokscarrental.online';
   const pass = env.SMTP_PASS || 'Hamagka023@@';
 
   if (user && pass) {
-    transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
-      tls: {
-        rejectUnauthorized: false,
-      },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 10000,
-    });
+    const port = env.SMTP_PORT || 465;
+    const secure = env.SMTP_SECURE ?? (port === 465);
+    transporter = createSmtpTransport(port, secure);
   } else {
     if (env.NODE_ENV === 'production') {
       throw new Error('SMTP credentials are not configured on the production server. Email could not be sent.');
@@ -40,6 +48,59 @@ function getTransport(): Transporter {
   return transporter;
 }
 
+async function sendViaResend(
+  to: string,
+  subject: string,
+  html: string,
+  text: string,
+  attachments?: Array<{ filename: string; content?: any; path?: string; contentType?: string }>
+) {
+  const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+
+  const resendAttachments = attachments?.map((a) => {
+    let contentBase64 = '';
+    if (Buffer.isBuffer(a.content)) {
+      contentBase64 = a.content.toString('base64');
+    } else if (typeof a.content === 'string') {
+      contentBase64 = Buffer.from(a.content).toString('base64');
+    }
+    return {
+      filename: a.filename,
+      content: contentBase64,
+    };
+  });
+
+  const fromSender = env.MAIL_FROM?.includes('<')
+    ? env.MAIL_FROM
+    : `Custoworks Car Rental <${env.MAIL_FROM || 'onboarding@resend.dev'}>`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromSender,
+      to: [to],
+      subject,
+      html,
+      text,
+      attachments: resendAttachments && resendAttachments.length > 0 ? resendAttachments : undefined,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorJson: any = await res.json().catch(() => ({}));
+    throw new Error(`Resend API error: ${errorJson.message || res.statusText}`);
+  }
+
+  const data: any = await res.json();
+  console.log(`📧 [resend:sent] to=${to} subject="${subject}" messageId=${data.id}`);
+  return { messageId: data.id };
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
@@ -47,10 +108,42 @@ export async function sendEmail(
   text: string,
   attachments?: Array<{ filename: string; content?: any; path?: string; contentType?: string }>
 ) {
-  const transport = getTransport();
-  const info = await transport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
-  console.log(`📧 [mail:sent] to=${to} subject="${subject}" messageId=${info.messageId} (attachments: ${attachments?.length || 0})`);
-  return info;
+  // 1. Try Resend HTTP API first if configured (100% immune to cloud SMTP port blocking)
+  if (env.RESEND_API_KEY || process.env.RESEND_API_KEY) {
+    try {
+      const resendResult = await sendViaResend(to, subject, html, text, attachments);
+      if (resendResult) return resendResult;
+    } catch (resendErr: any) {
+      console.warn(`[email] Resend API failed (${resendErr?.message}), trying SMTP...`);
+    }
+  }
+
+  // 2. Try Primary SMTP
+  const primaryPort = env.SMTP_PORT || 465;
+  try {
+    const transport = getTransport();
+    const info = await transport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
+    console.log(`📧 [mail:sent] to=${to} subject="${subject}" messageId=${info.messageId} (attachments: ${attachments?.length || 0})`);
+    return info;
+  } catch (primaryErr: any) {
+    const primaryMsg = primaryErr?.message || String(primaryErr);
+    console.warn(`[email] Primary SMTP (port ${primaryPort}) failed: ${primaryMsg}. Attempting alternative port 2525...`);
+
+    // 3. Fallback to alternative port 2525 (Render Free tier blocks 465/587, but 2525 bypasses standard SMTP blocks)
+    if (primaryPort !== 2525) {
+      try {
+        const fallbackTransport = createSmtpTransport(2525, false);
+        const info = await fallbackTransport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
+        console.log(`📧 [mail:sent:fallback-2525] to=${to} subject="${subject}" messageId=${info.messageId}`);
+        transporter = fallbackTransport;
+        return info;
+      } catch (fallbackErr: any) {
+        console.error(`[email] Fallback port 2525 failed: ${fallbackErr?.message}`);
+      }
+    }
+
+    throw primaryErr;
+  }
 }
 
 /** SMS is a planned enhancement. Plug a provider (Semaphore, Twilio, ...) in here. */
