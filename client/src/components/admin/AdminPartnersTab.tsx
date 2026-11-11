@@ -62,21 +62,25 @@ export const AdminPartnersTab: React.FC = () => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<{ [id: string]: string }>({});
   const [selectedAppForAgreement, setSelectedAppForAgreement] = useState<PartnerApplication | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchApplications = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await api.get<{ applications: PartnerApplication[] }>('/partners/applications', {
         forceRefresh: true,
       });
-      setApplications(res.applications);
+      const list = Array.isArray(res?.applications) ? res.applications : [];
+      setApplications(list);
       const initialNotes: { [id: string]: string } = {};
-      res.applications.forEach((a) => {
+      list.forEach((a) => {
         initialNotes[a.id] = a.notes || '';
       });
       setEditingNotes(initialNotes);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load partner applications:', err);
+      setLoadError(err?.message || 'Failed to load partner applications. Please click Refresh.');
     } finally {
       setLoading(false);
     }
@@ -203,6 +207,23 @@ export const AdminPartnersTab: React.FC = () => {
           </a>
         </div>
       </div>
+
+      {/* Error Notice */}
+      {loadError && (
+        <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-4 rounded-2xl text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{loadError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={fetchApplications}
+            className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* 2. Stat Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
