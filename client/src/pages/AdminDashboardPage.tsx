@@ -2805,6 +2805,20 @@ export const AdminDashboardPage: React.FC = () => {
                                   </button>
 
                                   <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-lg shadow-xs transition-colors" title="Upload a fresh copy if received via Messenger/Viber">
+                                      <Upload className="w-3.5 h-3.5 text-blue-400" />
+                                      <span>Replace File</span>
+                                      <input
+                                        type="file"
+                                        accept="image/*,application/pdf"
+                                        onChange={(e) => {
+                                          if (e.target.files?.[0]) {
+                                            handleAdminUploadDoc(reqBookingDetail.id, req.id, e.target.files[0]);
+                                          }
+                                        }}
+                                        className="hidden"
+                                      />
+                                    </label>
                                     {!isApproved && (
                                       <button
                                         type="button"
