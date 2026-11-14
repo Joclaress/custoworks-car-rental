@@ -89,35 +89,66 @@ export function computeTransferFare(
   const estHours =
     overrideEstHours ?? Math.max(0.5, Math.round((distanceKm / 45) * 10) / 10);
 
-  const pName = pickup.name.toLowerCase();
-  const dName = drop.name.toLowerCase();
+  const pName = (pickup.name || '').toLowerCase();
+  const dName = (drop.name || '').toLowerCase();
 
-  const isBiaTransfer =
-    (pName.includes('bia') || pName.includes('bicol intl') || dName.includes('bia') || dName.includes('bicol intl')) &&
-    (pName.includes('naga') || dName.includes('naga'));
+  // Check if trip is genuinely between Naga Airport and Naga City/Pili local area only
+  const isOneEndNagaAirport =
+    pName.includes('naga airport') ||
+    dName.includes('naga airport') ||
+    pName.includes('wnp') ||
+    dName.includes('wnp');
 
-  const isNagaAirportTransfer =
-    (pName.includes('naga airport') || dName.includes('naga airport') || pName.includes('wnp') || dName.includes('wnp')) &&
-    (pName.includes('naga') || dName.includes('naga') || pName.includes('centro') || dName.includes('centro'));
+  const otherThanNagaAirport = (pName.includes('naga airport') || pName.includes('wnp')) ? dName : pName;
+  const isOutOfTownFromNaga =
+    otherThanNagaAirport.includes('daet') ||
+    otherThanNagaAirport.includes('camarines norte') ||
+    otherThanNagaAirport.includes('albay') ||
+    otherThanNagaAirport.includes('legazpi') ||
+    otherThanNagaAirport.includes('daraga') ||
+    otherThanNagaAirport.includes('sorsogon') ||
+    otherThanNagaAirport.includes('matnog') ||
+    otherThanNagaAirport.includes('caramoan') ||
+    otherThanNagaAirport.includes('manila') ||
+    otherThanNagaAirport.includes('ragay') ||
+    distanceKm > 35;
+
+  const isNagaAirportTransfer = isOneEndNagaAirport && !isOutOfTownFromNaga;
+
+  // Check if trip is genuinely between BIA Airport and Naga City/Pili local area only
+  const isOneEndBia =
+    pName.includes('bia') ||
+    pName.includes('bicol intl') ||
+    dName.includes('bia') ||
+    dName.includes('bicol intl');
+
+  const otherThanBia = (pName.includes('bia') || pName.includes('bicol intl')) ? dName : pName;
+  const isBiaNagaTransfer =
+    isOneEndBia &&
+    (otherThanBia.includes('naga') || otherThanBia.includes('pili')) &&
+    !otherThanBia.includes('daet') &&
+    !otherThanBia.includes('camarines norte') &&
+    distanceKm >= 65 &&
+    distanceKm <= 125;
 
   // 1. Official BIA Airport Transfer (Naga <-> BIA Daraga)
-  if (isBiaTransfer) {
+  if (isBiaNagaTransfer) {
     const price = category === 'VAN' ? 7500 : category === 'SUV_MPV' ? 6000 : 4500;
     return {
-      distanceKm: 95,
-      estHours: 2.0,
+      distanceKm: overrideDistanceKm ?? 95,
+      estHours: overrideEstHours ?? 2.0,
       price,
       isFixedRoute: true,
       routeTitle: 'Naga ⇄ Bicol International Airport (BIA / Daraga)',
     };
   }
 
-  // 2. Official Naga Airport Transfer (Naga <-> Pili Airport)
+  // 2. Official Naga Airport Transfer (Naga City <-> Pili Airport)
   if (isNagaAirportTransfer) {
     const price = category === 'VAN' ? 3500 : category === 'SUV_MPV' ? 2500 : 1800;
     return {
-      distanceKm: 15,
-      estHours: 0.5,
+      distanceKm: overrideDistanceKm ?? 15,
+      estHours: overrideEstHours ?? 0.5,
       price,
       isFixedRoute: true,
       routeTitle: 'Naga City ⇄ Naga Airport (WNP / Pili)',
