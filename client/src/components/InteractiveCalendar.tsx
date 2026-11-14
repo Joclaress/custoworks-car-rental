@@ -13,6 +13,7 @@ import {
   isBefore,
   isAfter,
   startOfDay,
+  isToday,
   differenceInCalendarDays,
 } from 'date-fns';
 import {
@@ -129,107 +130,101 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   const startDate = startOfWeek(monthStart);
   const endDate = endOfWeek(monthEnd);
 
+  // Helper to normalize and match vehicle model categories
+  const getModelKey = (model?: string, name?: string): string => {
+    const m = (model || '').toLowerCase();
+    const n = (name || '').toLowerCase();
+    if (m.includes('mirage') || n.includes('mirage')) return 'Mirage G4';
+    if (m.includes('vios') || n.includes('vios')) return 'Vios 2025';
+    if (m.includes('xpander') || n.includes('xpander')) return 'Xpander';
+    if (m.includes('innova') || n.includes('innova')) return 'Innova';
+    if (m.includes('nv350') || n.includes('nv350') || m.includes('urvan') || n.includes('urvan')) return 'NV350 Van';
+    return model || name || 'Other';
+  };
+
   // Compute availability for a given day
   const getDayDetails = (date: Date): DayDetails => {
     const dayStart = startOfDay(date);
 
-    // Blocked vehicles map for this day
-    const blockedMap = new Map<
-      string,
-      {
-        state: string;
-        label: string;
-        customerName?: string;
-        pickupTime?: string;
-        reference?: string;
-      }
-    >();
-
-    for (const ev of events) {
+    // Active events covering this day (inclusive of start and end date, and ongoing rentals on today)
+    const activeEventsForDay = events.filter((ev) => {
       const s = startOfDay(new Date(ev.start));
       const e = startOfDay(new Date(ev.end));
-      if (dayStart >= s && dayStart <= e) {
-        if (ev.resourceId) {
-          blockedMap.set(ev.resourceId, {
-            state: ev.state,
-            label: ev.extendedProps?.vehicleName || ev.title || 'Reserved',
-            customerName: ev.extendedProps?.customerName,
-            pickupTime: ev.start ? format(new Date(ev.start), 'hh:mm a') : undefined,
-            reference: ev.extendedProps?.reference,
-          });
-        }
+      if (dayStart >= s && dayStart <= e) return true;
+      // If date is today and rental is ONGOING (car in customer possession), it is actively out
+      if (isToday(date) && (ev.extendedProps?.status === 'ONGOING' || ev.state === 'ONGOING')) {
+        return true;
       }
-    }
-
-    // Factor in permanent vehicle status
-    vehicles.forEach((v) => {
-      if (v.status === 'MAINTENANCE') {
-        blockedMap.set(v.id, { state: 'MAINTENANCE', label: 'Maintenance' });
-      } else if (v.status === 'UNAVAILABLE') {
-        blockedMap.set(v.id, { state: 'RESERVED', label: 'Unavailable' });
-      }
+      return false;
     });
 
     // Determine target vehicles (e.g. all units of Mirage if Mirage is chosen, or entire fleet if All Vehicles)
     const selectedVehicle = selectedVehicleId ? vehicles.find((v) => v.id === selectedVehicleId) : null;
-    const targetModel = selectedVehicle?.model;
+    const targetModel = selectedVehicle ? getModelKey(selectedVehicle.model, selectedVehicle.name) : null;
 
     // If customer selected a specific model like Mirage G4:
-    if (selectedVehicle) {
+    if (selectedVehicle && targetModel) {
       let fleetTotal =
         Number(selectedVehicle.availableFleetCount) ||
         Number(selectedVehicle.fleetCount) ||
-        (targetModel ? vehicles.filter((v) => v.model === targetModel).length : 1) ||
+        vehicles.filter((v) => getModelKey(v.model, v.name) === targetModel).length ||
         1;
       if (targetModel === 'Mirage G4' && fleetTotal < 5) {
         fleetTotal = 5;
       }
 
-      // Find all units for this specific model in the fleet
-      const modelUnits = targetModel
-        ? vehicles.filter((v) => v.model === targetModel)
-        : [selectedVehicle];
-
-      const unitList: any[] = modelUnits.map((v, i) => {
-        const block = blockedMap.get(v.id);
-        const dayStatus = block ? block.state : 'AVAILABLE';
-        return {
-          ...v,
-          unitIndex: i + 1,
-          dayStatus,
-          blockInfo: block,
-        };
+      // Find all active events belonging to this model
+      const modelEvents = activeEventsForDay.filter((ev) => {
+        const evKey = getModelKey(ev.extendedProps?.model, ev.extendedProps?.vehicleName || ev.title);
+        if (evKey === targetModel) return true;
+        const matchedVeh = vehicles.find((v) => v.id === ev.resourceId);
+        return matchedVeh && getModelKey(matchedVeh.model, matchedVeh.name) === targetModel;
       });
 
-      if (unitList.length < fleetTotal) {
-        const existingCount = unitList.length;
-        for (let i = existingCount; i < fleetTotal; i++) {
-          unitList.push({
-            id: `${selectedVehicle.id}-unit-${i + 1}`,
-            name: `${selectedVehicle.name} (Unit ${i + 1})`,
-            plateNumber: `${selectedVehicle.plateNumber || 'NAG'}-${i + 1}`,
-            color: selectedVehicle.color || 'Silver',
-            unitIndex: i + 1,
-            dayStatus: 'AVAILABLE',
-            blockInfo: undefined,
-          });
+      // Find permanent maintenance/unavailable vehicles for this model
+      const permBlocked = vehicles.filter(
+        (v) => getModelKey(v.model, v.name) === targetModel && (v.status === 'MAINTENANCE' || v.status === 'UNAVAILABLE')
+      );
+
+      const unitList: any[] = [];
+      for (let i = 0; i < fleetTotal; i++) {
+        const uIndex = i + 1;
+        let dayStatus: 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'ONGOING' | 'RETURNED' | 'MAINTENANCE' = 'AVAILABLE';
+        let blockInfo: any = undefined;
+
+        if (i < modelEvents.length) {
+          const ev = modelEvents[i];
+          dayStatus = (ev.state || ev.extendedProps?.status || 'RESERVED') as any;
+          blockInfo = {
+            state: dayStatus,
+            label: ev.extendedProps?.vehicleName || ev.title || 'Reserved',
+            customerName: ev.extendedProps?.customerName,
+            pickupTime: ev.start ? format(new Date(ev.start), 'hh:mm a') : undefined,
+            reference: ev.extendedProps?.reference,
+          };
+        } else if (i < modelEvents.length + permBlocked.length) {
+          dayStatus = 'MAINTENANCE';
+          blockInfo = { state: 'MAINTENANCE', label: 'Maintenance / Inactive' };
         }
+
+        unitList.push({
+          id: `${selectedVehicle.id}-unit-${uIndex}`,
+          name: `${selectedVehicle.name} (Unit ${uIndex})`,
+          plateNumber: `${selectedVehicle.plateNumber || 'NAG'}-${uIndex}`,
+          color: selectedVehicle.color || 'Silver',
+          unitIndex: uIndex,
+          dayStatus,
+          blockInfo,
+        });
       }
 
       const availableCount = unitList.filter((u) => u.dayStatus === 'AVAILABLE').length;
       const maintenanceCount = unitList.filter((u) => u.dayStatus === 'MAINTENANCE').length;
       const bookedCount = unitList.filter((u) => u.dayStatus !== 'AVAILABLE' && u.dayStatus !== 'MAINTENANCE').length;
 
-      const shortName =
-        targetModel === 'Mirage G4'
-          ? 'Mirage G4'
-          : targetModel === 'NV350 Urvan'
-          ? 'NV350 Van'
-          : selectedVehicle.name;
-
       return {
         isSingle: true,
-        modelName: shortName,
+        modelName: targetModel,
         state: availableCount > 0 ? 'AVAILABLE' : maintenanceCount > 0 ? 'MAINTENANCE' : 'RESERVED',
         vehicleName: selectedVehicle.name,
         plateNumber: selectedVehicle.plateNumber,
@@ -237,7 +232,7 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         totalFleet: fleetTotal,
         breakdown: [
           {
-            shortName,
+            shortName: targetModel,
             available: availableCount,
             total: fleetTotal,
             booked: bookedCount,
@@ -259,15 +254,8 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
     const sourceVehicles = vehicles.length > 0 ? vehicles : fallbackFleet;
 
-    // Filter out unpublished sibling units to prevent duplicate count when fleetCount is already present
-    const distinctVehicles = sourceVehicles.filter(
-      (v) =>
-        v.isPublished !== false &&
-        !v.name?.includes('(Unit 2)') &&
-        !v.name?.includes('(Unit 3)') &&
-        !v.name?.includes('(Unit 4)') &&
-        !v.name?.includes('(Unit 5)')
-    );
+    // Distinct models in fleet
+    const distinctModelNames = ['Vios 2025', 'Mirage G4', 'Xpander', 'Innova', 'NV350 Van'];
 
     const modelMap = new Map<
       string,
@@ -278,46 +266,61 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
     let totalAvailCount = 0;
     const unitList: any[] = [];
 
-    distinctVehicles.forEach((v) => {
-      let vFleet = Number(v.availableFleetCount) || Number(v.fleetCount) || 1;
-      let shortName = v.model || v.name;
-      if (v.model === 'Mirage G4') {
-        shortName = 'Mirage G4';
-        if (vFleet < 5) vFleet = 5;
-      } else if (v.model === 'NV350 Urvan') {
-        shortName = 'NV350 Van';
-      } else if (v.model === 'Vios') {
-        shortName = 'Vios 2025';
+    // Ensure all 5 standard fleet models exist in map
+    distinctModelNames.forEach((shortName) => {
+      let vFleet = 1;
+      if (shortName === 'Mirage G4') vFleet = 5;
+
+      // Check if vehicles list has custom fleet count
+      const veh = sourceVehicles.find((v) => getModelKey(v.model, v.name) === shortName);
+      if (veh) {
+        vFleet = Number(veh.availableFleetCount) || Number(veh.fleetCount) || (shortName === 'Mirage G4' ? 5 : 1);
+        if (shortName === 'Mirage G4' && vFleet < 5) vFleet = 5;
       }
 
-      if (!modelMap.has(shortName)) {
-        modelMap.set(shortName, { available: 0, total: 0, booked: 0, maintenance: 0, shortName });
-      }
-      const m = modelMap.get(shortName)!;
-      m.total += vFleet;
-      totalFleetCount += vFleet;
-
-      const block = blockedMap.get(v.id);
-      const dayStatus = block ? block.state : 'AVAILABLE';
-      if (dayStatus === 'AVAILABLE') {
-        m.available += vFleet;
-        totalAvailCount += vFleet;
-      } else if (dayStatus === 'MAINTENANCE') {
-        m.maintenance += 1;
-        m.available += Math.max(0, vFleet - 1);
-        totalAvailCount += Math.max(0, vFleet - 1);
-      } else {
-        m.booked += 1;
-        m.available += Math.max(0, vFleet - 1);
-        totalAvailCount += Math.max(0, vFleet - 1);
-      }
-
-      unitList.push({
-        ...v,
-        shortName,
-        dayStatus,
-        blockInfo: block,
+      // Find all active events on this day for this model
+      const modelEvents = activeEventsForDay.filter((ev) => {
+        const evKey = getModelKey(ev.extendedProps?.model, ev.extendedProps?.vehicleName || ev.title);
+        if (evKey === shortName) return true;
+        const matched = sourceVehicles.find((v) => v.id === ev.resourceId);
+        return matched && getModelKey(matched.model, matched.name) === shortName;
       });
+
+      // Find vehicles in sourceVehicles marked as maintenance/unavailable
+      const permBlocked = sourceVehicles.filter(
+        (v) => getModelKey(v.model, v.name) === shortName && (v.status === 'MAINTENANCE' || v.status === 'UNAVAILABLE')
+      );
+
+      const bookedCount = modelEvents.filter((ev) => ev.state !== 'MAINTENANCE').length;
+      const maintCount = modelEvents.filter((ev) => ev.state === 'MAINTENANCE').length + permBlocked.length;
+      const totalBlocked = Math.min(vFleet, bookedCount + maintCount);
+      const available = Math.max(0, vFleet - totalBlocked);
+
+      modelMap.set(shortName, {
+        available,
+        total: vFleet,
+        booked: bookedCount,
+        maintenance: maintCount,
+        shortName,
+      });
+
+      totalFleetCount += vFleet;
+      totalAvailCount += available;
+
+      if (veh) {
+        unitList.push({
+          ...veh,
+          shortName,
+          dayStatus: available > 0 ? 'AVAILABLE' : maintCount > 0 ? 'MAINTENANCE' : 'RESERVED',
+          blockInfo: modelEvents[0] ? {
+            state: modelEvents[0].state,
+            label: modelEvents[0].extendedProps?.vehicleName || modelEvents[0].title || 'Reserved',
+            customerName: modelEvents[0].extendedProps?.customerName,
+            pickupTime: modelEvents[0].start ? format(new Date(modelEvents[0].start), 'hh:mm a') : undefined,
+            reference: modelEvents[0].extendedProps?.reference,
+          } : undefined,
+        });
+      }
     });
 
     const breakdown = Array.from(modelMap.values());

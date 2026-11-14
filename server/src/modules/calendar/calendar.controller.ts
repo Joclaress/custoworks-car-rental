@@ -62,7 +62,7 @@ export async function getAdminCalendarEvents(req: Request, res: Response) {
     prisma.booking.findMany({
       where: bookingWhere,
       include: {
-        vehicle: { select: { id: true, name: true, plateNumber: true, category: true } },
+        vehicle: { select: { id: true, name: true, plateNumber: true, category: true, model: true } },
         destination: { select: { name: true } },
       },
       orderBy: { pickupAt: 'asc' },
@@ -80,7 +80,7 @@ export async function getAdminCalendarEvents(req: Request, res: Response) {
     }),
     prisma.vehicle.findMany({
       where: { deletedAt: null },
-      select: { id: true, name: true, plateNumber: true, category: true },
+      select: { id: true, name: true, plateNumber: true, category: true, model: true },
     }),
   ]);
 
@@ -108,10 +108,11 @@ export async function getAdminCalendarEvents(req: Request, res: Response) {
         reference: b.reference,
         customerName: b.customerName,
         customerPhone: b.customerPhone,
-        destination: b.destination.name,
+        destination: b.destination?.name || 'Local Destination',
         rentalType: b.rentalType,
         totalAmount: b.totalAmount,
         vehicleName: b.vehicle.name,
+        model: b.vehicle.model,
         plateNumber: b.vehicle.plateNumber,
       },
     };
