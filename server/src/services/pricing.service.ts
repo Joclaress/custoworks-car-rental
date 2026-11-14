@@ -255,25 +255,70 @@ async function findPromotion(
 const score = (p: { discountType: string; value: Prisma.Decimal }) =>
   p.discountType === 'PERCENT' ? Number(p.value) * 100 : Number(p.value);
 
-/** "Starting at" prices for cards: lowest published 24h/12h rate per rental type. */
+/** "Starting at" prices for cards: published 24h/12h rate per rental type, prioritizing primary city rental. */
 export async function startingRates(vehicleIds: string[]) {
   if (vehicleIds.length === 0) return {};
   const cacheKey = `starting_rates:${[...vehicleIds].sort().join(',')}`;
   const cached = getCached<Record<string, { SELF_DRIVE: number | null; WITH_DRIVER: number | null; SELF_DRIVE_12: number | null; WITH_DRIVER_12: number | null }>>(cacheKey);
   if (cached) return cached;
 
-  const rates = await prisma.vehicleRate.findMany({
-    where: { vehicleId: { in: vehicleIds }, isPublished: true, amount: { not: null }, duration: { in: ['HOURS_24', 'HOURS_12'] } },
+  // Find primary local destination (Naga City)
+  const localDest = await prisma.destination.findFirst({
+    where: {
+      OR: [
+        { slug: 'naga-city' },
+        { name: { contains: 'Naga City', mode: 'insensitive' } },
+      ],
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  // Query local Naga City rates first (exact rates shown in Admin Panel first row)
+  const localRates = localDest
+    ? await prisma.vehicleRate.findMany({
+        where: {
+          vehicleId: { in: vehicleIds },
+          destinationId: localDest.id,
+          isPublished: true,
+          amount: { not: null },
+          duration: { in: ['HOURS_24', 'HOURS_12'] },
+        },
+        select: { vehicleId: true, rentalType: true, duration: true, amount: true },
+      })
+    : [];
+
+  // Query fallback rates excluding airport transfers if possible
+  const allRates = await prisma.vehicleRate.findMany({
+    where: {
+      vehicleId: { in: vehicleIds },
+      isPublished: true,
+      amount: { not: null },
+      duration: { in: ['HOURS_24', 'HOURS_12'] },
+      destination: {
+        slug: { notIn: ['naga-airport', 'bia-airport', 'airport-transfer'] },
+      },
+    },
     select: { vehicleId: true, rentalType: true, duration: true, amount: true },
   });
+
   const out: Record<string, { SELF_DRIVE: number | null; WITH_DRIVER: number | null; SELF_DRIVE_12: number | null; WITH_DRIVER_12: number | null }> = {};
   for (const id of vehicleIds) out[id] = { SELF_DRIVE: null, WITH_DRIVER: null, SELF_DRIVE_12: null, WITH_DRIVER_12: null };
-  for (const r of rates) {
+
+  // Apply general rates
+  for (const r of allRates) {
     const key = (r.duration === 'HOURS_12' ? `${r.rentalType}_12` : r.rentalType) as keyof (typeof out)[string];
     const cur = out[r.vehicleId][key];
     const amt = Number(r.amount);
     if (cur === null || amt < cur) out[r.vehicleId][key] = amt;
   }
+
+  // Priority override with actual local Naga City rates configured in Admin Panel!
+  for (const r of localRates) {
+    const key = (r.duration === 'HOURS_12' ? `${r.rentalType}_12` : r.rentalType) as keyof (typeof out)[string];
+    out[r.vehicleId][key] = Number(r.amount);
+  }
+
   setCached(cacheKey, out, 300); // Cache for 5 minutes
   return out;
 }
