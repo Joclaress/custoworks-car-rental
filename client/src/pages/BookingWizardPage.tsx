@@ -1512,6 +1512,61 @@ export const BookingWizardPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Quick Rental Duration Selector */}
+              {!isTransfer && (
+                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-brand-blue" /> Quick Duration Selector
+                    </span>
+                    {pickupAt && returnAt && (
+                      <span className="text-[11px] font-bold text-brand-blue bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full">
+                        {Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24)))}{' '}
+                        {Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24))) === 1 ? 'Day' : 'Days'} Total ({Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24))) * 24} Hours)
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: '1 Day (24 hrs)', days: 1 },
+                      { label: '2 Days', days: 2 },
+                      { label: '3 Days', days: 3 },
+                      { label: '4 Days', days: 4 },
+                      { label: '5 Days', days: 5 },
+                      { label: '1 Week (7d)', days: 7 },
+                      { label: '10 Days', days: 10 },
+                      { label: '2 Weeks (14d)', days: 14 },
+                      { label: '1 Month (30d)', days: 30 },
+                    ].map((dur) => {
+                      const curDays = pickupAt && returnAt
+                        ? Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24)))
+                        : 1;
+                      const isSelected = curDays === dur.days;
+                      return (
+                        <button
+                          key={dur.days}
+                          type="button"
+                          onClick={() => {
+                            const pDate = pickupAt ? new Date(pickupAt) : new Date();
+                            if (isNaN(pDate.getTime())) return;
+                            const rDate = addDays(pDate, dur.days);
+                            setReturnAt(format(rDate, "yyyy-MM-dd'T'HH:mm"));
+                            setError(null);
+                          }}
+                          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
+                            isSelected
+                              ? 'bg-brand-blue text-white shadow-sm ring-2 ring-blue-300'
+                              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {dur.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Interactive Calendar Visualizer */}
               <InteractiveCalendar
                 events={calendarEvents}
@@ -1537,7 +1592,9 @@ export const BookingWizardPage: React.FC = () => {
                     sameDayDrop.setHours(21, 0, 0, 0); // 9:00 PM same day!
                     setReturnAt(format(sameDayDrop, "yyyy-MM-dd'T'HH:mm"));
                   } else {
-                    setReturnAt(format(r, "yyyy-MM-dd'T'HH:mm"));
+                    const rDate = new Date(r);
+                    rDate.setHours(9, 0, 0, 0);
+                    setReturnAt(format(rDate, "yyyy-MM-dd'T'HH:mm"));
                   }
                 }}
               />

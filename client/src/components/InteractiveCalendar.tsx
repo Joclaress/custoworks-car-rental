@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   format,
   addMonths,
@@ -11,6 +11,7 @@ import {
   isSameDay,
   addDays,
   isBefore,
+  isAfter,
   startOfDay,
   differenceInCalendarDays,
 } from 'date-fns';
@@ -93,6 +94,13 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [selectionStart, setSelectionStart] = useState<Date | null>(validPickup || null);
   const [rangeStep, setRangeStep] = useState<'START' | 'END'>('START');
+
+  useEffect(() => {
+    if (validPickup) {
+      setSelectionStart(validPickup);
+      setActiveMobileDate(validPickup);
+    }
+  }, [selectedPickup]);
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [activeMobileDate, setActiveMobileDate] = useState<Date>(
     validPickup && !isBefore(validPickup, startOfDay(new Date()))
@@ -355,6 +363,14 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
         const rDate = new Date(date);
         rDate.setHours(21, 0, 0, 0);
         onSelectRange(pDate, rDate);
+        return;
+      }
+
+      // If a valid pickup date is already set, and user clicks any date after it (e.g. 3 days later)
+      const currentStart = selectionStart || validPickup;
+      if (currentStart && isAfter(date, currentStart)) {
+        onSelectRange(currentStart, date);
+        setRangeStep('START');
         return;
       }
 
