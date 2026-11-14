@@ -99,6 +99,7 @@ export async function reviewRequirement(
     });
     if (!req) throw AppError.notFound('Requirement not found');
     const latest = req.documents[0];
+    const effectiveReason = input.reason?.trim() || (input.action === 'REJECT' ? 'Document rejected by staff' : 'Please upload a clearer, uncropped copy of this credential.');
     if (input.action === 'APPROVE') {
       await tx.bookingRequirement.update({
         where: { id: req.id },
@@ -108,12 +109,11 @@ export async function reviewRequirement(
         await tx.requirementDocument.update({ where: { id: latest.id }, data: { status: 'APPROVED' } });
       }
     } else {
-      if (!input.reason) throw AppError.badRequest('Please provide a reason');
       await tx.bookingRequirement.update({
         where: { id: req.id },
         data: {
           status: input.action === 'REJECT' ? 'REJECTED' : 'REUPLOAD_REQUESTED',
-          rejectionReason: input.reason,
+          rejectionReason: effectiveReason,
           reviewedAt: new Date(),
         },
       });
@@ -127,7 +127,7 @@ export async function reviewRequirement(
         bookingRequirementId: req.id,
         documentId: latest?.id,
         action: input.action === 'APPROVE' ? 'APPROVED' : input.action === 'REJECT' ? 'REJECTED' : 'REUPLOAD_REQUESTED',
-        reason: input.reason,
+        reason: input.action === 'APPROVE' ? (input.reason || null) : effectiveReason,
         actorId,
       },
     });

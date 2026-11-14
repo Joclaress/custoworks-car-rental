@@ -679,11 +679,21 @@ export const AdminDashboardPage: React.FC = () => {
 
   const handleReviewReq = async (requirementId: string, action: 'APPROVE' | 'REQUEST_REUPLOAD') => {
     try {
-      const reason = action === 'REQUEST_REUPLOAD' ? prompt('Reason for requesting re-upload (e.g. Blurry photo or expired license):') : null;
-      if (action === 'REQUEST_REUPLOAD' && !reason) return;
+      let reason: string | null = null;
+      if (action === 'REQUEST_REUPLOAD') {
+        const defaultReason = 'Please upload a clearer, uncropped photo of this credential.';
+        const inputVal = window.prompt('Reason for requesting re-upload (or click OK to send default):', defaultReason);
+        if (inputVal === null) return; // User pressed Cancel
+        reason = inputVal.trim() || defaultReason;
+      }
       await api.post(`/requirements/${requirementId}/review`, { action, reason });
-      if (reqSelectedBookingId) loadReqBookingDetail(reqSelectedBookingId);
-      fetchBookings();
+      if (action === 'APPROVE') {
+        alert('Document approved successfully!');
+      } else {
+        alert('Re-upload request sent to customer successfully!');
+      }
+      if (reqSelectedBookingId) await loadReqBookingDetail(reqSelectedBookingId);
+      await fetchBookings();
     } catch (err: any) {
       alert(err.message || 'Failed to update requirement status');
     }
