@@ -153,7 +153,7 @@ export async function vehicleSchedule(vehicleId: string, from: Date, to: Date) {
     prisma.booking.findMany({
       where: {
         vehicleId,
-        status: { in: [...ACTIVE_STATUSES, 'COMPLETED'] },
+        status: { in: ACTIVE_STATUSES },
         pickupAt: { lt: to },
         returnAt: { gt: from },
         OR: [{ holdExpiresAt: null }, { holdExpiresAt: { gt: now } }],

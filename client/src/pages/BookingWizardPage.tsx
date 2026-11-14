@@ -476,18 +476,85 @@ export const BookingWizardPage: React.FC = () => {
     }
   }, [user]);
 
-  // Fetch calendar events on mount (fleet-wide) or when vehicle changes
+  // Fetch calendar events on mount (fleet-wide so all vehicle cards have real-time live availability)
   useEffect(() => {
-    const endpoint = selectedVehicleId ? `/calendar/vehicle/${selectedVehicleId}` : '/calendar/fleet';
     api
-      .get<{ events: any[] }>(endpoint)
+      .get<{ events: any[] }>('/calendar/fleet')
       .then((res) => {
         if (Array.isArray(res?.events)) {
           setCalendarEvents(res.events);
         }
       })
       .catch((err) => console.error(err));
-  }, [selectedVehicleId]);
+  }, []);
+
+  // Helper to normalize vehicle model key
+  const getVehKey = (name?: string, model?: string) => {
+    const combined = `${name || ''} ${model || ''}`.toLowerCase();
+    if (combined.includes('mirage')) return 'mirage';
+    if (combined.includes('vios')) return 'vios';
+    if (combined.includes('xpander')) return 'xpander';
+    if (combined.includes('innova')) return 'innova';
+    if (combined.includes('nv350') || combined.includes('urvan')) return 'urvan';
+    return combined.trim();
+  };
+
+  // Check if a vehicle is available for the current pickupAt to returnAt range
+  const checkVehicleAvailability = (v: Vehicle) => {
+    if (!pickupAt || !returnAt) {
+      const avail = (v as any).availableFleetCount ?? (v.status === 'AVAILABLE' ? 1 : 0);
+      return { isAvailable: avail > 0, availableCount: avail, totalCount: Number((v as any).fleetCount) || 1 };
+    }
+
+    const pStart = startOfDay(new Date(pickupAt));
+    const rStart = startOfDay(new Date(returnAt));
+    if (isNaN(pStart.getTime()) || isNaN(rStart.getTime())) {
+      return { isAvailable: true, availableCount: 1, totalCount: 1 };
+    }
+
+    const targetKey = getVehKey(v.name, v.model);
+    const totalFleet = targetKey === 'mirage' ? 5 : Number((v as any).fleetCount) || 1;
+
+    // Filter overlapping events for this vehicle model
+    const overlapping = calendarEvents.filter((ev) => {
+      // Ignore completed or returned bookings
+      if (ev.state === 'RETURNED' || ev.state === 'COMPLETED' || ev.state === 'CANCELLED') return false;
+
+      const evStart = startOfDay(new Date(ev.start));
+      const evEnd = startOfDay(new Date(ev.end));
+      const overlaps = pStart <= evEnd && rStart >= evStart;
+      if (!overlaps) return false;
+
+      // Check if event belongs to this vehicle model
+      if (ev.resourceId === v.id) return true;
+      const evKey = getVehKey(ev.extendedProps?.vehicleName || ev.title, ev.extendedProps?.model);
+      return evKey === targetKey;
+    });
+
+    const isPermBlocked = v.status === 'MAINTENANCE' || v.status === 'UNAVAILABLE';
+    const bookedCount = overlapping.length;
+    const availableCount = isPermBlocked ? 0 : Math.max(0, totalFleet - bookedCount);
+
+    return {
+      isAvailable: availableCount > 0,
+      availableCount,
+      totalCount: totalFleet,
+      bookedCount,
+    };
+  };
+
+  // Ensure selectedVehicleId points to an available vehicle
+  useEffect(() => {
+    if (vehicles.length > 0 && selectedVehicleId && pickupAt && returnAt) {
+      const cur = vehicles.find((v) => v.id === selectedVehicleId);
+      if (cur && !checkVehicleAvailability(cur).isAvailable) {
+        const firstAvail = vehicles.find((v) => checkVehicleAvailability(v).isAvailable);
+        if (firstAvail) {
+          setSelectedVehicleId(firstAvail.id);
+        }
+      }
+    }
+  }, [pickupAt, returnAt, calendarEvents, vehicles]);
 
   // Recalculate quote
   const fetchQuote = async () => {
@@ -548,59 +615,7 @@ export const BookingWizardPage: React.FC = () => {
   const isAirportTransfer = selectedDestination?.slug === 'bicol-intl-airport' || selectedDestination?.slug === 'naga-airport';
   const isTransfer = bookingMode === 'TRANSFER' || isAirportTransfer || Boolean(transferData);
 
-  // Check if a vehicle is available for the current pickupAt to returnAt range
-  const checkVehicleAvailability = (v: Vehicle) => {
-    if (!pickupAt || !returnAt) {
-      const avail = (v as any).availableFleetCount ?? (v.status === 'AVAILABLE' ? 1 : 0);
-      return { isAvailable: avail > 0, availableCount: avail, totalCount: Number((v as any).fleetCount) || 1 };
-    }
 
-    const pStart = startOfDay(new Date(pickupAt));
-    const rStart = startOfDay(new Date(returnAt));
-    if (isNaN(pStart.getTime()) || isNaN(rStart.getTime())) {
-      return { isAvailable: true, availableCount: 1, totalCount: 1 };
-    }
-
-    const vName = (v.name || '').toLowerCase();
-    const vModel = (v.model || '').toLowerCase();
-    const isMirage = vName.includes('mirage') || vModel.includes('mirage');
-    const isVios = vName.includes('vios') || vModel.includes('vios');
-    const isXpander = vName.includes('xpander') || vModel.includes('xpander');
-    const isInnova = vName.includes('innova') || vModel.includes('innova');
-    const isUrvan = vName.includes('nv350') || vName.includes('urvan') || vModel.includes('nv350') || vModel.includes('urvan');
-
-    let totalFleet = isMirage ? 5 : Number((v as any).fleetCount) || 1;
-
-    // Filter overlapping events
-    const overlapping = calendarEvents.filter((ev) => {
-      const evStart = startOfDay(new Date(ev.start));
-      const evEnd = startOfDay(new Date(ev.end));
-      const overlaps = pStart <= evEnd && rStart >= evStart;
-      if (!overlaps) return false;
-
-      const evName = (ev.extendedProps?.vehicleName || ev.title || '').toLowerCase();
-      const evModel = (ev.extendedProps?.model || '').toLowerCase();
-
-      if (isMirage) return evName.includes('mirage') || evModel.includes('mirage');
-      if (isVios) return evName.includes('vios') || evModel.includes('vios');
-      if (isXpander) return evName.includes('xpander') || evModel.includes('xpander');
-      if (isInnova) return evName.includes('innova') || evModel.includes('innova');
-      if (isUrvan) return evName.includes('nv350') || evName.includes('urvan') || vModel.includes('nv350') || vModel.includes('urvan');
-
-      return ev.resourceId === v.id || evName.includes(v.name.toLowerCase());
-    });
-
-    const isPermBlocked = v.status === 'MAINTENANCE' || v.status === 'UNAVAILABLE';
-    const bookedCount = overlapping.length;
-    const availableCount = isPermBlocked ? 0 : Math.max(0, totalFleet - bookedCount);
-
-    return {
-      isAvailable: availableCount > 0,
-      availableCount,
-      totalCount: totalFleet,
-      bookedCount,
-    };
-  };
 
   // STEP 4 -> 5: Proceed to Customer Information (no customer account required)
   const handleProceedToCustomerInfo = () => {
@@ -1143,26 +1158,27 @@ export const BookingWizardPage: React.FC = () => {
                     return (
                       <div
                         key={v.id}
-                        onClick={() => {
-                          if (isAvail) {
-                            setSelectedVehicleId(v.id);
-                            setError(null);
-                          } else {
-                            setError(`⚠️ ${v.name} is fully booked for your selected dates. Please select Mirage G4 or choose other dates on the calendar.`);
-                          }
-                        }}
-                        className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${
+                        onClick={
+                          isAvail
+                            ? () => {
+                                setSelectedVehicleId(v.id);
+                                setError(null);
+                              }
+                            : undefined
+                        }
+                        style={{ cursor: isAvail ? 'pointer' : 'not-allowed' }}
+                        className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 select-none ${
                           !isAvail
-                            ? 'opacity-60 bg-slate-50/80 border-slate-200 cursor-not-allowed'
+                            ? 'opacity-40 bg-slate-100/90 border-slate-200 grayscale-[50%]'
                             : isSelected
-                            ? 'border-brand-blue bg-blue-50/40 shadow-sm cursor-pointer'
-                            : 'border-slate-200 hover:border-slate-300 bg-white cursor-pointer hover:shadow-xs'
+                            ? 'border-brand-blue bg-blue-50/40 shadow-sm'
+                            : 'border-slate-200 hover:border-slate-300 bg-white hover:shadow-xs'
                         }`}
                       >
                         <img src={img} alt={v.name} className="w-full sm:w-28 h-36 sm:h-20 object-cover rounded-xl bg-slate-100 shrink-0" />
                         <div className="flex-1">
                           <div className="flex justify-between items-start">
-                            <h4 className="font-bold text-sm text-slate-900">{v.name}</h4>
+                            <h4 className={`font-bold text-sm ${isAvail ? 'text-slate-900' : 'text-slate-500'}`}>{v.name}</h4>
                             {isSelected && isAvail && <CheckCircle className="w-4 h-4 text-brand-blue shrink-0" />}
                           </div>
 
@@ -1175,7 +1191,7 @@ export const BookingWizardPage: React.FC = () => {
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
                                 <XCircle className="w-3 h-3 text-rose-600" />
-                                <span>Fully Booked on Selected Dates</span>
+                                <span>Fully Booked · Cannot Select</span>
                               </span>
                             )}
                           </div>
