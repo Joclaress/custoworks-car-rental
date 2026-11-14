@@ -31,7 +31,14 @@ export const VehiclesPage: React.FC = () => {
       if (returnAt) q.set('availableTo', returnAt);
 
       const res = await api.get<{ data: Vehicle[] }>(`/vehicles?${q.toString()}`);
-      setVehicles(res.data);
+      const sorted = (res.data || []).sort((a, b) => {
+        const isAMirage = a.model === 'Mirage G4' || a.name.toLowerCase().includes('mirage');
+        const isBMirage = b.model === 'Mirage G4' || b.name.toLowerCase().includes('mirage');
+        if (isAMirage && !isBMirage) return -1;
+        if (!isAMirage && isBMirage) return 1;
+        return 0;
+      });
+      setVehicles(sorted);
     } catch (err) {
       console.error('Failed to load fleet:', err);
     } finally {

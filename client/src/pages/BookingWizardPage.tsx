@@ -271,7 +271,16 @@ export const BookingWizardPage: React.FC = () => {
           api.get<{ fees: any[] }>('/pricing/additional-fees'),
         ]);
 
-        setVehicles(vRes.data);
+        // Sort fleet so Mitsubishi Mirage G4 AT is always first
+        const sortedVehicles = [...vRes.data].sort((a, b) => {
+          const isAMirage = a.model === 'Mirage G4' || a.name.toLowerCase().includes('mirage');
+          const isBMirage = b.model === 'Mirage G4' || b.name.toLowerCase().includes('mirage');
+          if (isAMirage && !isBMirage) return -1;
+          if (!isAMirage && isBMirage) return 1;
+          return 0;
+        });
+
+        setVehicles(sortedVehicles);
         setDestinations(dRes.destinations);
         setPaymentMethods(pRes.methods);
         setAdditionalFees(fRes.fees);
@@ -297,7 +306,7 @@ export const BookingWizardPage: React.FC = () => {
           const biaDest = dRes.destinations.find((d) => d.slug === 'bicol-intl-airport');
           if (biaDest) setSelectedDestinationId(biaDest.id);
           if (paramCategory) {
-            const matchVeh = vRes.data.find((v) => v.category === paramCategory);
+            const matchVeh = sortedVehicles.find((v) => v.category === paramCategory);
             if (matchVeh) setSelectedVehicleId(matchVeh.id);
           }
         } else if (paramDest) {
@@ -316,8 +325,13 @@ export const BookingWizardPage: React.FC = () => {
           setSelectedPaymentMethodId(pRes.methods[0].id);
         }
 
-        if (!selectedVehicleId && vRes.data.length > 0) {
-          setSelectedVehicleId(vRes.data[0].id);
+        // Default to Mitsubishi Mirage G4 AT instead of Vios
+        const paramVehId = searchParams.get('vehicleId');
+        if (paramVehId) {
+          setSelectedVehicleId(paramVehId);
+        } else if (sortedVehicles.length > 0) {
+          const mirage = sortedVehicles.find((v) => v.model === 'Mirage G4' || v.name.toLowerCase().includes('mirage'));
+          setSelectedVehicleId(mirage ? mirage.id : sortedVehicles[0].id);
         }
       } catch (err) {
         console.error('Failed to initialize wizard data:', err);

@@ -136,6 +136,13 @@ export const HomePage: React.FC = () => {
         return { ...v, name: 'Mitsubishi Mirage G4 AT' };
       }
       return v;
+    })
+    .sort((a, b) => {
+      const isAMirage = a.model === 'Mirage G4' || a.name.toLowerCase().includes('mirage');
+      const isBMirage = b.model === 'Mirage G4' || b.name.toLowerCase().includes('mirage');
+      if (isAMirage && !isBMirage) return -1;
+      if (!isAMirage && isBMirage) return 1;
+      return 0;
     });
 
   const filteredVehicles =
