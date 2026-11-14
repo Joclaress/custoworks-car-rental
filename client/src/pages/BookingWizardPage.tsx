@@ -14,6 +14,7 @@ import {
   Receipt,
   CreditCard,
   CheckCircle,
+  XCircle,
   AlertCircle,
   Clock,
   ArrowRight,
@@ -36,7 +37,7 @@ import {
   Plane,
   Download,
 } from 'lucide-react';
-import { format, addDays, differenceInCalendarDays } from 'date-fns';
+import { format, addDays, differenceInCalendarDays, startOfDay, isSameDay } from 'date-fns';
 import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
 import { saveFileToGallery } from '../lib/screenshot';
 import { PointToPointTransferMap, LocationPoint } from '../components/PointToPointTransferMap';
@@ -461,12 +462,16 @@ export const BookingWizardPage: React.FC = () => {
     }
   }, [user]);
 
-  // Fetch calendar events when vehicle changes
+  // Fetch calendar events on mount (fleet-wide) or when vehicle changes
   useEffect(() => {
-    if (!selectedVehicleId) return;
+    const endpoint = selectedVehicleId ? `/calendar/vehicle/${selectedVehicleId}` : '/calendar/fleet';
     api
-      .get<{ events: any[] }>(`/calendar/vehicle/${selectedVehicleId}`)
-      .then((res) => setCalendarEvents(res.events))
+      .get<{ events: any[] }>(endpoint)
+      .then((res) => {
+        if (Array.isArray(res?.events)) {
+          setCalendarEvents(res.events);
+        }
+      })
       .catch((err) => console.error(err));
   }, [selectedVehicleId]);
 
@@ -528,6 +533,60 @@ export const BookingWizardPage: React.FC = () => {
   const selectedDestination = destinations.find((d) => d.id === selectedDestinationId);
   const isAirportTransfer = selectedDestination?.slug === 'bicol-intl-airport' || selectedDestination?.slug === 'naga-airport';
   const isTransfer = bookingMode === 'TRANSFER' || isAirportTransfer || Boolean(transferData);
+
+  // Check if a vehicle is available for the current pickupAt to returnAt range
+  const checkVehicleAvailability = (v: Vehicle) => {
+    if (!pickupAt || !returnAt) {
+      const avail = (v as any).availableFleetCount ?? (v.status === 'AVAILABLE' ? 1 : 0);
+      return { isAvailable: avail > 0, availableCount: avail, totalCount: Number((v as any).fleetCount) || 1 };
+    }
+
+    const pStart = startOfDay(new Date(pickupAt));
+    const rStart = startOfDay(new Date(returnAt));
+    if (isNaN(pStart.getTime()) || isNaN(rStart.getTime())) {
+      return { isAvailable: true, availableCount: 1, totalCount: 1 };
+    }
+
+    const vName = (v.name || '').toLowerCase();
+    const vModel = (v.model || '').toLowerCase();
+    const isMirage = vName.includes('mirage') || vModel.includes('mirage');
+    const isVios = vName.includes('vios') || vModel.includes('vios');
+    const isXpander = vName.includes('xpander') || vModel.includes('xpander');
+    const isInnova = vName.includes('innova') || vModel.includes('innova');
+    const isUrvan = vName.includes('nv350') || vName.includes('urvan') || vModel.includes('nv350') || vModel.includes('urvan');
+
+    let totalFleet = isMirage ? 5 : Number((v as any).fleetCount) || 1;
+
+    // Filter overlapping events
+    const overlapping = calendarEvents.filter((ev) => {
+      const evStart = startOfDay(new Date(ev.start));
+      const evEnd = startOfDay(new Date(ev.end));
+      const overlaps = pStart <= evEnd && rStart >= evStart;
+      if (!overlaps) return false;
+
+      const evName = (ev.extendedProps?.vehicleName || ev.title || '').toLowerCase();
+      const evModel = (ev.extendedProps?.model || '').toLowerCase();
+
+      if (isMirage) return evName.includes('mirage') || evModel.includes('mirage');
+      if (isVios) return evName.includes('vios') || evModel.includes('vios');
+      if (isXpander) return evName.includes('xpander') || evModel.includes('xpander');
+      if (isInnova) return evName.includes('innova') || evModel.includes('innova');
+      if (isUrvan) return evName.includes('nv350') || evName.includes('urvan') || vModel.includes('nv350') || vModel.includes('urvan');
+
+      return ev.resourceId === v.id || evName.includes(v.name.toLowerCase());
+    });
+
+    const isPermBlocked = v.status === 'MAINTENANCE' || v.status === 'UNAVAILABLE';
+    const bookedCount = overlapping.length;
+    const availableCount = isPermBlocked ? 0 : Math.max(0, totalFleet - bookedCount);
+
+    return {
+      isAvailable: availableCount > 0,
+      availableCount,
+      totalCount: totalFleet,
+      bookedCount,
+    };
+  };
 
   // STEP 4 -> 5: Proceed to Customer Information (no customer account required)
   const handleProceedToCustomerInfo = () => {
@@ -953,50 +1012,171 @@ export const BookingWizardPage: React.FC = () => {
             />
           )}
 
-          {/* STEP 1 (RENTAL MODE): SELECT VEHICLE */}
+          {/* STEP 1 (RENTAL MODE): SELECT SCHEDULE & AVAILABLE VEHICLE */}
           {step === 1 && bookingMode === 'RENTAL' && (
             <div className="space-y-6">
               <div>
                 <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 1 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Choose Your Vehicle</h2>
-                <p className="text-xs text-slate-500 mt-1">Select from our fleet based in Naga City, Camarines Sur.</p>
+                <h2 className="text-2xl font-black text-slate-900">Check Calendar & Choose Available Vehicle</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Pick your travel dates below to view real-time fleet availability. You can only select and book vehicles that are currently available!
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {vehicles.map((v) => {
-                  const img = v.images?.find((i) => i.isPrimary)?.url || v.images?.[0]?.url;
-                  const isSelected = selectedVehicleId === v.id;
-                  return (
-                    <div
-                      key={v.id}
-                      onClick={() => setSelectedVehicleId(v.id)}
-                      className={`p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${
-                        isSelected
-                          ? 'border-brand-blue bg-blue-50/40 shadow-sm'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <img src={img} alt={v.name} className="w-full sm:w-28 h-36 sm:h-20 object-cover rounded-xl bg-slate-100 shrink-0" />
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold text-sm text-slate-900">{v.name}</h4>
-                          {isSelected && <CheckCircle className="w-4 h-4 text-brand-blue shrink-0" />}
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          {v.transmission} · {v.seats} Seats · {v.category.replace('_', '/')}
-                          {(v as any).fleetCount > 1 && (
-                            <span className="ml-2 font-bold text-blue-700 bg-blue-100/70 border border-blue-200/60 px-1.5 py-0.2 rounded text-[10px]">
-                              {(v as any).fleetCount} Units in Fleet ({(v as any).availableFleetCount} Avail)
-                            </span>
-                          )}
-                        </p>
-                        <div className="mt-2 text-xs font-extrabold text-brand-navy">
-                          From {formatPeso(v.startingRates?.SELF_DRIVE || v.startingRates?.WITH_DRIVER || 0)} /24h
+              {/* 1. Quick Duration Presets & Calendar Visualizer */}
+              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <CalendarCheck2 className="w-4 h-4 text-brand-blue" />
+                    Pick Rental Duration (or tap dates on Calendar below):
+                  </span>
+                  <span className="text-xs font-black text-brand-blue bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
+                    {Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)))} Day{differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)) > 1 ? 's' : ''} Rental
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { days: 1, label: '1 Day (24h)' },
+                    { days: 2, label: '2 Days' },
+                    { days: 3, label: '3 Days' },
+                    { days: 4, label: '4 Days' },
+                    { days: 5, label: '5 Days' },
+                    { days: 7, label: '1 Week (7 Days)' },
+                    { days: 15, label: '15 Days' },
+                    { days: 30, label: '1 Month' },
+                  ].map((btn) => {
+                    const daysDiff = differenceInCalendarDays(new Date(returnAt), new Date(pickupAt));
+                    const isActive = daysDiff === btn.days;
+                    return (
+                      <button
+                        key={btn.days}
+                        type="button"
+                        onClick={() => {
+                          let start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
+                          const todayStart = new Date();
+                          todayStart.setHours(0, 0, 0, 0);
+                          if (start < todayStart) {
+                            start = new Date();
+                          }
+                          const newEnd = addDays(start, btn.days);
+                          const currentStartHours = start.getHours() || 9;
+                          newEnd.setHours(currentStartHours, 0, 0, 0);
+                          setPickupAt(format(start, "yyyy-MM-dd'T'HH:mm"));
+                          setReturnAt(format(newEnd, "yyyy-MM-dd'T'HH:mm"));
+                        }}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                          isActive
+                            ? 'bg-brand-blue text-white border-brand-blue shadow-xs scale-105'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        {btn.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Interactive Calendar Visualizer */}
+                <div className="pt-2">
+                  <InteractiveCalendar
+                    events={calendarEvents}
+                    vehicles={vehicles}
+                    selectedVehicleId={selectedVehicleId}
+                    selectedPickup={pickupAt ? new Date(pickupAt) : undefined}
+                    selectedReturn={returnAt ? new Date(returnAt) : undefined}
+                    onSelectRange={(start, end) => {
+                      const pTime = pickupAt ? new Date(pickupAt) : new Date();
+                      const rTime = returnAt ? new Date(returnAt) : new Date();
+                      const pHours = pTime.getHours() || 9;
+                      const rHours = rTime.getHours() || pHours;
+
+                      const newP = new Date(start);
+                      newP.setHours(pHours, 0, 0, 0);
+
+                      let newR = new Date(end);
+                      if (isSameDay(start, end)) {
+                        newR = addDays(newR, 1);
+                      }
+                      newR.setHours(rHours, 0, 0, 0);
+
+                      setPickupAt(format(newP, "yyyy-MM-dd'T'HH:mm"));
+                      setReturnAt(format(newR, "yyyy-MM-dd'T'HH:mm"));
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 2. Choose Your Vehicle from Available Fleet */}
+              <div className="space-y-3 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1">
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <Car className="w-5 h-5 text-brand-blue" />
+                    <span>Select an Available Vehicle:</span>
+                  </h3>
+                  <span className="text-xs text-slate-500 font-medium">
+                    Showing availability for: <strong className="text-brand-navy">{format(new Date(pickupAt), 'MMM dd')} - {format(new Date(returnAt), 'MMM dd, yyyy')}</strong>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {vehicles.map((v) => {
+                    const img = v.images?.find((i) => i.isPrimary)?.url || v.images?.[0]?.url;
+                    const isSelected = selectedVehicleId === v.id;
+                    const availInfo = checkVehicleAvailability(v);
+                    const isAvail = availInfo.isAvailable;
+
+                    return (
+                      <div
+                        key={v.id}
+                        onClick={() => {
+                          if (isAvail) {
+                            setSelectedVehicleId(v.id);
+                            setError(null);
+                          } else {
+                            setError(`⚠️ ${v.name} is fully booked for your selected dates. Please select Mirage G4 or choose other dates on the calendar.`);
+                          }
+                        }}
+                        className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${
+                          !isAvail
+                            ? 'opacity-60 bg-slate-50/80 border-slate-200 cursor-not-allowed'
+                            : isSelected
+                            ? 'border-brand-blue bg-blue-50/40 shadow-sm cursor-pointer'
+                            : 'border-slate-200 hover:border-slate-300 bg-white cursor-pointer hover:shadow-xs'
+                        }`}
+                      >
+                        <img src={img} alt={v.name} className="w-full sm:w-28 h-36 sm:h-20 object-cover rounded-xl bg-slate-100 shrink-0" />
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start">
+                            <h4 className="font-bold text-sm text-slate-900">{v.name}</h4>
+                            {isSelected && isAvail && <CheckCircle className="w-4 h-4 text-brand-blue shrink-0" />}
+                          </div>
+
+                          <div className="mt-1">
+                            {isAvail ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                                <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                <span>{availInfo.totalCount > 1 ? `${availInfo.availableCount} of ${availInfo.totalCount} Units Available` : 'Available to Book'}</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
+                                <XCircle className="w-3 h-3 text-rose-600" />
+                                <span>Fully Booked on Selected Dates</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            {v.transmission} · {v.seats} Seats · {v.category.replace('_', '/')}
+                          </p>
+                          <div className="mt-2 text-xs font-extrabold text-brand-navy">
+                            From {formatPeso(v.startingRates?.SELF_DRIVE || v.startingRates?.WITH_DRIVER || 0)} /24h
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Selected Vehicle Rate Features & Smart Suggestions */}
@@ -1101,18 +1281,33 @@ export const BookingWizardPage: React.FC = () => {
                 );
               })()}
 
-              <div className="flex justify-end pt-4 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-slate-100">
+                <div className="text-xs text-slate-500 text-center sm:text-left">
+                  {selectedVehicleId && checkVehicleAvailability(vehicles.find((v) => v.id === selectedVehicleId) || ({} as any)).isAvailable ? (
+                    <span className="text-emerald-700 font-bold flex items-center gap-1.5">
+                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Ready to book: <strong>{vehicles.find((v) => v.id === selectedVehicleId)?.name}</strong> for {Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)))} Day(s)</span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-500">Please tap an available vehicle above to proceed.</span>
+                  )}
+                </div>
+
                 <button
+                  disabled={!selectedVehicleId || !checkVehicleAvailability(vehicles.find((v) => v.id === selectedVehicleId) || ({} as any)).isAvailable}
                   onClick={() => {
-                    if (!selectedVehicleId) setError('Please select a vehicle to proceed');
-                    else {
+                    const sel = vehicles.find((v) => v.id === selectedVehicleId);
+                    if (!sel || !checkVehicleAvailability(sel).isAvailable) {
+                      setError('Please select an available vehicle for your travel dates');
+                    } else {
                       setError(null);
                       setStep(2);
                     }
                   }}
-                  className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
+                  className="w-full sm:w-auto bg-brand-blue hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm px-7 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
                 >
-                  Next: Select Rental Option <ArrowRight className="w-4 h-4" />
+                  <span>Next: Select Rental Option</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
 

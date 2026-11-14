@@ -7,22 +7,30 @@ import { audit } from '../../services/audit.service';
 import { notifyBooking } from '../../services/notification.service';
 
 export async function getVehiclePublicCalendar(req: Request, res: Response) {
-  const vehicleId = String(req.params.vehicleId);
+  const vehicleId = String(req.params.vehicleId || 'all');
   const { from, to } = req.query;
 
   const startDate = from ? new Date(String(from)) : new Date(Date.now() - 30 * 86_400_000);
   const endDate = to ? new Date(String(to)) : new Date(Date.now() + 90 * 86_400_000);
 
-  const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
-  const siblingVehicles = vehicle?.model
-    ? await prisma.vehicle.findMany({ where: { model: vehicle.model, deletedAt: null } })
-    : vehicle
-    ? [vehicle]
-    : [];
+  let targetVehicles: any[] = [];
+  if (vehicleId === 'all') {
+    targetVehicles = await prisma.vehicle.findMany({
+      where: { deletedAt: null, isPublished: true },
+      select: { id: true, name: true, model: true, plateNumber: true, category: true, status: true },
+    });
+  } else {
+    const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
+    targetVehicles = vehicle?.model
+      ? await prisma.vehicle.findMany({ where: { model: vehicle.model, deletedAt: null } })
+      : vehicle
+      ? [vehicle]
+      : [];
+  }
 
   const allEvents = (
     await Promise.all(
-      siblingVehicles.map(async (v) => {
+      targetVehicles.map(async (v) => {
         const evs = await vehicleSchedule(v.id, startDate, endDate);
         return evs.map((e) => ({
           ...e,
@@ -37,7 +45,7 @@ export async function getVehiclePublicCalendar(req: Request, res: Response) {
     )
   ).flat();
 
-  res.json({ events: allEvents, vehicles: siblingVehicles });
+  res.json({ events: allEvents, vehicles: targetVehicles });
 }
 
 export async function getAdminCalendarEvents(req: Request, res: Response) {

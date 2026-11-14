@@ -5,6 +5,7 @@ import * as c from './calendar.controller';
 export const calendarRoutes = Router();
 
 // Public vehicle availability calendar
+calendarRoutes.get('/fleet', c.getVehiclePublicCalendar);
 calendarRoutes.get('/vehicle/:vehicleId', c.getVehiclePublicCalendar);
 
 // Admin full-screen calendar
