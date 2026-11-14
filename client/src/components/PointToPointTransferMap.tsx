@@ -131,19 +131,19 @@ export function computeTransferFare(
     distanceKm >= 65 &&
     distanceKm <= 125;
 
-  // 1. Official BIA Airport Transfer (Naga <-> BIA Daraga)
+  // 1. Official BIA Airport Transfer (Naga <-> BIA Daraga ~86-95 km)
   if (isBiaNagaTransfer) {
     const price = category === 'VAN' ? 7500 : category === 'SUV_MPV' ? 6000 : 4500;
     return {
-      distanceKm: overrideDistanceKm ?? 95,
-      estHours: overrideEstHours ?? 2.0,
+      distanceKm: overrideDistanceKm ?? 86,
+      estHours: overrideEstHours ?? 1.5,
       price,
       isFixedRoute: true,
       routeTitle: 'Naga ⇄ Bicol International Airport (BIA / Daraga)',
     };
   }
 
-  // 2. Official Naga Airport Transfer (Naga City <-> Pili Airport)
+  // 2. Official Naga Airport Transfer (Naga City <-> Pili Airport ~15 km)
   if (isNagaAirportTransfer) {
     const price = category === 'VAN' ? 3500 : category === 'SUV_MPV' ? 2500 : 1800;
     return {
@@ -155,15 +155,59 @@ export function computeTransferFare(
     };
   }
 
-  // 3. Dynamic Point-to-Point Road Distance Rate
-  let baseFare = 1500;
-  let perKmRate = 26;
+  // 3. Official Daet / Camarines Norte Transfer (~105-135 km)
+  const isDaetTransfer =
+    pName.includes('daet') ||
+    dName.includes('daet') ||
+    pName.includes('camarines norte') ||
+    dName.includes('camarines norte');
+
+  if (isDaetTransfer) {
+    const price = category === 'VAN' ? 7800 : category === 'SUV_MPV' ? 6200 : 4800;
+    return {
+      distanceKm: overrideDistanceKm ?? 105,
+      estHours: overrideEstHours ?? 1.5,
+      price,
+      isFixedRoute: true,
+      routeTitle: 'Naga / Pili ⇄ Daet, Camarines Norte',
+    };
+  }
+
+  // 4. Official Caramoan Peninsula Transfer (~140 km)
+  const isCaramoanTransfer = pName.includes('caramoan') || dName.includes('caramoan');
+  if (isCaramoanTransfer) {
+    const price = category === 'VAN' ? 8500 : category === 'SUV_MPV' ? 7000 : 5500;
+    return {
+      distanceKm: overrideDistanceKm ?? 140,
+      estHours: overrideEstHours ?? 3.0,
+      price,
+      isFixedRoute: true,
+      routeTitle: 'Naga / Pili ⇄ Caramoan Peninsula',
+    };
+  }
+
+  // 5. Official Legazpi City / Albay Transfer (~85-95 km)
+  const isLegazpiTransfer = pName.includes('legazpi') || dName.includes('legazpi') || pName.includes('albay') || dName.includes('albay');
+  if (isLegazpiTransfer) {
+    const price = category === 'VAN' ? 7500 : category === 'SUV_MPV' ? 6000 : 4500;
+    return {
+      distanceKm: overrideDistanceKm ?? 88,
+      estHours: overrideEstHours ?? 1.5,
+      price,
+      isFixedRoute: true,
+      routeTitle: 'Naga / Pili ⇄ Legazpi City / Albay',
+    };
+  }
+
+  // 6. Dynamic Point-to-Point Road Distance Rate (Fair per-km calculation considering return driver deadhead)
+  let baseFare = 1800;
+  let perKmRate = 38; // ₱38/km for Sedan
   if (category === 'SUV_MPV') {
-    baseFare = 2000;
-    perKmRate = 34;
+    baseFare = 2500;
+    perKmRate = 48; // ₱48/km for SUV
   } else if (category === 'VAN') {
-    baseFare = 3000;
-    perKmRate = 42;
+    baseFare = 3500;
+    perKmRate = 58; // ₱58/km for Van
   }
 
   const billableKm = Math.max(0, distanceKm - 20);
