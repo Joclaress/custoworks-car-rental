@@ -7,6 +7,7 @@ import { InteractiveCalendar } from '../components/InteractiveCalendar';
 import { AdminQuotationsTab } from '../components/admin/AdminQuotationsTab';
 import { AdminUsersTab } from '../components/admin/AdminUsersTab';
 import { AdminPartnersTab } from '../components/admin/AdminPartnersTab';
+import { AdminSponsorsTab } from '../components/admin/AdminSponsorsTab';
 import { AdminDailyDispatchSchedule } from '../components/admin/AdminDailyDispatchSchedule';
 import { PartnerDispatchModal } from '../components/admin/PartnerDispatchModal';
 import { formatPeso, formatDate } from '../lib/utils';
@@ -53,11 +54,12 @@ import {
   ChevronDown,
   Share2,
   MessageSquare,
+  Megaphone,
 } from 'lucide-react';
 
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BOOKINGS' | 'CALENDAR' | 'VEHICLES' | 'PRICING' | 'PAYMENTS' | 'REQUIREMENTS' | 'QUOTATIONS' | 'USERS' | 'SETTINGS' | 'PARTNERS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'BOOKINGS' | 'CALENDAR' | 'VEHICLES' | 'PRICING' | 'PAYMENTS' | 'REQUIREMENTS' | 'QUOTATIONS' | 'USERS' | 'SETTINGS' | 'PARTNERS' | 'SPONSORS'>('OVERVIEW');
   // Phone Simulator Modal State
   const [phoneSimulatorOpen, setPhoneSimulatorOpen] = useState<boolean>(false);
   const [simulatorDevice, setSimulatorDevice] = useState<'IPHONE_15' | 'GALAXY_S24' | 'IPHONE_SE'>('IPHONE_15');
@@ -1142,6 +1144,7 @@ export const AdminDashboardPage: React.FC = () => {
     { id: 'REQUIREMENTS', label: 'Requirements', icon: FileCheck2 },
     { id: 'QUOTATIONS', label: 'Quotations', icon: FileText },
     { id: 'PARTNERS', label: 'Tie-Up Partners', icon: Handshake },
+    { id: 'SPONSORS', label: 'Sponsors & Ads', icon: Megaphone },
     { id: 'USERS', label: 'Staff Accounts', icon: Users },
     { id: 'SETTINGS', label: 'Settings', icon: Settings },
   ];
@@ -2910,6 +2913,9 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* TAB: TIE-UP FLEET & PARTNERS */}
         {activeTab === 'PARTNERS' && <AdminPartnersTab />}
+
+        {/* TAB: SPONSORS & 14-DAY FREE TRIAL TRACKER */}
+        {activeTab === 'SPONSORS' && <AdminSponsorsTab />}
 
         {/* TAB: ADMIN & STAFF USER MANAGEMENT */}
         {activeTab === 'USERS' && <AdminUsersTab />}

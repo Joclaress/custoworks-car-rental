@@ -21,6 +21,7 @@ import { adminRoutes } from './modules/admin/admin.routes';
 import { fileRoutes } from './modules/files/files.routes';
 import { contactRoutes } from './modules/contact/contact.routes';
 import { partnerRoutes } from './modules/partners/partners.routes';
+import { sponsorRoutes } from './modules/sponsors/sponsors.routes';
 
 export const app = express();
 
@@ -93,6 +94,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/partners', partnerRoutes);
+app.use('/api/sponsors', sponsorRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

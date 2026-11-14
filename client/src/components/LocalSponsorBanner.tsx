@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../lib/api';
 import {
   Sparkles,
   MapPin,
@@ -128,6 +129,8 @@ export const LocalSponsorBanner: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ALL' | 'HOTEL' | 'FOOD' | 'ADVENTURE' | 'AUTOCARE' | 'RETAIL'>('ALL');
   const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
   const [inquirySubmitted, setInquirySubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [trialExpiryDate, setTrialExpiryDate] = useState<string>('');
   const [formData, setFormData] = useState({
     businessName: '',
     contactPerson: '',
@@ -155,9 +158,54 @@ export const LocalSponsorBanner: React.FC = () => {
     setInquiryModalOpen(true);
   };
 
-  const handleInquirySubmit = (e: React.FormEvent) => {
+  const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInquirySubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const cat = formData.category.toLowerCase();
+      let categoryEnum: 'HOTEL' | 'FOOD' | 'ADVENTURE' | 'AUTOCARE' | 'RETAIL' | 'OTHER' = 'HOTEL';
+      if (cat.includes('food') || cat.includes('restaurant') || cat.includes('cafe')) {
+        categoryEnum = 'FOOD';
+      } else if (cat.includes('adventure') || cat.includes('tour')) {
+        categoryEnum = 'ADVENTURE';
+      } else if (cat.includes('auto') || cat.includes('carwash') || cat.includes('gas')) {
+        categoryEnum = 'AUTOCARE';
+      } else if (cat.includes('retail') || cat.includes('pasalubong') || cat.includes('shopping')) {
+        categoryEnum = 'RETAIL';
+      }
+
+      const res = await api.post<{ success: boolean; sponsor?: any }>('/sponsors/inquire', {
+        businessName: formData.businessName,
+        contactPerson: formData.contactPerson,
+        phone: formData.phone,
+        email: formData.email || undefined,
+        category: categoryEnum,
+        placementSlot: formData.placementSlot,
+        proposedPerk: formData.proposedPerk || undefined,
+        websiteUrl: formData.message || undefined,
+        notes: formData.message || undefined,
+      });
+
+      if (res?.sponsor?.trialEndsAt) {
+        setTrialExpiryDate(
+          new Date(res.sponsor.trialEndsAt).toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })
+        );
+      } else {
+        const d = new Date(Date.now() + 14 * 86400000);
+        setTrialExpiryDate(
+          d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        );
+      }
+      setInquirySubmitted(true);
+    } catch (err: any) {
+      alert(err?.message || 'Error submitting application. Please contact dispatch.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetForm = () => {
@@ -526,23 +574,52 @@ export const LocalSponsorBanner: React.FC = () => {
             {/* Modal Body */}
             <div className="p-6">
               {inquirySubmitted ? (
-                <div className="text-center py-8 space-y-4">
-                  <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h4 className="text-2xl font-black text-slate-900">Application Received!</h4>
-                  <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                    Salamat, <strong>{formData.contactPerson || 'Partner'}</strong>! Na-receive na po namin ang inyong sponsor application para sa <strong>{formData.businessName || 'inyong negosyo'}</strong>. Makikipag-ugnayan po kami sa inyo via WhatsApp/phone sa loob ng 24 oras para sa inyong 14-day free trial banner.
-                  </p>
+                  
+                  <div>
+                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                      🎁 14-Day Free Trial Activated!
+                    </span>
+                    <h4 className="text-2xl font-black text-slate-900 mt-2">Application Received!</h4>
+                    <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed mt-1">
+                      Salamat, <strong>{formData.contactPerson || 'Partner'}</strong>! Naitala na ang inyong negosyo na <strong>{formData.businessName || 'inyong negosyo'}</strong> para sa 14-day free trial banner placement.
+                    </p>
+                  </div>
 
-                  <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
+                  {/* 14-Day Trial & Payment Instruction Box */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left max-w-md mx-auto space-y-2.5 text-xs">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <span className="text-slate-500 font-semibold">Trial Duration:</span>
+                      <strong className="text-emerald-700">14 Days (Walang babayaran ngayon)</strong>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <span className="text-slate-500 font-semibold">Free Trial Ends On:</span>
+                      <strong className="text-slate-900">{trialExpiryDate || '14 Days from today'}</strong>
+                    </div>
+                    <div className="pt-1">
+                      <span className="block font-bold text-slate-800 mb-1">Paano at Saan Magbabayad Pagkatapos ng 14 Days?</span>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Pagkatapos ng inyong 14-day trial, <strong>₱3,000 / month</strong> lamang para mapanatiling active ang inyong banner. Puwedeng bayaran via:
+                      </p>
+                      <ul className="text-[11px] text-slate-700 font-medium space-y-1 mt-1.5 list-disc list-inside">
+                        <li><strong>GCash / Maya:</strong> 0961 722 5326 (Custoworks / Charleine Oclares)</li>
+                        <li><strong>Bank Transfer:</strong> BDO Unibank Naga City</li>
+                        <li><strong>Cash:</strong> Custoworks Naga Garage (Beside SM City Naga)</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
                     <a
                       href={`https://wa.me/639617225326?text=${encodeURIComponent(
                         `Hi Custoworks! Nag-submit po ako ng Sponsor Banner application para sa ${formData.businessName} (${formData.contactPerson}). Nais po naming i-activate ang aming 14-day free trial banner!`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs px-6 py-3 rounded-xl shadow-md flex items-center justify-center gap-2"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-6 py-3 rounded-xl shadow-md flex items-center justify-center gap-2"
                     >
                       <MessageCircle className="w-4 h-4" />
                       <span>Fast-Track sa WhatsApp Dispatch</span>
@@ -674,10 +751,11 @@ export const LocalSponsorBanner: React.FC = () => {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full bg-brand-navy hover:bg-slate-800 text-white font-black text-xs sm:text-sm py-3.5 rounded-xl shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 transition-all"
+                      disabled={isSubmitting}
+                      className="w-full bg-brand-navy hover:bg-slate-800 disabled:opacity-50 text-white font-black text-xs sm:text-sm py-3.5 rounded-xl shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2 transition-all cursor-pointer"
                     >
                       <Megaphone className="w-4 h-4 text-amber-400" />
-                      <span>Simulan ang 14-Day Free Trial Banner</span>
+                      <span>{isSubmitting ? 'Ina-activate ang inyong 14-day trial...' : 'Simulan ang 14-Day Free Trial Banner'}</span>
                     </button>
                     <p className="text-[11px] text-center text-slate-400 mt-2">
                       May katanungan? Tumawag o mag-text sa dispatch: <strong className="text-slate-700">0961 722 5326</strong>.
