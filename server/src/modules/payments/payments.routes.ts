@@ -17,6 +17,7 @@ paymentRoutes.get('/:paymentId/receipt', optionalAuth, c.downloadReceipt);
 paymentRoutes.get('/admin/all', authenticate, requireStaff, c.adminListPayments);
 paymentRoutes.post('/:id/approve', authenticate, requireStaff, c.adminApprovePayment);
 paymentRoutes.post('/:id/reject', authenticate, requireStaff, c.adminRejectPayment);
+paymentRoutes.post('/:id/replace-proof', authenticate, requireStaff, uploadDocument, c.adminReplacePaymentProof);
 paymentRoutes.post('/record-otc', authenticate, requireStaff, c.adminRecordPayment);
 
 // Admin payment methods management

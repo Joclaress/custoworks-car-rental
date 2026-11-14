@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { Booking, Vehicle, Payment, Destination, PaymentMethod } from '../types';
@@ -605,6 +605,38 @@ export const AdminDashboardPage: React.FC = () => {
   // View Receipt Preview Lightbox State
   const [viewingReceiptPayment, setViewingReceiptPayment] = useState<Payment | null>(null);
   const [viewingRequirementDoc, setViewingRequirementDoc] = useState<{ id: string; name: string; title: string; originalName?: string; sizeBytes?: number } | null>(null);
+  const proofFileInputRef = useRef<HTMLInputElement>(null);
+  const [replacingProof, setReplacingProof] = useState(false);
+  const [proofCacheBuster, setProofCacheBuster] = useState(Date.now());
+
+  const handleReplaceProofUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !viewingReceiptPayment) return;
+    setReplacingProof(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post<{ success: boolean; payment: Payment }>(
+        `/payments/${viewingReceiptPayment.id}/replace-proof`,
+        formData
+      );
+      if (res.payment) {
+        setViewingReceiptPayment(res.payment);
+        setProofCacheBuster(Date.now());
+        const img = document.getElementById('receipt-proof-img') as HTMLElement | null;
+        if (img) img.style.display = 'block';
+        const fallback = document.getElementById('receipt-error-fallback');
+        if (fallback) fallback.style.display = 'none';
+        alert('Payment receipt image updated successfully!');
+        fetchPayments();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to replace receipt image');
+    } finally {
+      setReplacingProof(false);
+      if (e.target) e.target.value = '';
+    }
+  };
 
   const [loading, setLoading] = useState(true);
 
@@ -3201,10 +3233,21 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Hidden File Input for Admin Uploading / Replacing Receipt Image */}
+            <input
+              type="file"
+              ref={proofFileInputRef}
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={handleReplaceProofUpload}
+            />
+
             {/* Receipt Image / Document Preview */}
-            <div className="bg-slate-900 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[300px] border border-slate-800 relative">
+            <div className="bg-slate-900 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[320px] border border-slate-800 relative overflow-hidden">
               <img
-                src={api.getFileUrl(`/files/payments/${viewingReceiptPayment.id}/proof`)}
+                id="receipt-proof-img"
+                key={`${viewingReceiptPayment.id}-${proofCacheBuster}`}
+                src={`${api.getFileUrl(`/files/payments/${viewingReceiptPayment.id}/proof`)}&_t=${proofCacheBuster}`}
                 alt="Payment Receipt Slip"
                 className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-md"
                 onError={(e) => {
@@ -3213,10 +3256,23 @@ export const AdminDashboardPage: React.FC = () => {
                   if (fallback) fallback.style.display = 'flex';
                 }}
               />
-              <div id="receipt-error-fallback" style={{ display: 'none' }} className="flex-col items-center gap-2 text-slate-400 text-center py-10">
+              <div id="receipt-error-fallback" style={{ display: 'none' }} className="flex flex-col items-center gap-3 text-slate-400 text-center py-10 px-4">
                 <FileText className="w-12 h-12 text-slate-500" />
-                <p className="font-bold text-sm text-white">Receipt Document Preview</p>
-                <p className="text-xs max-w-sm">This file is in document/PDF format or raw bytes.</p>
+                <div>
+                  <p className="font-bold text-sm text-white">No Receipt Image Rendered</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                    Image was cleared during server restart, or customer sent receipt via Messenger.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={replacingProof}
+                  onClick={() => proofFileInputRef.current?.click()}
+                  className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-md transition-all"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {replacingProof ? 'Uploading New Image...' : 'Upload / Replace Receipt Image'}
+                </button>
               </div>
             </div>
 
@@ -3224,13 +3280,22 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
               <div className="flex items-center gap-2">
                 <a
-                  href={api.getFileUrl(`/files/payments/${viewingReceiptPayment.id}/proof`)}
+                  href={`${api.getFileUrl(`/files/payments/${viewingReceiptPayment.id}/proof`)}&_t=${proofCacheBuster}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
                 >
                   <ExternalLink className="w-3.5 h-3.5" /> Open Full Resolution ↗
                 </a>
+                <button
+                  type="button"
+                  disabled={replacingProof}
+                  onClick={() => proofFileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-brand-blue font-bold text-xs transition-colors border border-blue-200"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {replacingProof ? 'Uploading...' : 'Change Image'}
+                </button>
               </div>
 
               <div className="flex items-center gap-2">

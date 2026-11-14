@@ -204,3 +204,43 @@ export async function downloadReceipt(req: Request, res: Response) {
   await streamPaymentReceipt(res, paymentId);
 }
 
+export async function adminReplacePaymentProof(req: Request, res: Response) {
+  const paymentId = String(req.params.id);
+  if (!req.file) throw AppError.badRequest('Please choose an image or receipt file to upload');
+
+  const existing = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { booking: true },
+  });
+  if (!existing) throw AppError.notFound('Payment not found');
+
+  const stored = await saveFile(req.file, {
+    folder: `receipts/${existing.bookingId}`,
+    visibility: 'private',
+  });
+
+  const updated = await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      proofStorageKey: stored.key,
+      proofStorageProvider: stored.provider,
+      proofMimeType: req.file.mimetype,
+    },
+    include: {
+      paymentMethod: true,
+      booking: true,
+      verifiedBy: { select: { fullName: true } },
+    },
+  });
+
+  await audit({
+    actorId: req.user!.id,
+    action: 'payment.proof_replaced',
+    entityType: 'payment',
+    entityId: paymentId,
+    req,
+  });
+
+  res.json({ success: true, payment: updated });
+}
+
