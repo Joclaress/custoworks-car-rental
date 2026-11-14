@@ -2313,7 +2313,7 @@ export const BookingWizardPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-200">
                   <div>
                     <span className="text-slate-400 block uppercase font-bold text-[10px]">Vehicle Selected</span>
-                    <span className="text-base font-extrabold text-slate-900">{selectedVehicle?.name}</span>
+                    <span className="text-base font-extrabold text-slate-900">{selectedVehicle?.name?.replace(/\s*\(Unit\s*1\)/i, '')}</span>
                     <span className="text-slate-500 block">
                       {selectedRentalType === 'SELF_DRIVE' ? 'Self Drive' : 'With Driver'} · {selectedVehicle?.seats} Seats
                     </span>

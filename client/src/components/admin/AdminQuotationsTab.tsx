@@ -558,7 +558,7 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
                       View Quote
                     </button>
                     <a
-                      href={`/api/contact/admin/quotations/${q.id}/pdf`}
+                      href={api.getFileUrl(`/contact/admin/quotations/${q.id}/pdf`)}
                       download={`Custoworks-Quotation-${q.id}.pdf`}
                       className="bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs p-2 rounded-lg border border-slate-200 transition-colors"
                       title="Download PDF"
@@ -1059,7 +1059,7 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
               </div>
               <div className="flex items-center gap-2">
                 <a
-                  href={`/api/contact/admin/quotations/${viewingQuotation.id}/pdf`}
+                  href={api.getFileUrl(`/contact/admin/quotations/${viewingQuotation.id}/pdf`)}
                   download={`Custoworks-Quotation-${viewingQuotation.id}.pdf`}
                   className="inline-flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-brand-blue text-xs font-bold py-1.5 px-3 rounded-lg border border-blue-200 transition-colors"
                   title="Download official PDF copy"
@@ -1099,7 +1099,7 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
                 <span>PDF Ready: Official PDF will be attached automatically when sending to <strong>{viewingQuotation.customerEmail}</strong>.</span>
               </span>
               <a
-                href={`/api/contact/admin/quotations/${viewingQuotation.id}/pdf`}
+                href={api.getFileUrl(`/contact/admin/quotations/${viewingQuotation.id}/pdf`)}
                 download={`Custoworks-Quotation-${viewingQuotation.id}.pdf`}
                 className="inline-flex items-center gap-1 font-bold text-brand-blue hover:text-blue-700 underline text-xs"
               >
@@ -1232,7 +1232,7 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
               </button>
               <div className="flex items-center gap-2">
                 <a
-                  href={`/api/contact/admin/quotations/${viewingQuotation.id}/pdf`}
+                  href={api.getFileUrl(`/contact/admin/quotations/${viewingQuotation.id}/pdf`)}
                   download={`Custoworks-Quotation-${viewingQuotation.id}.pdf`}
                   className="inline-flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2 px-4 rounded-xl border border-slate-300 transition-all shadow-sm"
                 >

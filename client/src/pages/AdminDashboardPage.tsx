@@ -604,6 +604,7 @@ export const AdminDashboardPage: React.FC = () => {
 
   // View Receipt Preview Lightbox State
   const [viewingReceiptPayment, setViewingReceiptPayment] = useState<Payment | null>(null);
+  const [viewingRequirementDoc, setViewingRequirementDoc] = useState<{ id: string; name: string; title: string; originalName?: string; sizeBytes?: number } | null>(null);
 
   const [loading, setLoading] = useState(true);
 
@@ -2501,7 +2502,7 @@ export const AdminDashboardPage: React.FC = () => {
                               View Receipt
                             </button>
                             <a
-                              href={`/api/files/payments/${p.id}/proof?token=${encodeURIComponent(api.getToken() || '')}`}
+                              href={api.getFileUrl(`/files/payments/${p.id}/proof`)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-slate-400 hover:text-white p-1 rounded transition-colors"
@@ -2704,11 +2705,25 @@ export const AdminDashboardPage: React.FC = () => {
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setViewingRequirementDoc({
+                                        id: latestDoc.id,
+                                        name: latestDoc.originalName,
+                                        title: req.name,
+                                        originalName: latestDoc.originalName,
+                                        sizeBytes: latestDoc.sizeBytes,
+                                      })}
+                                      className="inline-flex items-center gap-1 bg-brand-blue hover:bg-blue-600 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] shadow-sm transition-colors"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" /> Preview
+                                    </button>
                                     <a
-                                      href={`/api/files/requirements/${latestDoc.id}?token=${encodeURIComponent(api.getToken() || '')}`}
+                                      href={api.getFileUrl(`/files/requirements/${latestDoc.id}`)}
                                       target="_blank"
                                       rel="noreferrer"
                                       className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300"
+                                      title="Open in new window"
                                     >
                                       <ExternalLink className="w-3 h-3" /> View File
                                     </a>
@@ -3189,7 +3204,7 @@ export const AdminDashboardPage: React.FC = () => {
             {/* Receipt Image / Document Preview */}
             <div className="bg-slate-900 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[300px] border border-slate-800 relative">
               <img
-                src={`/api/files/payments/${viewingReceiptPayment.id}/proof?token=${encodeURIComponent(api.getToken() || '')}`}
+                src={api.getFileUrl(`/files/payments/${viewingReceiptPayment.id}/proof`)}
                 alt="Payment Receipt Slip"
                 className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-md"
                 onError={(e) => {
@@ -3209,7 +3224,7 @@ export const AdminDashboardPage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
               <div className="flex items-center gap-2">
                 <a
-                  href={`/api/files/payments/${viewingReceiptPayment.id}/proof?token=${encodeURIComponent(api.getToken() || '')}`}
+                  href={api.getFileUrl(`/files/payments/${viewingReceiptPayment.id}/proof`)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
@@ -3251,6 +3266,82 @@ export const AdminDashboardPage: React.FC = () => {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Requirement Document Modal / Lightbox */}
+      {viewingRequirementDoc && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-3xl max-w-3xl w-full p-6 space-y-4 text-xs shadow-2xl border border-slate-800 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div>
+                <h3 className="font-extrabold text-base text-white">
+                  {viewingRequirementDoc.title || 'Requirement Document'}
+                </h3>
+                <p className="text-slate-400 text-[11px] mt-0.5">
+                  File: <span className="font-mono text-blue-400">{viewingRequirementDoc.originalName || viewingRequirementDoc.name}</span>
+                  {viewingRequirementDoc.sizeBytes ? ` • ${(viewingRequirementDoc.sizeBytes / 1024).toFixed(1)} KB` : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingRequirementDoc(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Document Image / PDF / File Preview */}
+            <div className="bg-black/60 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[380px] border border-slate-800/80 relative overflow-hidden">
+              <img
+                src={api.getFileUrl(`/files/requirements/${viewingRequirementDoc.id}`)}
+                alt={viewingRequirementDoc.name}
+                className="max-h-[65vh] max-w-full object-contain rounded-lg shadow-xl"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                  const fallback = document.getElementById('doc-preview-fallback');
+                  if (fallback) fallback.style.display = 'flex';
+                }}
+              />
+              <div id="doc-preview-fallback" style={{ display: 'none' }} className="flex flex-col items-center gap-3 text-slate-400 text-center py-12">
+                <FileText className="w-16 h-16 text-slate-500" />
+                <div>
+                  <p className="font-bold text-sm text-white">Document Preview</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md">
+                    This file is in PDF format or could not be rendered as a direct web image.
+                  </p>
+                </div>
+                <a
+                  href={api.getFileUrl(`/files/requirements/${viewingRequirementDoc.id}`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-brand-blue hover:bg-blue-600 text-white rounded-xl font-bold text-xs shadow-md"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Open File in Dedicated Window
+                </a>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800">
+              <a
+                href={api.getFileUrl(`/files/requirements/${viewingRequirementDoc.id}`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors border border-slate-700"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open Full Resolution ↗
+              </a>
+              <button
+                type="button"
+                onClick={() => setViewingRequirementDoc(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

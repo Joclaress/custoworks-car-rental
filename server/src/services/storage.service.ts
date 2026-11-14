@@ -94,9 +94,26 @@ export async function sendPrivateFile(res: Response, provider: string, key: stri
     return res.redirect(302, url);
   }
   const abs = path.resolve(localPrivateDir, key);
-  if (!abs.startsWith(localPrivateDir) || !fs.existsSync(abs)) throw AppError.notFound('File not found');
+  if (!abs.startsWith(localPrivateDir) || !fs.existsSync(abs)) {
+    // If the file was cleared due to server container restart, send a friendly SVG notice
+    res.status(404);
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'no-cache, no-store');
+    return res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420" fill="none">
+  <rect width="640" height="420" fill="#0f172a" rx="16"/>
+  <rect x="24" y="24" width="592" height="372" fill="#1e293b" rx="12" stroke="#334155" stroke-width="2" stroke-dasharray="8 8"/>
+  <circle cx="320" cy="140" r="48" fill="#334155"/>
+  <path d="M305 130h30v26h-30zM318 108h4v16h-4z" fill="#94a3b8"/>
+  <text x="320" y="222" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="bold" fill="#f8fafc" text-anchor="middle">File Not Found on Local Storage</text>
+  <text x="320" y="254" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#94a3b8" text-anchor="middle">This file was uploaded during a prior session and the temporary server disk was restarted.</text>
+  <text x="320" y="284" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#38bdf8" text-anchor="middle">Action: Click "Request Re-upload" in Admin Panel to ask customer for fresh copy.</text>
+  <text x="320" y="325" font-family="system-ui, -apple-system, sans-serif" font-size="11" fill="#64748b" text-anchor="middle">Tip: Configure Cloudinary in Render environment to enable permanent persistent storage.</text>
+</svg>`);
+  }
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', `inline; filename="${path.basename(key)}"`);
   if (mime) res.type(mime);
   const stat = await fs.promises.stat(abs);
   res.setHeader('Content-Length', stat.size);

@@ -101,6 +101,13 @@ class ApiService {
     return this.accessToken;
   }
 
+  getFileUrl(path: string): string {
+    const clean = path.startsWith('/') ? path : `/${path}`;
+    const token = this.getToken();
+    const tokenParam = token ? `${clean.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : '';
+    return `${API_BASE}${clean}${tokenParam}`;
+  }
+
   clearCache(prefix?: string) {
     clearClientCache(prefix);
   }
@@ -256,3 +263,4 @@ class ApiService {
 }
 
 export const api = new ApiService();
+export { API_BASE };

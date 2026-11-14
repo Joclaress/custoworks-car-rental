@@ -190,7 +190,7 @@ export const TrackBookingPage: React.FC = () => {
 
   const handleDownloadAgreement = () => {
     if (!booking) return;
-    window.open(`/api/bookings/track/${booking.reference}/agreement`, '_blank');
+    window.open(api.getFileUrl(`/bookings/track/${booking.reference}/agreement`), '_blank');
   };
 
   return (

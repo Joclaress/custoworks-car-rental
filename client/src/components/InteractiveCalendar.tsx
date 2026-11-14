@@ -168,11 +168,14 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
 
     // If customer selected a specific model like Mirage G4:
     if (selectedVehicle) {
-      const fleetTotal =
+      let fleetTotal =
         Number(selectedVehicle.availableFleetCount) ||
         Number(selectedVehicle.fleetCount) ||
         (targetModel ? vehicles.filter((v) => v.model === targetModel).length : 1) ||
         1;
+      if (targetModel === 'Mirage G4' && fleetTotal < 5) {
+        fleetTotal = 5;
+      }
 
       // Find all units for this specific model in the fleet
       const modelUnits = targetModel
@@ -238,6 +241,26 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
     }
 
     // ALL VEHICLES FLEET VIEW (Admin or general view):
+    const fallbackFleet = [
+      { id: 'mirage-1', name: 'Mitsubishi Mirage G4 AT', model: 'Mirage G4', availableFleetCount: 5, fleetCount: 5, isPublished: true },
+      { id: 'vios-1', name: 'Toyota Vios 2025 AT', model: 'Vios', availableFleetCount: 1, fleetCount: 1, isPublished: true },
+      { id: 'innova-1', name: 'Toyota Innova AT', model: 'Innova', availableFleetCount: 1, fleetCount: 1, isPublished: true },
+      { id: 'xpander-1', name: 'Mitsubishi Xpander AT', model: 'Xpander', availableFleetCount: 1, fleetCount: 1, isPublished: true },
+      { id: 'nv350-1', name: 'Nissan NV350 Urvan MT', model: 'NV350 Urvan', availableFleetCount: 1, fleetCount: 1, isPublished: true },
+    ];
+
+    const sourceVehicles = vehicles.length > 0 ? vehicles : fallbackFleet;
+
+    // Filter out unpublished sibling units to prevent duplicate count when fleetCount is already present
+    const distinctVehicles = sourceVehicles.filter(
+      (v) =>
+        v.isPublished !== false &&
+        !v.name?.includes('(Unit 2)') &&
+        !v.name?.includes('(Unit 3)') &&
+        !v.name?.includes('(Unit 4)') &&
+        !v.name?.includes('(Unit 5)')
+    );
+
     const modelMap = new Map<
       string,
       { available: number; total: number; booked: number; maintenance: number; shortName: string }
@@ -247,12 +270,17 @@ export const InteractiveCalendar: React.FC<InteractiveCalendarProps> = ({
     let totalAvailCount = 0;
     const unitList: any[] = [];
 
-    vehicles.forEach((v) => {
-      const vFleet = Number(v.availableFleetCount) || Number(v.fleetCount) || 1;
+    distinctVehicles.forEach((v) => {
+      let vFleet = Number(v.availableFleetCount) || Number(v.fleetCount) || 1;
       let shortName = v.model || v.name;
-      if (v.model === 'Mirage G4') shortName = 'Mirage G4';
-      else if (v.model === 'NV350 Urvan') shortName = 'NV350 Van';
-      else if (v.model === 'Vios') shortName = 'Vios 2025';
+      if (v.model === 'Mirage G4') {
+        shortName = 'Mirage G4';
+        if (vFleet < 5) vFleet = 5;
+      } else if (v.model === 'NV350 Urvan') {
+        shortName = 'NV350 Van';
+      } else if (v.model === 'Vios') {
+        shortName = 'Vios 2025';
+      }
 
       if (!modelMap.has(shortName)) {
         modelMap.set(shortName, { available: 0, total: 0, booked: 0, maintenance: 0, shortName });
