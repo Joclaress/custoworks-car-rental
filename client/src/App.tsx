@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ScrollToHash } from './components/ScrollToHash';
 import { CloudServerNotice } from './components/CloudServerNotice';
+import { FacebookMessengerWidget } from './components/FacebookMessengerWidget';
 
 import { HomePage } from './pages/HomePage';
 import { VehiclesPage } from './pages/VehiclesPage';
@@ -96,6 +97,7 @@ export const App: React.FC = () => {
           </main>
           <Footer />
           <CloudServerNotice />
+          <FacebookMessengerWidget />
         </div>
       </BrowserRouter>
     </AuthProvider>
