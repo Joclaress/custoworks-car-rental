@@ -648,6 +648,16 @@ export async function notifyAdminSponsorApplicationAlert(sponsor: any) {
                   </tr>
                   ${sponsor.proposedPerk ? `<tr><td style="color: #64748b; font-weight: 600;">Special Renter Perk:</td><td style="color: #059669; font-weight: 700;">${sponsor.proposedPerk}</td></tr>` : ''}
                   ${sponsor.websiteUrl ? `<tr><td style="color: #64748b; font-weight: 600;">Website / FB Link:</td><td><a href="${sponsor.websiteUrl}" target="_blank" style="color: #2563eb;">${sponsor.websiteUrl}</a></td></tr>` : ''}
+                  ${sponsor.imageUrl ? `
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600; vertical-align: top;">Attached Photo:</td>
+                    <td>
+                      <a href="${sponsor.imageUrl}" target="_blank" style="display: inline-block;">
+                        <img src="${sponsor.imageUrl}" alt="${sponsor.businessName}" style="max-width: 240px; max-height: 140px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover; display: block;" />
+                        <span style="font-size: 11px; color: #2563eb; display: block; margin-top: 4px;">🔍 View full-size photo</span>
+                      </a>
+                    </td>
+                  </tr>` : ''}
                   ${sponsor.notes ? `<tr><td style="color: #64748b; font-weight: 600;">Notes:</td><td>${sponsor.notes}</td></tr>` : ''}
                 </table>
               </div>

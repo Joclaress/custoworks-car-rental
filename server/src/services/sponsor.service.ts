@@ -255,6 +255,7 @@ export async function createSponsorApplication(data: {
   adHeadline?: string;
   tagline?: string;
   location?: string;
+  imageUrl?: string;
   websiteUrl?: string;
   proposedPerk?: string;
   notes?: string;
@@ -275,6 +276,7 @@ export async function createSponsorApplication(data: {
     adHeadline: data.adHeadline?.trim() || data.businessName.trim(),
     tagline: data.tagline?.trim() || null,
     location: data.location?.trim() || 'Naga City & Camarines Sur',
+    imageUrl: data.imageUrl?.trim() || null,
     websiteUrl: data.websiteUrl?.trim() || null,
     proposedPerk: data.proposedPerk?.trim() || null,
     monthlyFee: 3000,

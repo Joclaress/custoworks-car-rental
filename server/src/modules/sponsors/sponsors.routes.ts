@@ -2,6 +2,9 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { parse } from '../../middleware/error';
 import { authenticate, requireStaff } from '../../middleware/auth';
+import { uploadImage } from '../../middleware/upload';
+import { saveFile } from '../../services/storage.service';
+import { AppError } from '../../lib/errors';
 import {
   getAllSponsors,
   getPublicActiveSponsors,
@@ -26,6 +29,7 @@ const sponsorInquireSchema = z.object({
   adHeadline: z.string().optional(),
   tagline: z.string().optional(),
   location: z.string().optional(),
+  imageUrl: z.string().optional(),
   websiteUrl: z.string().optional(),
   proposedPerk: z.string().optional(),
   notes: z.string().optional(),
@@ -52,7 +56,43 @@ sponsorRoutes.get('/', async (_req: Request, res: Response) => {
   }
 });
 
-// 2. PUBLIC: Apply for 14-day free trial banner placement
+// 2. PUBLIC & ADMIN: Upload sponsor banner photo / logo
+sponsorRoutes.post('/upload-photo', uploadImage, async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      throw AppError.badRequest('No image file uploaded');
+    }
+    const stored = await saveFile(req.file, { folder: 'sponsors', visibility: 'public' });
+    res.json({
+      success: true,
+      url: stored.url,
+      key: stored.key,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 2b. ADMIN: Upload or change photo for existing sponsor
+sponsorRoutes.post('/admin/:id/photo', authenticate, requireStaff, uploadImage, async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      throw AppError.badRequest('No image file uploaded');
+    }
+    const stored = await saveFile(req.file, { folder: 'sponsors', visibility: 'public' });
+    const id = String(req.params.id);
+    const updated = await updateSponsor(id, { imageUrl: stored.url });
+    res.json({
+      success: true,
+      url: stored.url,
+      sponsor: updated,
+    });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 3. PUBLIC: Apply for 14-day free trial banner placement
 sponsorRoutes.post('/inquire', async (req: Request, res: Response) => {
   try {
     const data = parse(sponsorInquireSchema, req.body);

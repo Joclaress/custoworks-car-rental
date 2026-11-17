@@ -25,6 +25,9 @@ import {
   Sparkles,
   ShieldCheck,
   Check,
+  Upload,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export interface SponsorPaymentRecord {
@@ -118,8 +121,15 @@ export const AdminSponsorsTab: React.FC = () => {
     location: 'Naga City, Camarines Sur',
     websiteUrl: '',
     proposedPerk: '',
+    imageUrl: '',
     notes: '',
   });
+
+  const [newSponsorPhotoFile, setNewSponsorPhotoFile] = useState<File | null>(null);
+  const [newSponsorPhotoPreview, setNewSponsorPhotoPreview] = useState<string | null>(null);
+  const [viewPhotoUrl, setViewPhotoUrl] = useState<{ url: string; title: string } | null>(null);
+  const [uploadingSponsorId, setUploadingSponsorId] = useState<string | null>(null);
+  const [isSubmittingNewSponsor, setIsSubmittingNewSponsor] = useState(false);
 
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
@@ -193,12 +203,42 @@ export const AdminSponsorsTab: React.FC = () => {
     }
   };
 
+  const handlePhotoUploadForExistingSponsor = async (sponsorId: string, file: File) => {
+    try {
+      setUploadingSponsorId(sponsorId);
+      const formData = new FormData();
+      formData.append('photo', file);
+      await api.post(`/sponsors/admin/${sponsorId}/photo`, formData);
+      await fetchSponsors();
+    } catch (err: any) {
+      alert(`Failed to upload photo: ${err.message || 'Unknown error'}`);
+    } finally {
+      setUploadingSponsorId(null);
+    }
+  };
+
   const handleCreateSponsor = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmittingNewSponsor(true);
     try {
-      await api.post('/sponsors/admin/create', newSponsorForm);
+      let finalImageUrl = newSponsorForm.imageUrl || '';
+      if (newSponsorPhotoFile) {
+        const formData = new FormData();
+        formData.append('photo', newSponsorPhotoFile);
+        const uploadRes = await api.post<{ success: boolean; url: string }>('/sponsors/upload-photo', formData);
+        if (uploadRes?.url) {
+          finalImageUrl = uploadRes.url;
+        }
+      }
+
+      await api.post('/sponsors/admin/create', {
+        ...newSponsorForm,
+        imageUrl: finalImageUrl || undefined,
+      });
       alert('✅ Sponsor created with 14-day free trial active!');
       setAddModalOpen(false);
+      setNewSponsorPhotoFile(null);
+      setNewSponsorPhotoPreview(null);
       setNewSponsorForm({
         businessName: '',
         contactPerson: '',
@@ -209,11 +249,14 @@ export const AdminSponsorsTab: React.FC = () => {
         location: 'Naga City, Camarines Sur',
         websiteUrl: '',
         proposedPerk: '',
+        imageUrl: '',
         notes: '',
       });
       fetchSponsors();
     } catch (err: any) {
-      alert(`Failed to create sponsor: ${err.message}`);
+      alert(`Failed to create sponsor: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSubmittingNewSponsor(false);
     }
   };
 
@@ -429,26 +472,76 @@ export const AdminSponsorsTab: React.FC = () => {
                     <tr key={s.id} className="hover:bg-slate-850/50 transition-colors">
                       {/* Business Info */}
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-white text-sm">{s.businessName}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-semibold border border-slate-700">
-                            {s.categoryLabel}
-                          </span>
-                          <span className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                            {s.placementSlot}
-                          </span>
+                        <div className="flex items-start gap-3">
+                          {/* Photo Thumbnail */}
+                          <div className="relative group shrink-0">
+                            {s.imageUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => setViewPhotoUrl({ url: s.imageUrl!, title: s.businessName })}
+                                className="w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 cursor-pointer group-hover:border-blue-500 transition shadow block relative"
+                                title="Click to view full photo"
+                              >
+                                <img
+                                  src={s.imageUrl}
+                                  alt={s.businessName}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                                  <Eye className="w-4 h-4 text-white" />
+                                </div>
+                              </button>
+                            ) : (
+                              <div className="w-12 h-12 rounded-xl border border-dashed border-slate-700 bg-slate-800/60 flex flex-col items-center justify-center text-slate-500">
+                                <ImageIcon className="w-5 h-5 text-slate-500" />
+                              </div>
+                            )}
+
+                            {/* Quick upload / change photo button */}
+                            <label className="block mt-1 text-[10px] text-blue-400 hover:text-blue-300 cursor-pointer text-center font-medium">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingSponsorId === s.id}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handlePhotoUploadForExistingSponsor(s.id, file);
+                                }}
+                              />
+                              {uploadingSponsorId === s.id ? (
+                                <span className="text-amber-400">Saving...</span>
+                              ) : s.imageUrl ? (
+                                'Change'
+                              ) : (
+                                '+ Photo'
+                              )}
+                            </label>
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="font-bold text-white text-sm">{s.businessName}</div>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-semibold border border-slate-700">
+                                {s.categoryLabel}
+                              </span>
+                              <span className="text-[11px] text-slate-400 truncate max-w-[180px]">
+                                {s.placementSlot}
+                              </span>
+                            </div>
+                            {s.websiteUrl && (
+                              <a
+                                href={s.websiteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 mt-1"
+                              >
+                                <span>Visit Link / Page</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
                         </div>
-                        {s.websiteUrl && (
-                          <a
-                            href={s.websiteUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] text-blue-400 hover:text-blue-300 mt-1"
-                          >
-                            <span>Visit Link / Page</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
                       </td>
 
                       {/* Contact Info */}
@@ -948,22 +1041,132 @@ export const AdminSponsorsTab: React.FC = () => {
                 />
               </div>
 
+              {/* Photo Upload Attachment */}
+              <div className="border border-slate-800 bg-slate-800/40 rounded-2xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                    Sponsor Photo / Logo / Storefront
+                  </label>
+                  <span className="text-[10px] text-slate-500">Optional</span>
+                </div>
+
+                {newSponsorPhotoPreview ? (
+                  <div className="relative rounded-xl overflow-hidden border border-slate-700 bg-black/40">
+                    <img
+                      src={newSponsorPhotoPreview}
+                      alt="Preview"
+                      className="w-full h-32 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewSponsorPhotoFile(null);
+                        setNewSponsorPhotoPreview(null);
+                      }}
+                      className="absolute top-2 right-2 bg-red-600/90 hover:bg-red-600 text-white p-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1 transition"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-slate-900/50 hover:bg-slate-900 transition text-center group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setNewSponsorPhotoFile(file);
+                          const reader = new FileReader();
+                          reader.onload = () => setNewSponsorPhotoPreview(reader.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <Upload className="w-6 h-6 text-slate-400 group-hover:text-blue-400 mb-1.5 transition" />
+                    <span className="text-xs font-semibold text-slate-300 group-hover:text-white">
+                      Click to attach photo / banner logo
+                    </span>
+                    <span className="text-[10px] text-slate-500 mt-0.5">
+                      PNG, JPG, WebP up to 10MB
+                    </span>
+                  </label>
+                )}
+              </div>
+
               <div className="pt-2 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white"
+                  disabled={isSubmittingNewSponsor}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all"
+                  disabled={isSubmittingNewSponsor}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all disabled:opacity-50 flex items-center gap-2"
                 >
-                  Create Sponsor (Start 14-Day Trial)
+                  {isSubmittingNewSponsor && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSubmittingNewSponsor ? 'Uploading & Creating...' : 'Create Sponsor (Start 14-Day Trial)'}</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: FULL PHOTO VIEWER */}
+      {viewPhotoUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setViewPhotoUrl(null)}
+        >
+          <div
+            className="bg-slate-900 border border-slate-800 rounded-3xl p-4 max-w-2xl w-full shadow-2xl relative space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-blue-400" />
+                <h4 className="font-bold text-white text-sm">{viewPhotoUrl.title} - Sponsor Photo</h4>
+              </div>
+              <button
+                onClick={() => setViewPhotoUrl(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden bg-black flex items-center justify-center max-h-[70vh]">
+              <img
+                src={viewPhotoUrl.url}
+                alt={viewPhotoUrl.title}
+                className="max-h-[70vh] w-auto max-w-full object-contain"
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+              <a
+                href={viewPhotoUrl.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-medium"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open original image in new tab</span>
+              </a>
+              <button
+                onClick={() => setViewPhotoUrl(null)}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
