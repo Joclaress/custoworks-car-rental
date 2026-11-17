@@ -12,6 +12,24 @@ async function bootstrap() {
   try {
     await prisma.$connect();
     console.log('📦 Connected to PostgreSQL Database');
+
+    // Clean up any test/temporary destinations created during automated test runs
+    await prisma.destination.updateMany({
+      where: {
+        OR: [
+          { name: { contains: 'test', mode: 'insensitive' } },
+          { slug: { contains: 'test', mode: 'insensitive' } },
+          { description: { contains: 'test', mode: 'insensitive' } },
+          { name: { contains: 'temporary', mode: 'insensitive' } },
+        ],
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+      },
+    }).catch((e) => console.warn('Test destination cleanup notice:', e.message));
+
     startBackgroundJobs();
   } catch (err: any) {
     console.error('⚠️ Could not connect to PostgreSQL database on startup:', err.message);

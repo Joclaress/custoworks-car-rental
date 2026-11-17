@@ -43,70 +43,52 @@ import { saveFileToGallery } from '../lib/screenshot';
 import { PointToPointTransferMap, LocationPoint } from '../components/PointToPointTransferMap';
 import { MapRouteAdsCarousel } from '../components/MapRouteAdsCarousel';
 
-interface DestinationMeta {
-  badgeText: string;
+interface DestinationTheme {
+  icon: string;
+  name: string;
   badgeClass: string;
-  rateSedan: string;
-  rateSuv: string;
-  rateVan: string;
 }
 
-const DESTINATION_META: Record<string, DestinationMeta> = {
+const DESTINATION_THEMES: Record<string, DestinationTheme> = {
   'naga-city': {
-    badgeText: '🏙️ Naga City · Sedan ₱1.5k • SUV ₱2k • Van ₱3.5k',
+    icon: '🏙️',
+    name: 'Naga City',
     badgeClass: 'bg-emerald-100 text-emerald-950 border border-emerald-300',
-    rateSedan: '₱1,500 (12h) / ₱2,000 (24h)',
-    rateSuv: '₱2,000 (12h) / ₱2,500 (24h)',
-    rateVan: '₱3,500 (12h) / ₱4,500 (24h)',
   },
   'camarines-sur': {
-    badgeText: '📍 CamSur · Sedan ₱1.7k • SUV ₱2.2k • Van ₱3.8k',
+    icon: '📍',
+    name: 'CamSur',
     badgeClass: 'bg-sky-100 text-sky-950 border border-sky-300',
-    rateSedan: '₱1,700 (12h) / ₱2,200 (24h)',
-    rateSuv: '₱2,200 (12h) / ₱2,700 (24h)',
-    rateVan: '₱3,800 (12h) / ₱4,800 (24h)',
   },
   'naga-airport': {
-    badgeText: '🛬 Naga Airport · Sedan ₱1.8k • Innova ₱2.5k • Van ₱3.5k',
+    icon: '🛬',
+    name: 'Naga Airport',
     badgeClass: 'bg-blue-100 text-blue-950 border border-blue-300',
-    rateSedan: '₱1,800 (Pickup & Drop)',
-    rateSuv: '₱2,500 (Pickup & Drop)',
-    rateVan: '₱3,500 (Pickup & Drop)',
   },
   'bicol-intl-airport': {
-    badgeText: '✈️ BIA Airport · Sedan ₱4.5k • Innova ₱6k • Van ₱7.5k',
+    icon: '✈️',
+    name: 'BIA Airport',
     badgeClass: 'bg-amber-100 text-amber-950 border border-amber-300',
-    rateSedan: '₱4,500 (Pickup & Drop)',
-    rateSuv: '₱6,000 (Pickup & Drop)',
-    rateVan: '₱7,500 (Pickup & Drop)',
   },
   'albay-daet': {
-    badgeText: '🌋 Albay / Daet · Sedan ₱2k • SUV ₱2.5k • Van ₱4.2k',
+    icon: '🌋',
+    name: 'Albay / Daet',
     badgeClass: 'bg-purple-100 text-purple-950 border border-purple-300',
-    rateSedan: '₱2,000 (12h) / ₱2,500 (24h)',
-    rateSuv: '₱2,500 (12h) / ₱3,000 (24h)',
-    rateVan: '₱4,200 (12h) / ₱5,200 (24h)',
   },
   'sorsogon-labo': {
-    badgeText: '🌊 Sorsogon / Labo · Sedan ₱2.5k • SUV ₱3k • Van ₱5.8k',
+    icon: '🌊',
+    name: 'Sorsogon / Labo',
     badgeClass: 'bg-teal-100 text-teal-950 border border-teal-300',
-    rateSedan: '₱2,500 (12h) / ₱3,000 (24h)',
-    rateSuv: '₱3,000 (12h) / ₱3,500 (24h)',
-    rateVan: '₱7,000 (12h) / ₱5,800 (24h)',
   },
   'manila': {
-    badgeText: '🛣️ Manila Express · Sedan ₱4.5k • SUV ₱5.5k • Van ₱7.5k',
+    icon: '🛣️',
+    name: 'Manila Express',
     badgeClass: 'bg-rose-100 text-rose-950 border border-rose-300',
-    rateSedan: '₱4,500 (12h) / ₱5,000 (24h)',
-    rateSuv: '₱5,500 (12h) / ₱6,000 (24h)',
-    rateVan: '₱9,000 (12h) / ₱7,500 (24h)',
   },
   'baguio': {
-    badgeText: '🌲 Baguio · Sedan ₱5.5k • SUV ₱6.5k • Van ₱9k',
+    icon: '🌲',
+    name: 'Baguio',
     badgeClass: 'bg-indigo-100 text-indigo-950 border border-indigo-300',
-    rateSedan: '₱5,500 (12h)',
-    rateSuv: '₱6,500 (12h) / ₱7,000 (24h)',
-    rateVan: '₱10,000 (12h) / ₱9,000 (24h)',
   },
 };
 
@@ -124,6 +106,7 @@ export const BookingWizardPage: React.FC = () => {
   // Master Data
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [rateMatrix, setRateMatrix] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [additionalFees, setAdditionalFees] = useState<any[]>([]);
 
@@ -264,12 +247,22 @@ export const BookingWizardPage: React.FC = () => {
   useEffect(() => {
     const initData = async () => {
       try {
-        const [vRes, dRes, pRes, fRes] = await Promise.all([
+        const [vRes, pListRes, pRes, fRes] = await Promise.all([
           api.get<{ data: Vehicle[] }>('/vehicles'),
-          api.get<{ destinations: Destination[] }>('/pricing/destinations'),
+          api.get<{ destinations: Destination[]; rates: any[] }>('/pricing/pricelist', { forceRefresh: true }),
           api.get<{ methods: PaymentMethod[] }>('/payments/methods'),
           api.get<{ fees: any[] }>('/pricing/additional-fees'),
         ]);
+
+        // Clean destinations: filter out any test or temporary items
+        const cleanDestinations = (pListRes.destinations || []).filter(
+          (d) =>
+            d.isActive !== false &&
+            !d.name.toLowerCase().includes('test') &&
+            !d.slug.toLowerCase().includes('test') &&
+            !d.description?.toLowerCase().includes('test') &&
+            !d.name.toLowerCase().includes('temporary')
+        );
 
         // Sort fleet so Mitsubishi Mirage G4 AT is always first
         const sortedVehicles = [...vRes.data].sort((a, b) => {
@@ -281,7 +274,8 @@ export const BookingWizardPage: React.FC = () => {
         });
 
         setVehicles(sortedVehicles);
-        setDestinations(dRes.destinations);
+        setDestinations(cleanDestinations);
+        setRateMatrix(pListRes.rates || []);
         setPaymentMethods(pRes.methods);
         setAdditionalFees(fRes.fees);
 
@@ -303,17 +297,17 @@ export const BookingWizardPage: React.FC = () => {
 
         if (paramTransfer?.toLowerCase().includes('bia') || paramTransfer?.toLowerCase().includes('airport')) {
           setSelectedRentalType('WITH_DRIVER');
-          const biaDest = dRes.destinations.find((d) => d.slug === 'bicol-intl-airport');
+          const biaDest = cleanDestinations.find((d) => d.slug === 'bicol-intl-airport');
           if (biaDest) setSelectedDestinationId(biaDest.id);
           if (paramCategory) {
             const matchVeh = sortedVehicles.find((v) => v.category === paramCategory);
             if (matchVeh) setSelectedVehicleId(matchVeh.id);
           }
         } else if (paramDest) {
-          const matchDest = dRes.destinations.find((d) => d.id === paramDest || d.slug === paramDest);
+          const matchDest = cleanDestinations.find((d) => d.id === paramDest || d.slug === paramDest);
           if (matchDest) setSelectedDestinationId(matchDest.id);
-        } else if (dRes.destinations.length > 0) {
-          setSelectedDestinationId(dRes.destinations[0].id);
+        } else if (cleanDestinations.length > 0) {
+          setSelectedDestinationId(cleanDestinations[0].id);
         }
 
         const deliveryZones = fRes.fees.filter((f) => f.type === 'DELIVERY');
@@ -555,6 +549,94 @@ export const BookingWizardPage: React.FC = () => {
       }
     }
   }, [pickupAt, returnAt, calendarEvents, vehicles]);
+
+  // Helper to get live rates from database rate matrix for a given destination and vehicle
+  const getDestinationRateInfo = (destination: Destination) => {
+    const isAirport = destination.slug === 'bicol-intl-airport' || destination.slug === 'naga-airport';
+
+    // 1. Specific vehicle rate for this destination from database rate matrix
+    const veh = vehicles.find((v) => v.id === selectedVehicleId);
+    let vehicleRateStr = 'From ₱1,500';
+
+    if (veh && rateMatrix.length > 0) {
+      const candidateVehicleIds = vehicles
+        .filter((v) => v.id === veh.id || (veh.model && v.model === veh.model))
+        .map((v) => v.id);
+
+      const targetRentalType = isAirport ? 'WITH_DRIVER' : selectedRentalType;
+      const vehRates = rateMatrix.filter(
+        (r) =>
+          r.destinationId === destination.id &&
+          candidateVehicleIds.includes(r.vehicleId) &&
+          r.rentalType === targetRentalType
+      );
+
+      const r12 = vehRates.find((r) => r.duration === 'HOURS_12')?.amount;
+      const r24 = vehRates.find((r) => r.duration === 'HOURS_24')?.amount;
+
+      if (isAirport) {
+        const airportAmt = r24 || r12 || vehRates[0]?.amount;
+        if (airportAmt) {
+          vehicleRateStr = `${formatPeso(Number(airportAmt))} (Pickup & Drop)`;
+        }
+      } else if (r12 && r24) {
+        const n12 = Number(r12);
+        const n24 = Number(r24);
+        if (n12 === n24) {
+          vehicleRateStr = `${formatPeso(n24)} (Flat Rate)`;
+        } else {
+          const low = Math.min(n12, n24);
+          const high = Math.max(n12, n24);
+          vehicleRateStr = `${formatPeso(low)} (12h) / ${formatPeso(high)} (24h)`;
+        }
+      } else if (r24) {
+        vehicleRateStr = `${formatPeso(Number(r24))} (24h)`;
+      } else if (r12) {
+        vehicleRateStr = `${formatPeso(Number(r12))} (12h)`;
+      } else if (vehRates.length > 0 && vehRates[0].amount) {
+        vehicleRateStr = `${formatPeso(Number(vehRates[0].amount))} (${vehRates[0].duration === 'HOURS_12' ? '12h' : '24h'})`;
+      } else {
+        const base24 = veh.startingRates?.SELF_DRIVE || (veh.category === 'SEDAN' ? 2000 : veh.category === 'SUV_MPV' ? 2500 : 5000);
+        vehicleRateStr = `${formatPeso(base24)} /24h`;
+      }
+    } else if (veh) {
+      const base24 = veh.startingRates?.SELF_DRIVE || (veh.category === 'SEDAN' ? 2000 : veh.category === 'SUV_MPV' ? 2500 : 5000);
+      vehicleRateStr = `${formatPeso(base24)} /24h`;
+    }
+
+    // 2. Compute badge rates (Sedan, SUV, Van) from database rate matrix for this destination
+    const getMinForCategory = (cat: 'SEDAN' | 'SUV_MPV' | 'VAN', defaultAmt: number) => {
+      const catVehicleIds = vehicles.filter((v) => v.category === cat).map((v) => v.id);
+      const catRates = rateMatrix.filter(
+        (r) =>
+          r.destinationId === destination.id &&
+          catVehicleIds.includes(r.vehicleId) &&
+          r.amount &&
+          Number(r.amount) > 0
+      );
+      if (catRates.length > 0) {
+        const minAmt = Math.min(...catRates.map((r) => Number(r.amount)));
+        return minAmt >= 1000 ? `₱${(minAmt / 1000).toFixed(minAmt % 1000 === 0 ? 0 : 1)}k` : `₱${minAmt}`;
+      }
+      return `₱${(defaultAmt / 1000).toFixed(1)}k`;
+    };
+
+    const sedanBadge = getMinForCategory('SEDAN', 1500);
+    const suvBadge = getMinForCategory('SUV_MPV', 2000);
+    const vanBadge = getMinForCategory('VAN', 3500);
+
+    const badgeTheme = DESTINATION_THEMES[destination.slug] || {
+      icon: '📍',
+      name: destination.name,
+      badgeClass: 'bg-slate-100 text-slate-800 border border-slate-300',
+    };
+
+    return {
+      badgeText: `${badgeTheme.icon} ${badgeTheme.name} · Sedan ${sedanBadge} • SUV ${suvBadge} • Van ${vanBadge}`,
+      badgeClass: badgeTheme.badgeClass,
+      vehicleRate: vehicleRateStr,
+    };
+  };
 
   // Recalculate quote
   const fetchQuote = async () => {
@@ -1488,20 +1570,7 @@ export const BookingWizardPage: React.FC = () => {
                   const isBia = d.slug === 'bicol-intl-airport';
                   const isNagaAirport = d.slug === 'naga-airport';
                   const isAirport = isBia || isNagaAirport;
-                  const meta = DESTINATION_META[d.slug] || {
-                    badgeText: `📍 ${d.name}`,
-                    badgeClass: 'bg-slate-100 text-slate-800 border border-slate-300',
-                    rateSedan: 'From ₱1,500',
-                    rateSuv: 'From ₱2,000',
-                    rateVan: 'From ₱3,500',
-                  };
-
-                  let vehicleRate = meta.rateSedan;
-                  if (selectedVehicle?.category === 'VAN') {
-                    vehicleRate = meta.rateVan;
-                  } else if (selectedVehicle?.category === 'SUV_MPV') {
-                    vehicleRate = meta.rateSuv;
-                  }
+                  const rateInfo = getDestinationRateInfo(d);
 
                   return (
                     <div
@@ -1521,8 +1590,8 @@ export const BookingWizardPage: React.FC = () => {
                       }`}
                     >
                       <div>
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider mb-2.5 ${meta.badgeClass}`}>
-                          {meta.badgeText}
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider mb-2.5 ${rateInfo.badgeClass}`}>
+                          {rateInfo.badgeText}
                         </span>
                         <div className="flex justify-between items-center mb-1">
                           <h4 className="font-extrabold text-base text-slate-900">{d.name}</h4>
@@ -1534,11 +1603,11 @@ export const BookingWizardPage: React.FC = () => {
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-semibold truncate max-w-[130px]" title={selectedVehicle?.name}>
+                        <span className="text-slate-500 font-semibold truncate max-w-[140px]" title={selectedVehicle?.name}>
                           {selectedVehicle ? `${selectedVehicle.name}:` : 'Official Rate:'}
                         </span>
                         <span className="font-extrabold text-brand-blue bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/80">
-                          {vehicleRate}
+                          {rateInfo.vehicleRate}
                         </span>
                       </div>
                     </div>

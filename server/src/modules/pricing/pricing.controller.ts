@@ -39,7 +39,15 @@ export async function getPricelist(_req: Request, res: Response) {
 
   const [destinations, vehicles, rates, additionalFees] = await Promise.all([
     prisma.destination.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: {
+        deletedAt: null,
+        isActive: true,
+        NOT: [
+          { name: { contains: 'test', mode: 'insensitive' } },
+          { slug: { contains: 'test', mode: 'insensitive' } },
+          { description: { contains: 'test', mode: 'insensitive' } },
+        ],
+      },
       orderBy: { sortOrder: 'asc' },
     }),
     prisma.vehicle.findMany({
@@ -101,7 +109,15 @@ export async function listDestinations(_req: Request, res: Response) {
   if (cached) return res.json(cached);
 
   const destinations = await prisma.destination.findMany({
-    where: { deletedAt: null, isActive: true },
+    where: {
+      deletedAt: null,
+      isActive: true,
+      NOT: [
+        { name: { contains: 'test', mode: 'insensitive' } },
+        { slug: { contains: 'test', mode: 'insensitive' } },
+        { description: { contains: 'test', mode: 'insensitive' } },
+      ],
+    },
     orderBy: { sortOrder: 'asc' },
   });
   const payload = { destinations };
@@ -111,7 +127,13 @@ export async function listDestinations(_req: Request, res: Response) {
 
 export async function adminListDestinations(_req: Request, res: Response) {
   const destinations = await prisma.destination.findMany({
-    where: { deletedAt: null },
+    where: {
+      deletedAt: null,
+      NOT: [
+        { name: { contains: 'test', mode: 'insensitive' } },
+        { slug: { contains: 'test', mode: 'insensitive' } },
+      ],
+    },
     orderBy: { sortOrder: 'asc' },
   });
   res.json({ destinations });
