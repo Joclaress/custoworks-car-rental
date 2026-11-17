@@ -587,3 +587,97 @@ export async function notifyAdminPartnerApplicationAlert(app: any) {
   }
 }
 
+/** Email alert sent to custoworks1@gmail.com when a local business submits a Direct Sponsor Banner Application (14-day trial). */
+export async function notifyAdminSponsorApplicationAlert(sponsor: any) {
+  try {
+    const adminEmail = env.ADMIN_NOTIFY_EMAIL || 'custoworks1@gmail.com';
+    const subject = `📢 [New Sponsor Banner Application] ${sponsor.businessName} (14-Day Free Trial)`;
+
+    const html = `
+      <!doctype html>
+      <html>
+      <body style="margin: 0; background-color: #f1f5f9; font-family: Segoe UI, -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif; padding: 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); padding: 24px; color: #ffffff; text-align: left;">
+              <span style="background: #fbbf24; color: #78350f; font-size: 11px; font-weight: 900; padding: 3px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 8px;">
+                📢 14-Day Free Trial Banner Application
+              </span>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
+                New Direct Sponsor Application
+              </h1>
+              <p style="margin: 6px 0 0; font-size: 13px; color: #bfdbfe;">
+                Business: <strong style="color: #ffffff; font-size: 14px;">${sponsor.businessName}</strong> (${sponsor.categoryLabel || sponsor.category})
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 24px;">
+              <!-- Trial Details -->
+              <div style="background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 14px; margin-bottom: 20px; color: #78350f; font-size: 13px;">
+                <strong>🎁 14-Day Free Trial Activated:</strong> Walang bayad upfront.<br />
+                Pagkatapos ng 14 days, buwanang bayad ay <strong>₱3,000 / month</strong> (GCash / Maya / Bank Transfer / Cash).
+              </div>
+
+              <!-- Sponsor Contact Card -->
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 12px; font-size: 14px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                  Sponsor & Contact Information
+                </h3>
+                <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 13px; color: #334155;">
+                  <tr>
+                    <td width="150" style="color: #64748b; font-weight: 600;">Business Name:</td>
+                    <td style="font-weight: 800; color: #1e3a8a;">${sponsor.businessName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Target Slot:</td>
+                    <td style="font-weight: 700;">${sponsor.placementSlot}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Contact Person:</td>
+                    <td style="font-weight: 700;">${sponsor.contactPerson}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Mobile / Viber:</td>
+                    <td><strong style="color: #047857; font-size: 14px;">${sponsor.phone}</strong></td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b; font-weight: 600;">Email:</td>
+                    <td>${sponsor.email ? `<a href="mailto:${sponsor.email}" style="color: #2563eb; text-decoration: none;">${sponsor.email}</a>` : 'Not provided'}</td>
+                  </tr>
+                  ${sponsor.proposedPerk ? `<tr><td style="color: #64748b; font-weight: 600;">Special Renter Perk:</td><td style="color: #059669; font-weight: 700;">${sponsor.proposedPerk}</td></tr>` : ''}
+                  ${sponsor.websiteUrl ? `<tr><td style="color: #64748b; font-weight: 600;">Website / FB Link:</td><td><a href="${sponsor.websiteUrl}" target="_blank" style="color: #2563eb;">${sponsor.websiteUrl}</a></td></tr>` : ''}
+                  ${sponsor.notes ? `<tr><td style="color: #64748b; font-weight: 600;">Notes:</td><td>${sponsor.notes}</td></tr>` : ''}
+                </table>
+              </div>
+
+              <!-- Admin Action CTA Button -->
+              <div style="text-align: center; margin-bottom: 12px;">
+                <a href="${env.CLIENT_URL}/admin" style="display: inline-block; background: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 14px; padding: 14px 28px; border-radius: 12px; text-decoration: none; box-shadow: 0 4px 10px rgba(30, 58, 138, 0.3);">
+                  Open Admin Panel (Sponsors & Ads Tab) →
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px; text-align: center; font-size: 11px; color: #64748b;">
+              <strong>Custoworks Car Rental Services</strong> · Carnation St. CBD II Brgy. Triangulo (Beside SM), Naga City<br />
+              Local Sponsor Placement Program · custoworks1@gmail.com
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const text = `📢 NEW SPONSOR BANNER APPLICATION (14-Day Free Trial)\n\nBusiness: ${sponsor.businessName}\nSlot: ${sponsor.placementSlot}\nContact Person: ${sponsor.contactPerson}\nPhone: ${sponsor.phone}\nEmail: ${sponsor.email || 'N/A'}\nPerk: ${sponsor.proposedPerk || 'None'}\nLink: ${sponsor.websiteUrl || 'None'}\n\nOpen Admin Panel: ${env.CLIENT_URL}/admin`;
+
+    await sendEmail(adminEmail, subject, html, text);
+    console.log(`📧 [Admin Alert] Dispatched sponsor application email to ${adminEmail} for business=${sponsor.businessName}`);
+  } catch (err) {
+    console.error('Failed to notify admin of new sponsor application:', err);
+  }
+}
+

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { prisma } from '../lib/prisma';
+import { notifyAdminSponsorApplicationAlert } from './notification.service';
 
 export interface SponsorPaymentRecord {
   id: string;
@@ -290,6 +291,12 @@ export async function createSponsorApplication(data: {
 
   sponsors.unshift(newSponsor);
   await saveSponsors(sponsors);
+
+  // Send real-time email notification to custoworks1@gmail.com
+  notifyAdminSponsorApplicationAlert(newSponsor).catch((err) => {
+    console.error('Failed to send sponsor application notification:', err);
+  });
+
   return computeSponsorMetrics(newSponsor);
 }
 
