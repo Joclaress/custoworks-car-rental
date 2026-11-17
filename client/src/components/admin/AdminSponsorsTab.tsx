@@ -28,6 +28,7 @@ import {
   Upload,
   Camera,
   Image as ImageIcon,
+  Edit3,
 } from 'lucide-react';
 
 export interface SponsorPaymentRecord {
@@ -130,6 +131,13 @@ export const AdminSponsorsTab: React.FC = () => {
   const [viewPhotoUrl, setViewPhotoUrl] = useState<{ url: string; title: string } | null>(null);
   const [uploadingSponsorId, setUploadingSponsorId] = useState<string | null>(null);
   const [isSubmittingNewSponsor, setIsSubmittingNewSponsor] = useState(false);
+
+  // Edit Days modal state
+  const [editDaysModalSponsor, setEditDaysModalSponsor] = useState<Sponsor | null>(null);
+  const [editDaysValue, setEditDaysValue] = useState<number>(30);
+  const [editExpiryDate, setEditExpiryDate] = useState<string>('');
+  const [editSubscriptionType, setEditSubscriptionType] = useState<'PAID' | 'TRIAL'>('PAID');
+  const [isSavingDays, setIsSavingDays] = useState(false);
 
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
@@ -260,6 +268,69 @@ export const AdminSponsorsTab: React.FC = () => {
     }
   };
 
+  const openEditDaysModal = (sponsor: Sponsor) => {
+    setEditDaysModalSponsor(sponsor);
+    const days = sponsor.daysRemaining ?? (sponsor.isExpired ? 0 : 14);
+    setEditDaysValue(days);
+    const isPaid =
+      sponsor.effectiveStatus === 'PAID_ACTIVE' ||
+      sponsor.effectiveStatus === 'PAID_EXPIRED' ||
+      Boolean(sponsor.paidUntil);
+    setEditSubscriptionType(isPaid ? 'PAID' : 'TRIAL');
+
+    const expiryTimestamp = isPaid
+      ? (sponsor.paidUntil ? new Date(sponsor.paidUntil).getTime() : Date.now() + days * 86400000)
+      : new Date(sponsor.trialEndsAt).getTime();
+
+    const d = new Date(expiryTimestamp);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    setEditExpiryDate(`${yyyy}-${mm}-${dd}`);
+  };
+
+  const handleDaysValueChange = (newDays: number) => {
+    const days = Math.max(0, newDays);
+    setEditDaysValue(days);
+    const targetDate = new Date(Date.now() + days * 86400000);
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    setEditExpiryDate(`${yyyy}-${mm}-${dd}`);
+  };
+
+  const handleExpiryDateChange = (dateStr: string) => {
+    setEditExpiryDate(dateStr);
+    if (dateStr) {
+      const target = new Date(`${dateStr}T23:59:59`).getTime();
+      const diffDays = Math.max(0, Math.ceil((target - Date.now()) / 86400000));
+      setEditDaysValue(diffDays);
+    }
+  };
+
+  const handleSaveDaysAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editDaysModalSponsor) return;
+    setIsSavingDays(true);
+    try {
+      const res = await api.patch<{ success: boolean; message: string; sponsor: Sponsor }>(
+        `/sponsors/admin/${editDaysModalSponsor.id}/adjust-days`,
+        {
+          daysRemaining: editDaysValue,
+          subscriptionType: editSubscriptionType,
+          newExpiryDate: editExpiryDate ? new Date(`${editExpiryDate}T23:59:59`).toISOString() : undefined,
+        }
+      );
+      alert(`✅ Success: ${res?.message || 'Days remaining updated successfully!'}`);
+      setEditDaysModalSponsor(null);
+      fetchSponsors();
+    } catch (err: any) {
+      alert(`Failed to update days: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSavingDays(false);
+    }
+  };
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(label);
@@ -385,7 +456,7 @@ export const AdminSponsorsTab: React.FC = () => {
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
             Sponsors pay flat <strong className="text-white">₱3,000 / month</strong> to keep their banner active. They can pay via{' '}
-            <strong className="text-cyan-400">GCash / Maya: 0961 722 5326</strong>, BDO Bank Transfer, or Cash at our Naga Office (Beside SM City Naga).
+            <strong className="text-cyan-400">GCash: 0995 382 7972 | Maya: 0961 722 5326</strong>, BDO Bank Transfer, or Cash at our Naga Office (Beside SM City Naga).
           </p>
         </div>
 
@@ -393,7 +464,7 @@ export const AdminSponsorsTab: React.FC = () => {
           <button
             onClick={() =>
               copyToClipboard(
-                `Custoworks Car Rental Official Sponsor Payment Details:\n• GCash / Maya: 0961 722 5326 (Custoworks / Charleine Oclares)\n• Monthly Rate: ₱3,000/month\n• Office: Carnation St. CBD II Brgy. Triangulo (Beside SM City), Naga City`,
+                `Custoworks Car Rental Official Sponsor Payment Details:\n• GCash: 0995 382 7972 (Jericho Oclares)\n• Maya / Hotline: 0961 722 5326 (Custoworks / Charleine Oclares)\n• Monthly Rate: ₱3,000/month\n• Office: Carnation St. CBD II Brgy. Triangulo (Beside SM City), Naga City`,
                 'all-details'
               )
             }
@@ -612,6 +683,19 @@ export const AdminSponsorsTab: React.FC = () => {
                             </div>
                           </div>
                         )}
+
+                        {/* Quick Edit Days Left / Custom Expiration Button */}
+                        <div className="mt-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditDaysModal(s)}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 px-2 py-0.5 rounded-md border border-cyan-500/30 transition shadow-sm"
+                            title="Edit remaining days or change expiration date"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            <span>Edit Days Left</span>
+                          </button>
+                        </div>
                       </td>
 
                       {/* Banner Display Toggle */}
@@ -853,7 +937,7 @@ export const AdminSponsorsTab: React.FC = () => {
                 Pre-Written Reminder Message:
               </label>
               {(() => {
-                const reminderText = `Good day ${reminderModalSponsor.contactPerson}! This is Custoworks Car Rental Naga City.\n\nYour 14-day free trial banner on our website (custoworkscarrental.online) for ${reminderModalSponsor.businessName} is expiring/due for renewal.\n\nTo keep your banner active and reaching over 5,000+ monthly incoming tourists and car renters in Naga City:\n• Monthly Sponsor Fee: ₱3,000 / month\n• GCash / Maya: 0961 722 5326 (Custoworks / Charleine Oclares)\n• Bank Transfer: BDO Naga\n• Or visit our Naga Garage beside SM City Naga.\n\nOnce paid, please reply with your screenshot or reference number so we can extend your active banner immediately. Thank you!`;
+                const reminderText = `Good day ${reminderModalSponsor.contactPerson}! This is Custoworks Car Rental Naga City.\n\nYour 14-day free trial banner on our website (custoworkscarrental.online) for ${reminderModalSponsor.businessName} is expiring/due for renewal.\n\nTo keep your banner active and reaching over 5,000+ monthly incoming tourists and car renters in Naga City:\n• Monthly Sponsor Fee: ₱3,000 / month\n• GCash: 0995 382 7972 (Jericho Oclares) | Maya: 0961 722 5326\n• Bank Transfer: BDO Naga\n• Or visit our Naga Garage beside SM City Naga.\n\nOnce paid, please reply with your screenshot or reference number so we can extend your active banner immediately. Thank you!`;
 
                 return (
                   <div className="space-y-3">
@@ -1167,6 +1251,153 @@ export const AdminSponsorsTab: React.FC = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL 6: EDIT DAYS LEFT / CUSTOM EXPIRATION */}
+      {editDaysModalSponsor && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => setEditDaysModalSponsor(null)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div>
+              <div className="flex items-center gap-2 text-xs font-black text-cyan-400 uppercase tracking-wider mb-1">
+                <Edit3 className="w-4 h-4" />
+                <span>Adjust Expiration & Days Left</span>
+              </div>
+              <h3 className="text-xl font-black text-white">{editDaysModalSponsor.businessName}</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Manually edit how many days remain before this sponsor's banner expires.
+              </p>
+            </div>
+
+            <form onSubmit={handleSaveDaysAdjustment} className="space-y-4">
+              {/* Subscription Tier Toggle */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Subscription Tier
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditSubscriptionType('PAID')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${
+                      editSubscriptionType === 'PAID'
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                    }`}
+                  >
+                    💎 Paid Partner (₱3k/mo)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditSubscriptionType('TRIAL')}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold transition border ${
+                      editSubscriptionType === 'TRIAL'
+                        ? 'bg-blue-600 text-white border-blue-500 shadow-md'
+                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                    }`}
+                  >
+                    ✨ Free Trial (14 Days)
+                  </button>
+                </div>
+              </div>
+
+              {/* Days Left Input */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Days Left (Count Down)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="3650"
+                    required
+                    value={editDaysValue}
+                    onChange={(e) => handleDaysValueChange(parseInt(e.target.value) || 0)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-lg font-black text-white focus:outline-none focus:border-cyan-500"
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                    days left
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Quick Presets:
+                </label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: '7 Days', days: 7 },
+                    { label: '14 Days', days: 14 },
+                    { label: '30 Days (1m)', days: 30 },
+                    { label: '60 Days (2m)', days: 60 },
+                    { label: '90 Days (3m)', days: 90 },
+                    { label: '180 Days (6m)', days: 180 },
+                    { label: '365 Days (1y)', days: 365 },
+                    { label: 'Expired (0d)', days: 0 },
+                  ].map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => handleDaysValueChange(p.days)}
+                      className={`text-[10px] font-semibold py-1.5 px-2 rounded-lg border transition ${
+                        editDaysValue === p.days
+                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                          : 'bg-slate-800/80 text-slate-300 border-slate-700/80 hover:bg-slate-800'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Calculated Expiration Date Picker */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Calculated Expiration Date
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={editExpiryDate}
+                  onChange={(e) => handleExpiryDateChange(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Changing the date or days will automatically synchronize both.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditDaysModalSponsor(null)}
+                  disabled={isSavingDays}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingDays}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-cyan-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSavingDays && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSavingDays ? 'Saving...' : 'Save Days Left'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

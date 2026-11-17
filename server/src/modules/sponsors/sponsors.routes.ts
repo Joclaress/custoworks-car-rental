@@ -12,6 +12,7 @@ import {
   recordSponsorPayment,
   toggleSponsorActive,
   updateSponsor,
+  adjustSponsorDays,
   deleteSponsor,
   Sponsor,
 } from '../../services/sponsor.service';
@@ -148,8 +149,8 @@ sponsorRoutes.get('/admin/all', authenticate, requireStaff, async (_req: Request
         monthlySubscriptionRate: 3000,
         paymentInstructions: {
           gcash: {
-            number: '0961 722 5326',
-            name: 'Custoworks Car Rental / Charleine Oclares',
+            number: '0995 382 7972',
+            name: 'Custoworks Car Rental / Jericho Oclares',
           },
           maya: {
             number: '0961 722 5326',
@@ -221,6 +222,26 @@ sponsorRoutes.patch('/admin/:id', authenticate, requireStaff, async (req: Reques
     const id = String(req.params.id);
     const updated = await updateSponsor(id, req.body);
     res.json({ success: true, sponsor: updated });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 7b. ADMIN: Adjust days remaining / custom expiry date
+sponsorRoutes.patch('/admin/:id/adjust-days', authenticate, requireStaff, async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const { daysRemaining, subscriptionType, newExpiryDate } = req.body;
+    const updated = await adjustSponsorDays(id, {
+      daysRemaining: typeof daysRemaining === 'number' ? daysRemaining : Number(daysRemaining),
+      subscriptionType,
+      newExpiryDate,
+    });
+    res.json({
+      success: true,
+      message: `Updated expiration for ${updated.businessName}. Now has ${updated.daysRemaining} days left.`,
+      sponsor: updated,
+    });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }

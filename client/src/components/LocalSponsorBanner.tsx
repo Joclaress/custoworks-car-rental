@@ -657,7 +657,7 @@ export const LocalSponsorBanner: React.FC = () => {
                         Pagkatapos ng inyong 14-day trial, <strong>₱3,000 / month</strong> lamang para mapanatiling active ang inyong banner. Puwedeng bayaran via:
                       </p>
                       <ul className="text-[11px] text-slate-700 font-medium space-y-1 mt-1.5 list-disc list-inside">
-                        <li><strong>GCash / Maya:</strong> 0961 722 5326 (Custoworks / Charleine Oclares)</li>
+                        <li><strong>GCash:</strong> 0995 382 7972 (Jericho Oclares) | <strong>Maya:</strong> 0961 722 5326 (Custoworks)</li>
                         <li><strong>Bank Transfer:</strong> BDO Unibank Naga City</li>
                         <li><strong>Cash:</strong> Custoworks Naga Garage (Beside SM City Naga)</li>
                       </ul>

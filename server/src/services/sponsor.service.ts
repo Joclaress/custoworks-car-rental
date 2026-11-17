@@ -398,6 +398,61 @@ export async function updateSponsor(sponsorId: string, updates: Partial<Sponsor>
 }
 
 /**
+ * Adjusts days remaining or expiration date for a sponsor (Admin control)
+ */
+export async function adjustSponsorDays(
+  sponsorId: string,
+  data: { daysRemaining?: number; subscriptionType?: 'PAID' | 'TRIAL'; newExpiryDate?: string }
+): Promise<Sponsor> {
+  const sponsors = await getAllSponsors();
+  const idx = sponsors.findIndex((s) => s.id === sponsorId);
+  if (idx === -1) {
+    throw new Error('Sponsor not found');
+  }
+
+  const sponsor = sponsors[idx];
+  const now = Date.now();
+  let targetTimestamp: number;
+
+  if (data.newExpiryDate) {
+    targetTimestamp = new Date(data.newExpiryDate).getTime();
+  } else {
+    const days = typeof data.daysRemaining === 'number' ? data.daysRemaining : 30;
+    targetTimestamp = now + Math.max(0, days) * 86400000;
+  }
+
+  const targetIso = new Date(targetTimestamp).toISOString();
+  // Determine if it should be treated as PAID or TRIAL
+  const isPaid = data.subscriptionType
+    ? data.subscriptionType === 'PAID'
+    : (sponsor.status === 'PAID_ACTIVE' || sponsor.status === 'PAID_EXPIRED' || Boolean(sponsor.paidUntil));
+
+  if (isPaid) {
+    sponsor.paidUntil = targetIso;
+    if (targetTimestamp > now) {
+      sponsor.status = 'PAID_ACTIVE';
+      sponsor.isActiveOnWebsite = true;
+    } else {
+      sponsor.status = 'PAID_EXPIRED';
+    }
+  } else {
+    sponsor.trialEndsAt = targetIso;
+    sponsor.paidUntil = null;
+    if (targetTimestamp > now) {
+      sponsor.status = 'TRIAL_ACTIVE';
+      sponsor.isActiveOnWebsite = true;
+    } else {
+      sponsor.status = 'TRIAL_EXPIRED';
+    }
+  }
+
+  sponsor.updatedAt = new Date().toISOString();
+  sponsors[idx] = sponsor;
+  await saveSponsors(sponsors);
+  return computeSponsorMetrics(sponsor);
+}
+
+/**
  * Deletes a sponsor
  */
 export async function deleteSponsor(sponsorId: string): Promise<boolean> {
