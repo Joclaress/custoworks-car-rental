@@ -10,6 +10,7 @@ export interface Quotation {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  ccEmail?: string | null;
   pickupLocation: string;
   dropoffLocation: string;
   vehicleName: string;
@@ -18,6 +19,8 @@ export interface Quotation {
   pickupDate: string;
   returnDate: string;
   durationLabel: string;
+  numberOfDays?: number;
+  dailyRate?: number;
   baseRate: number;
   driverFee: number;
   deliveryFee: number;
@@ -428,8 +431,13 @@ export function generateQuotationPdfBuffer(q: Quotation): Promise<Buffer> {
 
     tableY += 24;
 
+    const daysMultiplier =
+      q.numberOfDays && q.numberOfDays > 1 && q.dailyRate
+        ? ` (${q.numberOfDays} Days @ PHP ${q.dailyRate.toLocaleString()}/day)`
+        : ` (${q.durationLabel})`;
+
     const items = [
-      { desc: `Base Vehicle Rental (${q.durationLabel})`, amt: `PHP ${q.baseRate.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
+      { desc: `Base Vehicle Rental${daysMultiplier}`, amt: `PHP ${q.baseRate.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
     ];
     if (q.driverFee > 0) {
       items.push({ desc: 'Professional Driver Allowance & Chauffeur Service', amt: `PHP ${q.driverFee.toLocaleString('en-US', { minimumFractionDigits: 2 })}` });
@@ -644,7 +652,8 @@ export async function sendQuotationEmail(quotation: Quotation): Promise<{ succes
       subject,
       html,
       `Custoworks Rental Quotation #${quotation.id}\nPrepared for: ${quotation.customerName}\nVehicle: ${quotation.vehicleName}\nTotal: PHP ${quotation.totalRentalAmount}\nReservation Fee: PHP ${quotation.reservationFee}\nHotlines: 0961 722 5326 / 0995 382 7972\nEmail: custoworks1@gmail.com\n\nPlease find your official quotation PDF attached.`,
-      attachments
+      attachments,
+      quotation.ccEmail ? quotation.ccEmail.trim() : undefined
     );
     return { success: true };
   } catch (err: any) {

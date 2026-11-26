@@ -53,7 +53,8 @@ async function sendViaResend(
   subject: string,
   html: string,
   text: string,
-  attachments?: Array<{ filename: string; content?: any; path?: string; contentType?: string }>
+  attachments?: Array<{ filename: string; content?: any; path?: string; contentType?: string }>,
+  cc?: string | string[]
 ) {
   const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
   if (!apiKey) return null;
@@ -79,6 +80,10 @@ async function sendViaResend(
     fromSender = 'Custoworks Car Rental <info@custoworkscarrental.online>';
   }
 
+  const ccArray = cc
+    ? (Array.isArray(cc) ? cc.map((c) => String(c).trim()).filter(Boolean) : [String(cc).trim()].filter(Boolean))
+    : undefined;
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -88,6 +93,7 @@ async function sendViaResend(
     body: JSON.stringify({
       from: fromSender,
       to: [to],
+      cc: ccArray && ccArray.length > 0 ? ccArray : undefined,
       subject,
       html,
       text,
@@ -101,7 +107,7 @@ async function sendViaResend(
   }
 
   const data: any = await res.json();
-  console.log(`📧 [resend:sent] to=${to} subject="${subject}" messageId=${data.id}`);
+  console.log(`📧 [resend:sent] to=${to} cc=${ccArray?.join(',') || 'none'} subject="${subject}" messageId=${data.id}`);
   return { messageId: data.id };
 }
 
@@ -110,12 +116,13 @@ export async function sendEmail(
   subject: string,
   html: string,
   text: string,
-  attachments?: Array<{ filename: string; content?: any; path?: string; contentType?: string }>
+  attachments?: Array<{ filename: string; content?: any; path?: string; contentType?: string }>,
+  cc?: string | string[]
 ) {
   // 1. Try Resend HTTP API first if configured (100% immune to cloud SMTP port blocking)
   if (env.RESEND_API_KEY || process.env.RESEND_API_KEY) {
     try {
-      const resendResult = await sendViaResend(to, subject, html, text, attachments);
+      const resendResult = await sendViaResend(to, subject, html, text, attachments, cc);
       if (resendResult) return resendResult;
     } catch (resendErr: any) {
       console.warn(`[email] Resend API failed (${resendErr?.message}), trying SMTP...`);
@@ -126,8 +133,8 @@ export async function sendEmail(
   const primaryPort = env.SMTP_PORT || 465;
   try {
     const transport = getTransport();
-    const info = await transport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
-    console.log(`📧 [mail:sent] to=${to} subject="${subject}" messageId=${info.messageId} (attachments: ${attachments?.length || 0})`);
+    const info = await transport.sendMail({ from: env.MAIL_FROM, to, cc, subject, html, text, attachments });
+    console.log(`📧 [mail:sent] to=${to} cc=${cc || 'none'} subject="${subject}" messageId=${info.messageId} (attachments: ${attachments?.length || 0})`);
     return info;
   } catch (primaryErr: any) {
     const primaryMsg = primaryErr?.message || String(primaryErr);
@@ -137,7 +144,7 @@ export async function sendEmail(
     if (primaryPort !== 587) {
       try {
         const port587Transport = createSmtpTransport(587, false);
-        const info = await port587Transport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
+        const info = await port587Transport.sendMail({ from: env.MAIL_FROM, to, cc, subject, html, text, attachments });
         console.log(`📧 [mail:sent:fallback-587] to=${to} subject="${subject}" messageId=${info.messageId}`);
         transporter = port587Transport;
         return info;
@@ -150,7 +157,7 @@ export async function sendEmail(
     if (primaryPort !== 2525) {
       try {
         const fallbackTransport = createSmtpTransport(2525, false);
-        const info = await fallbackTransport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
+        const info = await fallbackTransport.sendMail({ from: env.MAIL_FROM, to, cc, subject, html, text, attachments });
         console.log(`📧 [mail:sent:fallback-2525] to=${to} subject="${subject}" messageId=${info.messageId}`);
         transporter = fallbackTransport;
         return info;
