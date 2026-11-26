@@ -36,6 +36,8 @@ import {
   PhoneCall,
   Plane,
   Download,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { format, addDays, differenceInCalendarDays, startOfDay, isSameDay } from 'date-fns';
 import { ReservationConfirmationCard } from '../components/ReservationConfirmationCard';
@@ -98,6 +100,11 @@ export const BookingWizardPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
+  // Streamlined 3-Step Flow:
+  // Step 1: Trip & Vehicle Selection (All-in-One Configurator)
+  // Step 2: Renter Details & Delivery Handover
+  // Step 3: Payment & Confirm Hold
+  // Step 4: Success & Tracking
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -130,6 +137,7 @@ export const BookingWizardPage: React.FC = () => {
 
   const [pickupAt, setPickupAt] = useState<string>(format(defaultPickup, "yyyy-MM-dd'T'HH:mm"));
   const [returnAt, setReturnAt] = useState<string>(format(defaultReturn, "yyyy-MM-dd'T'HH:mm"));
+  const [calendarExpanded, setCalendarExpanded] = useState<boolean>(false);
 
   // Logistics
   const [pickupMethod, setPickupMethod] = useState<'OFFICE' | 'DELIVERY'>('OFFICE');
@@ -148,8 +156,9 @@ export const BookingWizardPage: React.FC = () => {
   const [purpose, setPurpose] = useState<string>('Personal Vacation / Travel');
   const [flightNumber, setFlightNumber] = useState<string>('');
   const [passengerSignName, setPassengerSignName] = useState<string>('');
+  const [showOptionalFields, setShowOptionalFields] = useState<boolean>(false);
 
-  // Renter Information Field-level Validation Errors & Touched State
+  // Field validation
   const [renterErrors, setRenterErrors] = useState<{
     name?: string;
     email?: string;
@@ -198,17 +207,10 @@ export const BookingWizardPage: React.FC = () => {
       errors.email = 'Please enter a valid email address (e.g. name@example.com).';
     }
 
-    // Philippine mobile number validation: must start with 09 and be exactly 11 digits
     if (!phoneVal) {
       errors.phone = 'Philippine mobile number is required.';
     } else if (!/^09\d{9}$/.test(phoneVal)) {
       errors.phone = 'Must be an 11-digit Philippine mobile number starting with 09 (e.g. 09953827972).';
-    }
-
-    if (!addressVal) {
-      errors.address = 'Complete address is required.';
-    } else if (addressVal.length < 5) {
-      errors.address = 'Please provide your street/barangay, city, and province.';
     }
 
     if (emerPhoneVal && !/^09\d{9}$/.test(emerPhoneVal)) {
@@ -222,12 +224,13 @@ export const BookingWizardPage: React.FC = () => {
   const [quote, setQuote] = useState<PricingQuote | null>(null);
   const [createdBooking, setCreatedBooking] = useState<any | null>(null);
 
-  // Requirements Upload State
+  // Requirements Upload State (Flexible: upload now or send later)
   const [requirementFiles, setRequirementFiles] = useState<Record<string, File>>({});
   const [requirementPreviews, setRequirementPreviews] = useState<Record<string, string>>({});
   const [secondaryIdOption, setSecondaryIdOption] = useState<string>('Passport');
   const [uploadProgress, setUploadProgress] = useState<Record<string, boolean>>({});
   const [aiVerifications, setAiVerifications] = useState<Record<string, any>>({});
+  const [submitLaterRequirements, setSubmitLaterRequirements] = useState<boolean>(false);
 
   // Payment State
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
@@ -236,10 +239,9 @@ export const BookingWizardPage: React.FC = () => {
   const [paymentReceiptPreview, setPaymentReceiptPreview] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Calendar Busy Dates for Selected Vehicle
+  // Calendar Busy Dates for Fleet Availability
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
 
-  // Automatically scroll to the top of the page when changing steps (e.g. after clicking "Proceed to Customer Details" on Calendar step)
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   }, [step]);
@@ -254,7 +256,6 @@ export const BookingWizardPage: React.FC = () => {
           api.get<{ fees: any[] }>('/pricing/additional-fees'),
         ]);
 
-        // Clean destinations: filter out any test or temporary items
         const cleanDestinations = (pListRes.destinations || []).filter(
           (d) =>
             d.isActive !== false &&
@@ -264,7 +265,7 @@ export const BookingWizardPage: React.FC = () => {
             !d.name.toLowerCase().includes('temporary')
         );
 
-        // Sort fleet so Mitsubishi Mirage G4 AT is always first
+        // Sort fleet with Mirage G4 AT first
         const sortedVehicles = [...vRes.data].sort((a, b) => {
           const isAMirage = a.model === 'Mirage G4' || a.name.toLowerCase().includes('mirage');
           const isBMirage = b.model === 'Mirage G4' || b.name.toLowerCase().includes('mirage');
@@ -319,7 +320,6 @@ export const BookingWizardPage: React.FC = () => {
           setSelectedPaymentMethodId(pRes.methods[0].id);
         }
 
-        // Default to Mitsubishi Mirage G4 AT instead of Vios
         const paramVehId = searchParams.get('vehicleId');
         if (paramVehId) {
           setSelectedVehicleId(paramVehId);
@@ -336,7 +336,7 @@ export const BookingWizardPage: React.FC = () => {
     initData();
   }, []);
 
-  // Restore existing booking from URL query (?ref=...) or sessionStorage
+  // Restore existing booking from URL query (?ref=...)
   useEffect(() => {
     const refParam = searchParams.get('ref') || searchParams.get('reference');
     if (refParam && !createdBooking) {
@@ -345,7 +345,7 @@ export const BookingWizardPage: React.FC = () => {
         .then((res) => {
           if (res.booking) {
             setCreatedBooking(res.booking);
-            setStep(6);
+            setStep(3); // Takes directly to payment & confirm hold
           }
         })
         .catch((err) => console.error('Failed to load referenced booking:', err));
@@ -369,7 +369,6 @@ export const BookingWizardPage: React.FC = () => {
     }
   }, [searchParams]);
 
-  // Persist current booking in session
   useEffect(() => {
     if (createdBooking?.reference) {
       sessionStorage.setItem('cw_current_booking', JSON.stringify(createdBooking));
@@ -406,20 +405,18 @@ export const BookingWizardPage: React.FC = () => {
       if (nagaCity) setSelectedDestinationId(nagaCity.id);
     }
 
-    // Set same-day schedule (Today only!)
     const todayTrip = new Date();
     todayTrip.setHours(9, 0, 0, 0);
     const todayDrop = new Date(todayTrip);
-    todayDrop.setHours(21, 0, 0, 0); // Same-day 9:00 PM
+    todayDrop.setHours(21, 0, 0, 0);
     setPickupAt(format(todayTrip, "yyyy-MM-dd'T'HH:mm"));
     setReturnAt(format(todayDrop, "yyyy-MM-dd'T'HH:mm"));
 
-    // Advance directly to Step 4 (Schedule / Calendar 1-Day Tap)
-    setStep(4);
+    // Advance directly to Step 2 (Renter Details)
+    setStep(2);
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   };
 
-  // Handle incoming transfer route from Rates Calculator or external link
   useEffect(() => {
     const incomingTransfer = (location.state as any)?.transferData;
     if (incomingTransfer && destinations.length > 0) {
@@ -430,9 +427,9 @@ export const BookingWizardPage: React.FC = () => {
     }
   }, [location.state, searchParams, destinations]);
 
-  // Auto-fetch or refresh requirements when on Step 6
+  // Load requirements when on Step 3
   useEffect(() => {
-    if (step === 6 && createdBooking) {
+    if (step === 3 && createdBooking) {
       if (!createdBooking.requirements || createdBooking.requirements.length === 0) {
         const fetchRequirements = async () => {
           try {
@@ -450,7 +447,7 @@ export const BookingWizardPage: React.FC = () => {
               }
             }
           } catch (err) {
-            console.error('Failed to load booking requirements in Step 6:', err);
+            console.error('Failed to load booking requirements in Step 3:', err);
           }
         };
         fetchRequirements();
@@ -470,7 +467,7 @@ export const BookingWizardPage: React.FC = () => {
     }
   }, [user]);
 
-  // Fetch calendar events on mount (fleet-wide so all vehicle cards have real-time live availability)
+  // Fetch fleet calendar events for real-time live availability
   useEffect(() => {
     api
       .get<{ events: any[] }>('/calendar/fleet')
@@ -482,7 +479,6 @@ export const BookingWizardPage: React.FC = () => {
       .catch((err) => console.error(err));
   }, []);
 
-  // Helper to normalize vehicle model key
   const getVehKey = (name?: string, model?: string) => {
     const combined = `${name || ''} ${model || ''}`.toLowerCase();
     if (combined.includes('mirage')) return 'mirage';
@@ -493,7 +489,6 @@ export const BookingWizardPage: React.FC = () => {
     return combined.trim();
   };
 
-  // Check if a vehicle is available for the current pickupAt to returnAt range
   const checkVehicleAvailability = (v: Vehicle) => {
     if (!pickupAt || !returnAt) {
       const avail = (v as any).availableFleetCount ?? (v.status === 'AVAILABLE' ? 1 : 0);
@@ -509,9 +504,7 @@ export const BookingWizardPage: React.FC = () => {
     const targetKey = getVehKey(v.name, v.model);
     const totalFleet = targetKey === 'mirage' ? 5 : Number((v as any).fleetCount) || 1;
 
-    // Filter overlapping events for this vehicle model
     const overlapping = calendarEvents.filter((ev) => {
-      // Ignore completed or returned bookings
       if (ev.state === 'RETURNED' || ev.state === 'COMPLETED' || ev.state === 'CANCELLED') return false;
 
       const evStart = startOfDay(new Date(ev.start));
@@ -519,7 +512,6 @@ export const BookingWizardPage: React.FC = () => {
       const overlaps = pStart <= evEnd && rStart >= evStart;
       if (!overlaps) return false;
 
-      // Check if event belongs to this vehicle model
       if (ev.resourceId === v.id) return true;
       const evKey = getVehKey(ev.extendedProps?.vehicleName || ev.title, ev.extendedProps?.model);
       return evKey === targetKey;
@@ -537,7 +529,6 @@ export const BookingWizardPage: React.FC = () => {
     };
   };
 
-  // Ensure selectedVehicleId points to an available vehicle
   useEffect(() => {
     if (vehicles.length > 0 && selectedVehicleId && pickupAt && returnAt) {
       const cur = vehicles.find((v) => v.id === selectedVehicleId);
@@ -549,94 +540,6 @@ export const BookingWizardPage: React.FC = () => {
       }
     }
   }, [pickupAt, returnAt, calendarEvents, vehicles]);
-
-  // Helper to get live rates from database rate matrix for a given destination and vehicle
-  const getDestinationRateInfo = (destination: Destination) => {
-    const isAirport = destination.slug === 'bicol-intl-airport' || destination.slug === 'naga-airport';
-
-    // 1. Specific vehicle rate for this destination from database rate matrix
-    const veh = vehicles.find((v) => v.id === selectedVehicleId);
-    let vehicleRateStr = 'From ₱1,500';
-
-    if (veh && rateMatrix.length > 0) {
-      const candidateVehicleIds = vehicles
-        .filter((v) => v.id === veh.id || (veh.model && v.model === veh.model))
-        .map((v) => v.id);
-
-      const targetRentalType = isAirport ? 'WITH_DRIVER' : selectedRentalType;
-      const vehRates = rateMatrix.filter(
-        (r) =>
-          r.destinationId === destination.id &&
-          candidateVehicleIds.includes(r.vehicleId) &&
-          r.rentalType === targetRentalType
-      );
-
-      const r12 = vehRates.find((r) => r.duration === 'HOURS_12')?.amount;
-      const r24 = vehRates.find((r) => r.duration === 'HOURS_24')?.amount;
-
-      if (isAirport) {
-        const airportAmt = r24 || r12 || vehRates[0]?.amount;
-        if (airportAmt) {
-          vehicleRateStr = `${formatPeso(Number(airportAmt))} (Pickup & Drop)`;
-        }
-      } else if (r12 && r24) {
-        const n12 = Number(r12);
-        const n24 = Number(r24);
-        if (n12 === n24) {
-          vehicleRateStr = `${formatPeso(n24)} (Flat Rate)`;
-        } else {
-          const low = Math.min(n12, n24);
-          const high = Math.max(n12, n24);
-          vehicleRateStr = `${formatPeso(low)} (12h) / ${formatPeso(high)} (24h)`;
-        }
-      } else if (r24) {
-        vehicleRateStr = `${formatPeso(Number(r24))} (24h)`;
-      } else if (r12) {
-        vehicleRateStr = `${formatPeso(Number(r12))} (12h)`;
-      } else if (vehRates.length > 0 && vehRates[0].amount) {
-        vehicleRateStr = `${formatPeso(Number(vehRates[0].amount))} (${vehRates[0].duration === 'HOURS_12' ? '12h' : '24h'})`;
-      } else {
-        const base24 = veh.startingRates?.SELF_DRIVE || (veh.category === 'SEDAN' ? 2000 : veh.category === 'SUV_MPV' ? 2500 : 5000);
-        vehicleRateStr = `${formatPeso(base24)} /24h`;
-      }
-    } else if (veh) {
-      const base24 = veh.startingRates?.SELF_DRIVE || (veh.category === 'SEDAN' ? 2000 : veh.category === 'SUV_MPV' ? 2500 : 5000);
-      vehicleRateStr = `${formatPeso(base24)} /24h`;
-    }
-
-    // 2. Compute badge rates (Sedan, SUV, Van) from database rate matrix for this destination
-    const getMinForCategory = (cat: 'SEDAN' | 'SUV_MPV' | 'VAN', defaultAmt: number) => {
-      const catVehicleIds = vehicles.filter((v) => v.category === cat).map((v) => v.id);
-      const catRates = rateMatrix.filter(
-        (r) =>
-          r.destinationId === destination.id &&
-          catVehicleIds.includes(r.vehicleId) &&
-          r.amount &&
-          Number(r.amount) > 0
-      );
-      if (catRates.length > 0) {
-        const minAmt = Math.min(...catRates.map((r) => Number(r.amount)));
-        return minAmt >= 1000 ? `₱${(minAmt / 1000).toFixed(minAmt % 1000 === 0 ? 0 : 1)}k` : `₱${minAmt}`;
-      }
-      return `₱${(defaultAmt / 1000).toFixed(1)}k`;
-    };
-
-    const sedanBadge = getMinForCategory('SEDAN', 1500);
-    const suvBadge = getMinForCategory('SUV_MPV', 2000);
-    const vanBadge = getMinForCategory('VAN', 3500);
-
-    const badgeTheme = DESTINATION_THEMES[destination.slug] || {
-      icon: '📍',
-      name: destination.name,
-      badgeClass: 'bg-slate-100 text-slate-800 border border-slate-300',
-    };
-
-    return {
-      badgeText: `${badgeTheme.icon} ${badgeTheme.name} · Sedan ${sedanBadge} • SUV ${suvBadge} • Van ${vanBadge}`,
-      badgeClass: badgeTheme.badgeClass,
-      vehicleRate: vehicleRateStr,
-    };
-  };
 
   // Recalculate quote
   const fetchQuote = async () => {
@@ -697,11 +600,18 @@ export const BookingWizardPage: React.FC = () => {
   const isAirportTransfer = selectedDestination?.slug === 'bicol-intl-airport' || selectedDestination?.slug === 'naga-airport';
   const isTransfer = bookingMode === 'TRANSFER' || isAirportTransfer || Boolean(transferData);
 
-
-
-  // STEP 4 -> 5: Proceed to Customer Information (no customer account required)
-  const handleProceedToCustomerInfo = () => {
+  // STEP 1 -> 2: Proceed to Customer Details
+  const handleProceedToStep2 = () => {
     setError(null);
+    if (!selectedVehicleId) {
+      setError('Please select an available vehicle from the fleet to continue.');
+      return;
+    }
+    const sel = vehicles.find((v) => v.id === selectedVehicleId);
+    if (!sel || !checkVehicleAvailability(sel).isAvailable) {
+      setError('The selected vehicle is fully booked for your travel dates. Please choose another vehicle or date.');
+      return;
+    }
     if (!pickupAt || !returnAt) {
       setError('Please select both pick-up and return schedule.');
       return;
@@ -712,18 +622,18 @@ export const BookingWizardPage: React.FC = () => {
     todayStart.setHours(0, 0, 0, 0);
 
     if (pickupDate < todayStart) {
-      setError('You cannot book previous dates. Pick-up schedule is available today onwards only.');
+      setError('Pick-up schedule must be today onwards.');
       return;
     }
     if (returnDate <= pickupDate) {
       setError('Return schedule must be after the pick-up schedule.');
       return;
     }
-    setStep(5);
+    setStep(2);
     window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
   };
 
-  // STEP 5 -> 6: Save Customer Info & Create Draft Hold (generates Tracking Number)
+  // STEP 2 -> 3: Save Customer Info & Create Draft Hold (generates Tracking Number)
   const handleSaveCustomerInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     setRenterTouched({
@@ -771,9 +681,9 @@ export const BookingWizardPage: React.FC = () => {
             customerName,
             customerEmail,
             customerPhone,
-            customerAddress,
-            emergencyContactName: emergencyName,
-            emergencyContactPhone: emergencyPhone,
+            customerAddress: customerAddress || 'Naga City / Bicol Region',
+            emergencyContactName: emergencyName || null,
+            emergencyContactPhone: emergencyPhone || null,
             purpose: finalPurpose,
           },
         });
@@ -793,15 +703,15 @@ export const BookingWizardPage: React.FC = () => {
             customerName,
             customerEmail,
             customerPhone,
-            customerAddress,
-            emergencyContactName: emergencyName,
-            emergencyContactPhone: emergencyPhone,
+            customerAddress: customerAddress || 'Naga City / Bicol Region',
+            emergencyContactName: emergencyName || null,
+            emergencyContactPhone: emergencyPhone || null,
             purpose: finalPurpose,
           },
         });
         setCreatedBooking(res.booking);
       }
-      setStep(6);
+      setStep(3);
     } catch (err: any) {
       if (err?.message?.includes('Only draft bookings can be edited') || err?.message?.includes('NOT_EDITABLE')) {
         try {
@@ -820,15 +730,15 @@ export const BookingWizardPage: React.FC = () => {
               customerName,
               customerEmail,
               customerPhone,
-              customerAddress,
-              emergencyContactName: emergencyName,
-              emergencyContactPhone: emergencyPhone,
+              customerAddress: customerAddress || 'Naga City / Bicol Region',
+              emergencyContactName: emergencyName || null,
+              emergencyContactPhone: emergencyPhone || null,
               purpose: finalPurpose,
             },
           });
           setCreatedBooking(res.booking);
           setError(null);
-          setStep(6);
+          setStep(3);
           return;
         } catch (retryErr: any) {
           setError(retryErr.message || 'Failed to place vehicle on hold and save reservation');
@@ -841,7 +751,7 @@ export const BookingWizardPage: React.FC = () => {
     }
   };
 
-  // STEP 6: Direct Auto-Upload of Requirement Document
+  // Direct Auto-Upload of Requirement Document
   const handleUploadRequirementDirect = async (requirementId: string, file: File) => {
     if (!createdBooking?.id || !file) return;
     setError(null);
@@ -856,7 +766,6 @@ export const BookingWizardPage: React.FC = () => {
       if (uploadRes?.aiVerification) {
         setAiVerifications((prev) => ({ ...prev, [requirementId]: uploadRes.aiVerification }));
       }
-      // Reload booking with updated requirements and documents
       if (createdBooking.reference) {
         const bRes = await api.get<{ booking: any }>(`/bookings/track/${createdBooking.reference}`);
         if (bRes.booking) setCreatedBooking(bRes.booking);
@@ -878,117 +787,53 @@ export const BookingWizardPage: React.FC = () => {
       const url = URL.createObjectURL(file);
       setRequirementPreviews((prev) => ({ ...prev, [requirementId]: url }));
     }
-    // Automatically upload immediately upon photo selection!
     await handleUploadRequirementDirect(requirementId, file);
   };
 
-  const handleClearRequirementFile = (requirementId: string) => {
-    setRequirementFiles((prev) => {
-      const copy = { ...prev };
-      delete copy[requirementId];
-      return copy;
-    });
-    setRequirementPreviews((prev) => {
-      const copy = { ...prev };
-      delete copy[requirementId];
-      return copy;
-    });
-  };
-
-  // STEP 6: Upload individual requirement document (fallback manual retry)
-  const handleUploadRequirement = async (requirementId: string) => {
-    const file = requirementFiles[requirementId];
-    if (!file) {
-      setError('Please choose a file to upload');
-      return;
-    }
-    await handleUploadRequirementDirect(requirementId, file);
-  };
-
-  // Safe navigation from Step 6 to Step 7 (ensures all pending files are uploaded)
-  const handleProceedToSummary = async () => {
-    const isAnyUploading = Object.values(uploadProgress).some(Boolean);
-    if (isAnyUploading) {
-      setError('Please wait a moment while your document upload finishes.');
-      return;
-    }
-
-    // Check if any selected files are still waiting to be uploaded
-    const pendingReqIds = Object.keys(requirementFiles).filter((reqId) => {
-      const slot = createdBooking?.requirements?.find((r: any) => r.id === reqId);
-      return !slot?.documents?.length && slot?.status !== 'SUBMITTED' && slot?.status !== 'APPROVED';
-    });
-
-    if (pendingReqIds.length > 0) {
-      setSubmitting(true);
-      try {
-        for (const reqId of pendingReqIds) {
-          const file = requirementFiles[reqId];
-          if (file) {
-            await handleUploadRequirementDirect(reqId, file);
-          }
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to upload document');
-        setSubmitting(false);
-        return;
-      } finally {
-        setSubmitting(false);
-      }
-    }
-
-    setError(null);
-    setStep(7);
-  };
-
-  // STEP 7 -> 8: Submit Draft to Pending Payment
-  const handleSubmitBooking = async () => {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await api.post<{ booking: any }>(`/bookings/${createdBooking.id}/submit`);
-      setCreatedBooking(res.booking);
-      setStep(8);
-    } catch (err: any) {
-      setError(err.message || 'Failed to submit booking');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // STEP 8: Upload Payment Proof & Finish
+  // STEP 3 -> 4: Submit Payment & Finish Booking
   const handleUploadPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPaymentMethodId || !paymentRefNumber || !paymentReceiptFile) {
-      setError('Please select a payment method, enter the reference number, and upload the screenshot receipt');
+      setError('Please select a payment method, enter the reference number, and attach your screenshot receipt.');
       return;
     }
     setError(null);
     setSubmitting(true);
     try {
+      // 1. Submit draft to mark it ready
+      try {
+        if (createdBooking?.id) {
+          await api.post(`/bookings/${createdBooking.id}/submit`);
+        }
+      } catch (submitErr) {
+        // may already be submitted, proceed
+      }
+
+      // 2. Upload payment receipt
       const formData = new FormData();
       formData.append('paymentMethodId', selectedPaymentMethodId);
       formData.append('referenceNumber', paymentRefNumber);
       formData.append('file', paymentReceiptFile);
 
       await api.post(`/payments/reservation/${createdBooking.id}`, formData);
-      setStep(9); // Completed confirmation screen!
+      setStep(4); // Completed confirmation screen!
     } catch (err: any) {
-      setError(err.message || 'Failed to submit payment receipt');
+      setError(err.message || 'Failed to submit payment receipt. Please check reference number and image size.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const steps = [
-    { num: 1, title: 'Vehicle' },
-    { num: 2, title: 'Rental Type' },
-    { num: 3, title: 'Destination' },
-    { num: 4, title: 'Schedule' },
-    { num: 5, title: 'Customer' },
-    { num: 6, title: 'Requirements' },
-    { num: 7, title: 'Summary' },
-    { num: 8, title: 'Payment' },
+    { num: 1, title: 'Trip & Vehicle' },
+    { num: 2, title: 'Renter Details' },
+    { num: 3, title: 'Payment & Confirm' },
   ];
 
   if (loading) {
@@ -999,1101 +844,560 @@ export const BookingWizardPage: React.FC = () => {
     );
   }
 
+  const daysDifference = Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)));
+
   return (
     <div className="min-h-screen bg-slate-50 py-4 sm:py-8 lg:py-10">
-      <div className="max-w-5xl mx-auto px-2.5 sm:px-6 lg:px-8">
-        {/* Wizard Progress Bar */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-5 shadow-sm mb-4 sm:mb-8">
-          {/* Mobile Step Header (Visible on phone screens) */}
-          <div className="sm:hidden space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded-full bg-brand-blue text-white flex items-center justify-center text-[10px] font-bold">
-                  {step}
-                </span>
-                <span>
-                  Step {step} of {steps.length}: <strong className="text-brand-blue">{steps[step - 1]?.title}</strong>
-                </span>
-              </span>
-              <span className="font-mono text-slate-500 font-bold text-[11px]">{Math.round((step / steps.length) * 100)}%</span>
-            </div>
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-brand-blue h-full rounded-full transition-all duration-300"
-                style={{ width: `${(step / steps.length) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Desktop Step Tracker (Hidden on small phones) */}
-          <div className="hidden sm:flex items-center justify-between overflow-x-auto pb-2 gap-2">
-            {steps.map((s) => {
-              const isPassed = step > s.num;
-              const isCurrent = step === s.num;
-              return (
-                <div key={s.num} className="flex items-center gap-2 shrink-0">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
-                      isPassed
-                        ? 'bg-emerald-600 text-white'
-                        : isCurrent
-                        ? 'bg-brand-blue text-white shadow-md shadow-blue-500/30'
-                        : 'bg-slate-100 text-slate-400'
-                    }`}
-                  >
-                    {isPassed ? <Check className="w-4 h-4" /> : s.num}
-                  </div>
-                  <span
-                    className={`text-xs font-semibold hidden md:inline ${
-                      isCurrent ? 'text-slate-900 font-bold' : isPassed ? 'text-emerald-700' : 'text-slate-400'
-                    }`}
-                  >
-                    {s.title}
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 lg:px-8">
+        {/* Streamlined Stepper Progress Bar (Only 3 easy steps!) */}
+        {step <= 3 && (
+          <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-5 shadow-xs mb-4 sm:mb-6">
+            <div className="sm:hidden space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-brand-blue text-white flex items-center justify-center text-[10px] font-bold">
+                    {step}
                   </span>
-                  {s.num < steps.length && (
+                  <span>
+                    Step {step} of 3: <strong className="text-brand-blue">{steps[step - 1]?.title}</strong>
+                  </span>
+                </span>
+                <span className="font-mono text-slate-500 font-bold text-[11px]">
+                  {Math.round((step / 3) * 100)}%
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-brand-blue h-full rounded-full transition-all duration-300"
+                  style={{ width: `${(step / 3) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="hidden sm:flex items-center justify-between overflow-x-auto gap-4">
+              {steps.map((s) => {
+                const isPassed = step > s.num;
+                const isCurrent = step === s.num;
+                return (
+                  <div key={s.num} className="flex items-center gap-2.5 shrink-0 flex-1">
                     <div
-                      className={`h-0.5 w-4 lg:w-8 hidden sm:block ${
-                        isPassed ? 'bg-emerald-500' : 'bg-slate-200'
+                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all ${
+                        isPassed
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : isCurrent
+                          ? 'bg-brand-blue text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-200'
+                          : 'bg-slate-100 text-slate-400'
                       }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
+                    >
+                      {isPassed ? <Check className="w-4 h-4" /> : s.num}
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[10px] uppercase font-bold text-slate-400">Step {s.num}</p>
+                      <p
+                        className={`text-xs font-bold ${
+                          isCurrent ? 'text-brand-navy' : isPassed ? 'text-emerald-700' : 'text-slate-400'
+                        }`}
+                      >
+                        {s.title}
+                      </p>
+                    </div>
+                    {s.num < 3 && (
+                      <div
+                        className={`h-0.5 flex-1 hidden md:block ${
+                          isPassed ? 'bg-emerald-500' : 'bg-slate-200'
+                        }`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Global Error Banner */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3.5 sm:p-4 rounded-2xl text-xs flex items-center gap-2 mb-4 sm:mb-6">
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 p-3.5 sm:p-4 rounded-2xl text-xs flex items-center gap-2 mb-4 sm:mb-6 shadow-xs animate-shake">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span className="font-medium">{error}</span>
+            <span className="font-semibold">{error}</span>
           </div>
         )}
 
-        {/* Service Switcher Tabs (Only on initial selection steps 1-3) */}
-        {step <= 3 && (
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 mb-6 max-w-xl mx-auto shadow-inner">
-            <button
-              type="button"
-              onClick={() => {
-                setBookingMode('RENTAL');
-                setStep(1);
-              }}
-              className={`flex-1 py-3 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
-                bookingMode === 'RENTAL'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 ring-1 ring-slate-200'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Car className="w-4 h-4 text-brand-blue" />
-              <span>🚗 Car Rental (Daily)</span>
-            </button>
+        {/* ============================================================== */}
+        {/* STEP 1: VEHICLE & TRIP DETAILS (All-in-One Configurator) */}
+        {/* ============================================================== */}
+        {step === 1 && (
+          <div className="space-y-6">
+            {/* Service Switcher Tabs */}
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 max-w-md mx-auto shadow-inner">
+              <button
+                type="button"
+                onClick={() => setBookingMode('RENTAL')}
+                className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                  bookingMode === 'RENTAL'
+                    ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 ring-1 ring-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Car className="w-4 h-4 text-brand-blue" />
+                <span>🚗 Daily Car Rental</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setBookingMode('TRANSFER');
-                setSelectedRentalType('WITH_DRIVER');
-                const biaDest = destinations.find((d) => d.slug === 'bicol-intl-airport');
-                if (biaDest) setSelectedDestinationId(biaDest.id);
-                setStep(1);
-              }}
-              className={`flex-1 py-3 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all ${
-                bookingMode === 'TRANSFER'
-                  ? 'bg-white text-brand-blue shadow-sm border border-slate-200/80 ring-2 ring-blue-500/20'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Plane className="w-4 h-4 text-amber-500" />
-              <span>🚖 Pickup & Drop (Map)</span>
-            </button>
-          </div>
-        )}
-
-        {/* Wizard Container */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-6 md:p-8">
-          {/* STEP 1 (TRANSFER MODE): POINT-TO-POINT PIN MAP & PRICE COMPUTATION */}
-          {step === 1 && bookingMode === 'TRANSFER' && (
-            <PointToPointTransferMap
-              vehicles={vehicles}
-              selectedVehicleId={selectedVehicleId}
-              onSelectVehicleId={setSelectedVehicleId}
-              onConfirmTransfer={handleConfirmTransfer}
-            />
-          )}
-
-          {/* STEP 1 (RENTAL MODE): SELECT SCHEDULE & AVAILABLE VEHICLE */}
-          {step === 1 && bookingMode === 'RENTAL' && (
-            <div className="space-y-6">
-              <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 1 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Check Calendar & Choose Available Vehicle</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Pick your travel dates below to view real-time fleet availability. You can only select and book vehicles that are currently available!
-                </p>
-              </div>
-
-              {/* 1. Quick Duration Presets & Calendar Visualizer */}
-              <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <CalendarCheck2 className="w-4 h-4 text-brand-blue" />
-                    Pick Rental Duration (or tap dates on Calendar below):
-                  </span>
-                  <span className="text-xs font-black text-brand-blue bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-                    {Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)))} Day{differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)) > 1 ? 's' : ''} Rental
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { days: 1, label: '1 Day (24h)' },
-                    { days: 2, label: '2 Days' },
-                    { days: 3, label: '3 Days' },
-                    { days: 4, label: '4 Days' },
-                    { days: 5, label: '5 Days' },
-                    { days: 7, label: '1 Week (7 Days)' },
-                    { days: 15, label: '15 Days' },
-                    { days: 30, label: '1 Month' },
-                  ].map((btn) => {
-                    const daysDiff = differenceInCalendarDays(new Date(returnAt), new Date(pickupAt));
-                    const isActive = daysDiff === btn.days;
-                    return (
-                      <button
-                        key={btn.days}
-                        type="button"
-                        onClick={() => {
-                          let start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
-                          const todayStart = new Date();
-                          todayStart.setHours(0, 0, 0, 0);
-                          if (start < todayStart) {
-                            start = new Date();
-                          }
-                          const newEnd = addDays(start, btn.days);
-                          const currentStartHours = start.getHours() || 9;
-                          newEnd.setHours(currentStartHours, 0, 0, 0);
-                          setPickupAt(format(start, "yyyy-MM-dd'T'HH:mm"));
-                          setReturnAt(format(newEnd, "yyyy-MM-dd'T'HH:mm"));
-                        }}
-                        className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
-                          isActive
-                            ? 'bg-brand-blue text-white border-brand-blue shadow-xs scale-105'
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
-                      >
-                        {btn.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Interactive Calendar Visualizer */}
-                <div className="pt-2">
-                  <InteractiveCalendar
-                    events={calendarEvents}
-                    vehicles={vehicles}
-                    selectedVehicleId={selectedVehicleId}
-                    selectedPickup={pickupAt ? new Date(pickupAt) : undefined}
-                    selectedReturn={returnAt ? new Date(returnAt) : undefined}
-                    onSelectRange={(start, end) => {
-                      const pTime = pickupAt ? new Date(pickupAt) : new Date();
-                      const rTime = returnAt ? new Date(returnAt) : new Date();
-                      const pHours = pTime.getHours() || 9;
-                      const rHours = rTime.getHours() || pHours;
-
-                      const newP = new Date(start);
-                      newP.setHours(pHours, 0, 0, 0);
-
-                      let newR = new Date(end);
-                      if (isSameDay(start, end)) {
-                        newR = addDays(newR, 1);
-                      }
-                      newR.setHours(rHours, 0, 0, 0);
-
-                      setPickupAt(format(newP, "yyyy-MM-dd'T'HH:mm"));
-                      setReturnAt(format(newR, "yyyy-MM-dd'T'HH:mm"));
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* 2. Choose Your Vehicle from Available Fleet */}
-              <div className="space-y-3 pt-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1">
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                    <Car className="w-5 h-5 text-brand-blue" />
-                    <span>Select an Available Vehicle:</span>
-                  </h3>
-                  <span className="text-xs text-slate-500 font-medium">
-                    Showing availability for: <strong className="text-brand-navy">{format(new Date(pickupAt), 'MMM dd')} - {format(new Date(returnAt), 'MMM dd, yyyy')}</strong>
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {vehicles.map((v) => {
-                    const img = v.images?.find((i) => i.isPrimary)?.url || v.images?.[0]?.url;
-                    const isSelected = selectedVehicleId === v.id;
-                    const availInfo = checkVehicleAvailability(v);
-                    const isAvail = availInfo.isAvailable;
-
-                    return (
-                      <div
-                        key={v.id}
-                        onClick={
-                          isAvail
-                            ? () => {
-                                setSelectedVehicleId(v.id);
-                                setError(null);
-                              }
-                            : undefined
-                        }
-                        style={{ cursor: isAvail ? 'pointer' : 'not-allowed' }}
-                        className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 select-none ${
-                          !isAvail
-                            ? 'opacity-40 bg-slate-100/90 border-slate-200 grayscale-[50%]'
-                            : isSelected
-                            ? 'border-brand-blue bg-blue-50/40 shadow-sm'
-                            : 'border-slate-200 hover:border-slate-300 bg-white hover:shadow-xs'
-                        }`}
-                      >
-                        <img src={img} alt={v.name} className="w-full sm:w-28 h-36 sm:h-20 object-cover rounded-xl bg-slate-100 shrink-0" />
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <h4 className={`font-bold text-sm ${isAvail ? 'text-slate-900' : 'text-slate-500'}`}>{v.name}</h4>
-                            {isSelected && isAvail && <CheckCircle className="w-4 h-4 text-brand-blue shrink-0" />}
-                          </div>
-
-                          <div className="mt-1">
-                            {isAvail ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
-                                <CheckCircle className="w-3 h-3 text-emerald-600" />
-                                <span>{availInfo.totalCount > 1 ? `${availInfo.availableCount} of ${availInfo.totalCount} Units Available` : 'Available to Book'}</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
-                                <XCircle className="w-3 h-3 text-rose-600" />
-                                <span>Fully Booked · Cannot Select</span>
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="text-[11px] text-slate-500 mt-1">
-                            {v.transmission} · {v.seats} Seats · {v.category.replace('_', '/')}
-                          </p>
-                          <div className="mt-2 text-xs font-extrabold text-brand-navy">
-                            From {formatPeso(v.startingRates?.SELF_DRIVE || v.startingRates?.WITH_DRIVER || 0)} /24h
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Selected Vehicle Rate Features & Smart Suggestions */}
-              {(() => {
-                const selVeh = vehicles.find((v) => v.id === selectedVehicleId);
-                if (!selVeh) return null;
-
-                const s12 = selVeh.startingRates?.SELF_DRIVE_12 || (selVeh.category === 'SEDAN' ? 1500 : selVeh.category === 'SUV_MPV' ? 2000 : 4000);
-                const s24 = selVeh.startingRates?.SELF_DRIVE || (selVeh.category === 'SEDAN' ? 2000 : selVeh.category === 'SUV_MPV' ? 2500 : 5000);
-
-                return (
-                  <div className="bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 border border-blue-200/80 rounded-2xl p-4 sm:p-5 space-y-3 mt-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-blue-200/60">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-brand-blue text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                          <Sparkles className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                            <span>Pricelist Features & Suggestions for {selVeh.name}</span>
-                            {(selVeh as any).fleetCount > 1 && (
-                              <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
-                                {(selVeh as any).fleetCount} Units in Fleet
-                              </span>
-                            )}
-                          </h4>
-                          <p className="text-[11px] text-slate-500">
-                            {selVeh.category.replace('_', '/')} • {selVeh.transmission} • {selVeh.seats} Seats • {selVeh.fuelType || 'Gasoline'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <a
-                        href={`/rates?vehicleId=${selVeh.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] font-bold text-brand-blue hover:text-blue-700 flex items-center gap-1 self-start sm:self-auto"
-                      >
-                        <Calculator className="w-3.5 h-3.5" />
-                        <span>Interactive Rate Calculator</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </a>
-                    </div>
-
-                    {/* Rate Tier Badges */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase block">12-Hour Flat</span>
-                        <span className="font-extrabold text-slate-900 text-sm">
-                          {formatPeso(s12)}
-                        </span>
-                        <span className="text-[10px] text-slate-500 block">Naga Area quick errands</span>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase block">24-Hour Whole Day</span>
-                        <span className="font-extrabold text-brand-blue text-sm">
-                          {formatPeso(s24)}
-                        </span>
-                        <span className="text-[10px] text-slate-500 block">Full 24h flexibility</span>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
-                        <span className="text-[10px] text-amber-600 font-bold uppercase block">Weekly Saver</span>
-                        <span className="font-extrabold text-amber-600 text-sm">
-                          Discounted
-                        </span>
-                        <span className="text-[10px] text-slate-500 block">Automatic on 7+ days</span>
-                      </div>
-
-                      <div className="bg-white p-2.5 rounded-xl border border-blue-100 shadow-2xs">
-                        <span className="text-[10px] text-emerald-600 font-bold uppercase block">Monthly Package</span>
-                        <span className="font-extrabold text-emerald-600 text-sm">
-                          Unli Mileage
-                        </span>
-                        <span className="text-[10px] text-slate-500 block">30+ days lease plan</span>
-                      </div>
-                    </div>
-
-                    {/* Destination Rates Pill Row */}
-                    <div className="pt-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 block mb-1.5 flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-amber-500" />
-                        Reference Destination Rates (Self-Drive):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5 text-[11px]">
-                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
-                          📍 <strong>Naga:</strong> {formatPeso(s12)} (12h) / {formatPeso(s24)} (24h)
-                        </span>
-                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
-                          📍 <strong>CamSur:</strong> {formatPeso(s12 + 200)} (12h) / {formatPeso(s24 + 200)} (24h)
-                        </span>
-                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
-                          📍 <strong>Albay / Daet:</strong> {formatPeso(s12 + 500)} (12h) / {formatPeso(s24 + 500)} (24h)
-                        </span>
-                        <span className="bg-white px-2.5 py-1 rounded-lg border border-slate-200/80 font-medium text-slate-700">
-                          📍 <strong>Sorsogon / Labo:</strong> {formatPeso(s12 + 1000)} (12h) / {formatPeso(s24 + 1000)} (24h)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t border-slate-100">
-                <div className="text-xs text-slate-500 text-center sm:text-left">
-                  {selectedVehicleId && checkVehicleAvailability(vehicles.find((v) => v.id === selectedVehicleId) || ({} as any)).isAvailable ? (
-                    <span className="text-emerald-700 font-bold flex items-center gap-1.5">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Ready to book: <strong>{vehicles.find((v) => v.id === selectedVehicleId)?.name}</strong> for {Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)))} Day(s)</span>
-                    </span>
-                  ) : (
-                    <span className="text-slate-500">Please tap an available vehicle above to proceed.</span>
-                  )}
-                </div>
-
-                <button
-                  disabled={!selectedVehicleId || !checkVehicleAvailability(vehicles.find((v) => v.id === selectedVehicleId) || ({} as any)).isAvailable}
-                  onClick={() => {
-                    const sel = vehicles.find((v) => v.id === selectedVehicleId);
-                    if (!sel || !checkVehicleAvailability(sel).isAvailable) {
-                      setError('Please select an available vehicle for your travel dates');
-                    } else {
-                      setError(null);
-                      setStep(2);
-                    }
-                  }}
-                  className="w-full sm:w-auto bg-brand-blue hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm px-7 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
-                >
-                  <span>Next: Select Rental Option</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Local Sponsors & Partner Perks Ad Carousel */}
-              <div className="pt-2">
-                <MapRouteAdsCarousel />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: SELECT RENTAL TYPE */}
-          {step === 2 && (
-            <div className="space-y-6">
-              <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 2 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Select Rental Type</h2>
-                <p className="text-xs text-slate-500 mt-1">Choose between self-drive or executive with-driver service.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {selectedVehicle?.allowSelfDrive && (
-                  <div
-                    onClick={() => setSelectedRentalType('SELF_DRIVE')}
-                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedRentalType === 'SELF_DRIVE'
-                        ? 'border-brand-blue bg-blue-50/50 shadow-md ring-1 ring-brand-blue'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="p-2 rounded-xl bg-blue-100 text-brand-blue font-bold text-xs uppercase tracking-wider">
-                        Self Drive
-                      </span>
-                      {selectedRentalType === 'SELF_DRIVE' && <CheckCircle className="w-5 h-5 text-brand-blue" />}
-                    </div>
-                    <h3 className="font-extrabold text-lg text-slate-900 mb-1">Drive Yourself</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                      Complete freedom and privacy. Requires valid driver's license & secondary valid ID.
-                    </p>
-                    <div className="text-xs text-slate-700 space-y-1.5 border-t border-slate-200/60 pt-3">
-                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> 12h, 24h, weekly, monthly rates</div>
-                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Upload physical ID & selfie online</div>
-                    </div>
-                  </div>
-                )}
-
-                {selectedVehicle?.allowWithDriver && (
-                  <div
-                    onClick={() => setSelectedRentalType('WITH_DRIVER')}
-                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all ${
-                      selectedRentalType === 'WITH_DRIVER' && !isAirportTransfer
-                        ? 'border-brand-blue bg-blue-50/50 shadow-md ring-1 ring-brand-blue'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="p-2 rounded-xl bg-blue-100 text-brand-blue font-bold text-xs uppercase tracking-wider">
-                        With Driver
-                      </span>
-                      {selectedRentalType === 'WITH_DRIVER' && !isAirportTransfer && <CheckCircle className="w-5 h-5 text-brand-blue" />}
-                    </div>
-                    <h3 className="font-extrabold text-lg text-slate-900 mb-1">Chauffeur Service</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                      Relax and let our courteous, route-familiar driver handle Bicol or long-haul highway traffic.
-                    </p>
-                    <div className="text-xs text-slate-700 space-y-1.5 border-t border-slate-200/60 pt-3">
-                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> Stress-free for out-of-town trips</div>
-                      <div className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> 12h, 24h & regional tour rates</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3rd Option: Airport Pickup & Drop */}
-                {selectedVehicle?.allowWithDriver && (
-                  <div
-                    onClick={() => {
-                      setSelectedRentalType('WITH_DRIVER');
-                      const biaDest = destinations.find((d) => d.slug === 'bicol-intl-airport');
-                      if (biaDest) setSelectedDestinationId(biaDest.id);
-                    }}
-                    className={`p-6 rounded-2xl border-2 cursor-pointer transition-all relative ${
-                      selectedRentalType === 'WITH_DRIVER' && isAirportTransfer
-                        ? 'border-amber-400 bg-amber-50/50 shadow-md ring-2 ring-amber-300'
-                        : 'border-amber-200 hover:border-amber-300 bg-gradient-to-b from-amber-50/30 to-white'
-                    }`}
-                  >
-                    <span className="absolute -top-2.5 right-4 text-[9px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full uppercase">
-                      Fixed Airport Rate
-                    </span>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="p-2 rounded-xl bg-amber-100 text-amber-900 font-bold text-xs uppercase tracking-wider flex items-center gap-1">
-                        <Plane className="w-3.5 h-3.5" /> Airport Transfer
-                      </span>
-                      {selectedRentalType === 'WITH_DRIVER' && isAirportTransfer && <CheckCircle className="w-5 h-5 text-amber-600" />}
-                    </div>
-                    <h3 className="font-extrabold text-lg text-slate-900 mb-1">Airport Pickup & Drop</h3>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-4">
-                      Direct terminal pickup & drop for <strong>Bicol International Airport (BIA / Daraga)</strong> or <strong>Naga Airport</strong>.
-                    </p>
-                    <div className="text-xs text-slate-800 space-y-1.5 border-t border-amber-200/60 pt-3 font-semibold">
-                      <div className="flex items-center justify-between text-brand-blue">
-                        <span>BIA Airport Rate:</span>
-                        <strong className="text-slate-900">
-                          {selectedVehicle?.category === 'VAN'
-                            ? '₱7,500'
-                            : selectedVehicle?.category === 'SUV_MPV'
-                            ? '₱6,000'
-                            : '₱4,500'}
-                        </strong>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-emerald-700 text-[11px]">
-                        <Check className="w-3 h-3 shrink-0" /> Chauffeur & flight tracking included
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-between pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => setStep(1)}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
-                >
-                  Next: Select Destination <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: SELECT DESTINATION */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 3 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Select Travel Destination</h2>
-                <p className="text-xs text-slate-500 mt-1">Official rental rates vary based on your trip destination.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {destinations.map((d) => {
-                  const isSelected = selectedDestinationId === d.id;
-                  const isBia = d.slug === 'bicol-intl-airport';
-                  const isNagaAirport = d.slug === 'naga-airport';
-                  const isAirport = isBia || isNagaAirport;
-                  const rateInfo = getDestinationRateInfo(d);
-
-                  return (
-                    <div
-                      key={d.id}
-                      onClick={() => {
-                        setSelectedDestinationId(d.id);
-                        if (isAirport) {
-                          setSelectedRentalType('WITH_DRIVER');
-                        }
-                      }}
-                      className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-brand-blue bg-blue-50/50 shadow-sm ring-1 ring-brand-blue'
-                          : isAirport
-                          ? 'border-blue-200 bg-gradient-to-b from-blue-50/40 to-white hover:border-brand-blue'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div>
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider mb-2.5 ${rateInfo.badgeClass}`}>
-                          {rateInfo.badgeText}
-                        </span>
-                        <div className="flex justify-between items-center mb-1">
-                          <h4 className="font-extrabold text-base text-slate-900">{d.name}</h4>
-                          {isSelected && <CheckCircle className="w-5 h-5 text-brand-blue shrink-0" />}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          {d.description || `Applicable for travels within ${d.name} and neighboring areas.`}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 font-semibold truncate max-w-[140px]" title={selectedVehicle?.name}>
-                          {selectedVehicle ? `${selectedVehicle.name}:` : 'Official Rate:'}
-                        </span>
-                        <span className="font-extrabold text-brand-blue bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/80">
-                          {rateInfo.vehicleRate}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-between pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => setStep(2)}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  onClick={() => setStep(4)}
-                  className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
-                >
-                  Next: Choose Schedule <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: SELECT SCHEDULE & CALENDAR */}
-          {step === 4 && (
-            <div className="space-y-6">
-              <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 4 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Schedule & Calendar Availability</h2>
-                <p className="text-xs text-slate-500 mt-1">Select your exact pickup and return dates and times.</p>
-              </div>
-
-              {/* Point-to-Point Pinned Route Card (if from Map) */}
-              {transferData && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
-                  <div>
-                    <span className="text-[10px] font-black uppercase text-brand-blue tracking-wider block">
-                      📍 Pinned Transfer Route (Point-to-Point)
-                    </span>
-                    <p className="font-black text-slate-900 text-sm mt-0.5">
-                      {transferData.pickup.name} ➔ {transferData.drop.name}
-                    </p>
-                    <span className="text-slate-500 font-semibold">
-                      {transferData.distanceKm} km · Dedicated Chauffeur Service
-                    </span>
-                  </div>
-                  <div className="text-left sm:text-right shrink-0 bg-white/80 p-2.5 rounded-xl border border-blue-100">
-                    <span className="text-[10px] text-slate-500 block font-semibold">Transfer Rate</span>
-                    <span className="text-xl font-black text-brand-blue">₱{transferData.price.toLocaleString()}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Quick Duration Shortcuts */}
-              {isTransfer ? (
-                <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
-                  <div>
-                    <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wider">
-                      ✈️ {transferData ? 'Point-to-Point Shuttle' : selectedDestination?.name || 'Pickup & Drop'} (Same-Day Trip)
-                    </span>
-                    <p className="text-slate-600 mt-0.5 font-medium">
-                      Pickup and drop-off is scheduled as a <strong>Same-Day Chauffeur Trip (Today Only)</strong>. Simply tap your desired trip date on the calendar below!
-                    </p>
-                  </div>
-                  <span className="font-extrabold text-brand-blue bg-white px-3 py-1.5 rounded-xl border border-amber-300 shrink-0 text-center shadow-xs">
-                    Same-Day (Today Only)
-                  </span>
-                </div>
-              ) : (
-                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <CalendarCheck2 className="w-4 h-4 text-brand-blue" />
-                      Quick Duration Preset (or select on Calendar):
-                    </span>
-                    <span className="text-xs font-black text-brand-blue bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-                      {Math.max(1, differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)))} Day{differenceInCalendarDays(new Date(returnAt), new Date(pickupAt)) > 1 ? 's' : ''} Rental
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { days: 1, label: '1 Day (24h)' },
-                      { days: 2, label: '2 Days' },
-                      { days: 3, label: '3 Days' },
-                      { days: 4, label: '4 Days' },
-                      { days: 5, label: '5 Days' },
-                      { days: 7, label: '1 Week (7 Days)' },
-                      { days: 15, label: '15 Days' },
-                      { days: 30, label: '1 Month' },
-                    ].map((btn) => {
-                      const daysDiff = differenceInCalendarDays(new Date(returnAt), new Date(pickupAt));
-                      const isActive = daysDiff === btn.days;
-                      return (
-                        <button
-                          key={btn.days}
-                          type="button"
-                          onClick={() => {
-                            let start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
-                            const todayStart = new Date();
-                            todayStart.setHours(0, 0, 0, 0);
-                            if (start < todayStart) {
-                              start = new Date();
-                            }
-                            const end = addDays(start, btn.days);
-                            setPickupAt(format(start, "yyyy-MM-dd'T'HH:mm"));
-                            setReturnAt(format(end, "yyyy-MM-dd'T'HH:mm"));
-                          }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                            isActive
-                              ? 'bg-brand-blue text-white shadow-xs ring-2 ring-blue-300'
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {btn.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Date Pickers */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Pick-up Date & Time
-                    </label>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.2 rounded-full">
-                      Today Onwards Only
-                    </span>
-                  </div>
-                  <input
-                    type="datetime-local"
-                    value={pickupAt}
-                    min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (!val) return;
-                      const d = new Date(val);
-                      const todayStart = new Date();
-                      todayStart.setHours(0, 0, 0, 0);
-                      if (d < todayStart) {
-                        setError('Previous dates cannot be selected. Pick-up is available today onwards only.');
-                        return;
-                      }
-                      setError(null);
-                      setPickupAt(val);
-                      if (isTransfer) {
-                        const sameDayDrop = new Date(d);
-                        sameDayDrop.setHours(21, 0, 0, 0); // 9:00 PM same day
-                        if (sameDayDrop <= d) {
-                          sameDayDrop.setHours(23, 59, 0, 0);
-                        }
-                        setReturnAt(format(sameDayDrop, "yyyy-MM-dd'T'HH:mm"));
-                      } else if (returnAt && new Date(returnAt) <= d) {
-                        setReturnAt(format(addDays(d, 1), "yyyy-MM-dd'T'HH:mm"));
-                      }
-                    }}
-                    className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      {isTransfer ? 'Same-Day Drop-off Schedule' : 'Return Date & Time'}
-                    </label>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      {isTransfer ? 'Same-Day (Today Only)' : 'Must be after pick-up'}
-                    </span>
-                  </div>
-                  <input
-                    type="datetime-local"
-                    value={returnAt}
-                    disabled={isTransfer}
-                    min={pickupAt || format(new Date(), "yyyy-MM-dd'T'HH:mm")}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (!val) return;
-                      const d = new Date(val);
-                      if (pickupAt && d <= new Date(pickupAt)) {
-                        setError('Return date and time must be after the pick-up schedule.');
-                        return;
-                      }
-                      setError(null);
-                      setReturnAt(val);
-                    }}
-                    className={`w-full border rounded-xl p-2.5 text-xs font-semibold focus:outline-none ${
-                      isTransfer
-                        ? 'bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed'
-                        : 'bg-white border-slate-300 focus:ring-2 focus:ring-brand-blue'
-                    }`}
-                  />
-                </div>
-              </div>
-
-              {/* Quick Rental Duration Selector */}
-              {!isTransfer && (
-                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3.5 space-y-2">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                      <Clock className="w-4 h-4 text-brand-blue" /> Quick Duration Selector
-                    </span>
-                    {pickupAt && returnAt && (
-                      <span className="text-[11px] font-bold text-brand-blue bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full">
-                        {Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24)))}{' '}
-                        {Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24))) === 1 ? 'Day' : 'Days'} Total ({Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24))) * 24} Hours)
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { label: '1 Day (24 hrs)', days: 1 },
-                      { label: '2 Days', days: 2 },
-                      { label: '3 Days', days: 3 },
-                      { label: '4 Days', days: 4 },
-                      { label: '5 Days', days: 5 },
-                      { label: '1 Week (7d)', days: 7 },
-                      { label: '10 Days', days: 10 },
-                      { label: '2 Weeks (14d)', days: 14 },
-                      { label: '1 Month (30d)', days: 30 },
-                    ].map((dur) => {
-                      const curDays = pickupAt && returnAt
-                        ? Math.max(1, Math.round((new Date(returnAt).getTime() - new Date(pickupAt).getTime()) / (1000 * 60 * 60 * 24)))
-                        : 1;
-                      const isSelected = curDays === dur.days;
-                      return (
-                        <button
-                          key={dur.days}
-                          type="button"
-                          onClick={() => {
-                            const pDate = pickupAt ? new Date(pickupAt) : new Date();
-                            if (isNaN(pDate.getTime())) return;
-                            const rDate = addDays(pDate, dur.days);
-                            setReturnAt(format(rDate, "yyyy-MM-dd'T'HH:mm"));
-                            setError(null);
-                          }}
-                          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all ${
-                            isSelected
-                              ? 'bg-brand-blue text-white shadow-sm ring-2 ring-blue-300'
-                              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          {dur.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Interactive Calendar Visualizer */}
-              <InteractiveCalendar
-                events={calendarEvents}
-                vehicles={vehicles}
-                selectedVehicleId={selectedVehicleId}
-                selectedPickup={new Date(pickupAt)}
-                selectedReturn={new Date(returnAt)}
-                singleDayMode={isTransfer}
-                onSelectRange={(p, r) => {
-                  const todayStart = new Date();
-                  todayStart.setHours(0, 0, 0, 0);
-                  if (p < todayStart) {
-                    setError('You cannot book previous dates. Pick-up is available today onwards only.');
-                    return;
-                  }
-                  setError(null);
-                  const pDate = new Date(p);
-                  pDate.setHours(9, 0, 0, 0);
-                  setPickupAt(format(pDate, "yyyy-MM-dd'T'HH:mm"));
-
-                  if (isTransfer) {
-                    const sameDayDrop = new Date(pDate);
-                    sameDayDrop.setHours(21, 0, 0, 0); // 9:00 PM same day!
-                    setReturnAt(format(sameDayDrop, "yyyy-MM-dd'T'HH:mm"));
-                  } else {
-                    const rDate = new Date(r);
-                    rDate.setHours(9, 0, 0, 0);
-                    setReturnAt(format(rDate, "yyyy-MM-dd'T'HH:mm"));
-                  }
+              <button
+                type="button"
+                onClick={() => {
+                  setBookingMode('TRANSFER');
+                  setSelectedRentalType('WITH_DRIVER');
+                  const biaDest = destinations.find((d) => d.slug === 'bicol-intl-airport');
+                  if (biaDest) setSelectedDestinationId(biaDest.id);
                 }}
-              />
+                className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                  bookingMode === 'TRANSFER'
+                    ? 'bg-white text-brand-blue shadow-sm border border-slate-200/80 ring-2 ring-blue-500/20'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Plane className="w-4 h-4 text-amber-500" />
+                <span>🚖 Pickup & Drop (Map)</span>
+              </button>
+            </div>
 
-              {/* Handover / Location Options */}
-              {isTransfer ? (
-                <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3 text-xs">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <span className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
-                      📍 Dedicated Chauffeur Pickup & Drop
-                    </span>
-                    <span className="text-emerald-700 bg-emerald-100 border border-emerald-300 font-bold px-2.5 py-0.5 rounded-full text-[10px]">
-                      Chauffeur Meetup Included · No Delivery Surcharge
-                    </span>
-                  </div>
-
-                  <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+            {/* Mode A: Point-to-Point Transfer Map */}
+            {bookingMode === 'TRANSFER' ? (
+              <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-6 md:p-8">
+                <PointToPointTransferMap
+                  vehicles={vehicles}
+                  selectedVehicleId={selectedVehicleId}
+                  onSelectVehicleId={setSelectedVehicleId}
+                  onConfirmTransfer={handleConfirmTransfer}
+                />
+              </div>
+            ) : (
+              /* Mode B: Daily Car Rental Configurator */
+              <div className="space-y-6">
+                {/* 1. Trip Configurator Panel */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-6 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-3 border-b border-slate-100">
                     <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Trip Route</span>
-                      <p className="font-extrabold text-slate-900 text-xs sm:text-sm mt-0.5">
-                        {deliveryAddress || 'Point-to-Point Shuttle'}
+                      <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-brand-blue" />
+                        <span>Configure Your Rental Trip</span>
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Choose your rental mode, destination, and travel dates to see instant rates and live car availability.
                       </p>
                     </div>
+                    <span className="text-xs font-black text-brand-blue bg-blue-50 border border-blue-200 px-3 py-1 rounded-full self-start sm:self-auto">
+                      {daysDifference} Day{daysDifference > 1 ? 's' : ''} Rental
+                    </span>
+                  </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mt-2 mb-1">
-                        Specific Landmark / Pickup Instructions (Optional)
+                  {/* Mode & Destination Selectors */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Rental Mode Toggle */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Rental Mode
                       </label>
-                      <input
-                        type="text"
-                        value={customerAddress}
-                        onChange={(e) => setCustomerAddress(e.target.value)}
-                        placeholder="e.g. Hotel Lobby, Terminal 2 Arrival Gate, specific house #..."
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRentalType('SELF_DRIVE')}
+                          className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all ${
+                            selectedRentalType === 'SELF_DRIVE'
+                              ? 'bg-brand-blue text-white border-brand-blue shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <Car className="w-3.5 h-3.5" />
+                          <span>🔑 Self-Drive</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRentalType('WITH_DRIVER')}
+                          className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all ${
+                            selectedRentalType === 'WITH_DRIVER'
+                              ? 'bg-brand-blue text-white border-brand-blue shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          <span>👨‍✈️ With Driver</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Destination Selector */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Trip Destination / Area
+                      </label>
+                      <select
+                        value={selectedDestinationId}
+                        onChange={(e) => {
+                          setSelectedDestinationId(e.target.value);
+                          const dest = destinations.find((d) => d.id === e.target.value);
+                          if (dest?.slug === 'bicol-intl-airport' || dest?.slug === 'naga-airport') {
+                            setSelectedRentalType('WITH_DRIVER');
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl py-2.5 px-3 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue cursor-pointer"
+                      >
+                        {destinations.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name} {d.description ? `— ${d.description}` : ''}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4 text-xs">
-                  <span className="font-bold text-sm text-slate-800 block">Vehicle Handover Option</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="pickupMethod"
-                        checked={pickupMethod === 'OFFICE'}
-                        onChange={() => setPickupMethod('OFFICE')}
-                      />
-                      <span className="font-semibold text-slate-800">Office Pickup (Naga City) – Free</span>
-                    </label>
-                    <label className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="pickupMethod"
-                        checked={pickupMethod === 'DELIVERY'}
-                        onChange={() => setPickupMethod('DELIVERY')}
-                      />
-                      <span className="font-semibold text-slate-800">Doorstep Delivery / Airport Drop</span>
-                    </label>
+
+                  {/* Destination Quick Chips */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Popular Travel Destinations:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {destinations.map((d) => {
+                        const isSelected = selectedDestinationId === d.id;
+                        const theme = DESTINATION_THEMES[d.slug] || { icon: '📍', name: d.name };
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDestinationId(d.id);
+                              if (d.slug === 'bicol-intl-airport' || d.slug === 'naga-airport') {
+                                setSelectedRentalType('WITH_DRIVER');
+                              }
+                            }}
+                            className={`text-xs font-bold px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1 ${
+                              isSelected
+                                ? 'bg-brand-blue text-white border-brand-blue shadow-xs scale-[1.02]'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span>{theme.icon}</span>
+                            <span>{d.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {pickupMethod === 'DELIVERY' && (
-                    <div className="space-y-3 pt-2">
-                      <div>
-                        <label className="block font-bold text-slate-700 mb-1">Select Delivery Zone</label>
-                        <select
-                          value={deliveryZoneId}
-                          onChange={(e) => setDeliveryZoneId(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium"
-                        >
-                          {additionalFees
-                            .filter((f) => f.type === 'DELIVERY')
-                            .map((f) => (
-                              <option key={f.id} value={f.id}>
-                                {f.name} ({formatPeso(f.amount)})
-                              </option>
-                            ))}
-                        </select>
-                      </div>
+                  {/* Duration Presets & Date Pickers */}
+                  <div className="pt-2 border-t border-slate-100 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <CalendarCheck2 className="w-4 h-4 text-brand-blue" />
+                        <span>Quick Duration Buttons:</span>
+                      </span>
+                    </div>
 
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { days: 1, label: '1 Day (24h)' },
+                        { days: 2, label: '2 Days' },
+                        { days: 3, label: '3 Days' },
+                        { days: 4, label: '4 Days' },
+                        { days: 5, label: '5 Days' },
+                        { days: 7, label: '1 Week (7 Days)' },
+                        { days: 15, label: '15 Days' },
+                        { days: 30, label: '1 Month' },
+                      ].map((btn) => {
+                        const daysDiff = differenceInCalendarDays(new Date(returnAt), new Date(pickupAt));
+                        const isActive = daysDiff === btn.days;
+                        return (
+                          <button
+                            key={btn.days}
+                            type="button"
+                            onClick={() => {
+                              let start = pickupAt ? new Date(pickupAt) : addDays(new Date(), 1);
+                              const todayStart = new Date();
+                              todayStart.setHours(0, 0, 0, 0);
+                              if (start < todayStart) {
+                                start = new Date();
+                              }
+                              const newEnd = addDays(start, btn.days);
+                              const currentStartHours = start.getHours() || 9;
+                              newEnd.setHours(currentStartHours, 0, 0, 0);
+                              setPickupAt(format(start, "yyyy-MM-dd'T'HH:mm"));
+                              setReturnAt(format(newEnd, "yyyy-MM-dd'T'HH:mm"));
+                            }}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                              isActive
+                                ? 'bg-brand-blue text-white border-brand-blue shadow-xs'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                          >
+                            {btn.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Exact Date & Time Pickers */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">Delivery Address / Hotel / Terminal</label>
+                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Pick-up Date & Time
+                        </label>
                         <input
-                          type="text"
-                          value={deliveryAddress}
-                          onChange={(e) => setDeliveryAddress(e.target.value)}
-                          placeholder="e.g. Naga City Airport, Pili, or Hotel name..."
-                          className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium"
+                          type="datetime-local"
+                          value={pickupAt}
+                          min={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (!val) return;
+                            setPickupAt(val);
+                            const p = new Date(val);
+                            const r = new Date(returnAt);
+                            if (r <= p) {
+                              const newR = addDays(p, 1);
+                              setReturnAt(format(newR, "yyyy-MM-dd'T'HH:mm"));
+                            }
+                          }}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Return Date & Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={returnAt}
+                          min={pickupAt || format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (!val) return;
+                            const r = new Date(val);
+                            const p = new Date(pickupAt);
+                            if (r <= p) {
+                              setError('Return schedule must be after the pick-up schedule.');
+                              return;
+                            }
+                            setError(null);
+                            setReturnAt(val);
+                          }}
+                          className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue"
                         />
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
 
-              {/* Airport Flight Details & Meetup */}
-              {isAirportTransfer && (
-                <div className="bg-gradient-to-r from-blue-50/90 to-indigo-50/70 border-2 border-blue-200/90 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-black text-brand-blue uppercase tracking-wider">
-                    <Plane className="w-4 h-4 text-brand-blue" />
-                    <span>Airport Meetup & Flight Tracking Details</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Airline & Flight Number (e.g. 5J 327 / PR 2923)
-                      </label>
-                      <input
-                        type="text"
-                        value={flightNumber}
-                        onChange={(e) => setFlightNumber(e.target.value)}
-                        placeholder="e.g. Cebu Pacific 5J 327"
-                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                      />
+                    {/* Collapsible Fleet Calendar Visualizer */}
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setCalendarExpanded((prev) => !prev)}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-blue hover:text-blue-700 transition-colors"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{calendarExpanded ? 'Hide Calendar Availability' : 'Show Fleet Availability Calendar'}</span>
+                        {calendarExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+
+                      {calendarExpanded && (
+                        <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                          <InteractiveCalendar
+                            events={calendarEvents}
+                            vehicles={vehicles}
+                            selectedVehicleId={selectedVehicleId}
+                            selectedPickup={pickupAt ? new Date(pickupAt) : undefined}
+                            selectedReturn={returnAt ? new Date(returnAt) : undefined}
+                            onSelectRange={(start, end) => {
+                              const pTime = pickupAt ? new Date(pickupAt) : new Date();
+                              const rTime = returnAt ? new Date(returnAt) : new Date();
+                              const pHours = pTime.getHours() || 9;
+                              const rHours = rTime.getHours() || pHours;
+
+                              const newP = new Date(start);
+                              newP.setHours(pHours, 0, 0, 0);
+
+                              let newR = new Date(end);
+                              if (isSameDay(start, end)) {
+                                newR = addDays(newR, 1);
+                              }
+                              newR.setHours(rHours, 0, 0, 0);
+
+                              setPickupAt(format(newP, "yyyy-MM-dd'T'HH:mm"));
+                              setReturnAt(format(newR, "yyyy-MM-dd'T'HH:mm"));
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-800 mb-1">
-                        Signboard / Passenger Name for Meetup
-                      </label>
-                      <input
-                        type="text"
-                        value={passengerSignName}
-                        onChange={(e) => setPassengerSignName(e.target.value)}
-                        placeholder="e.g. Juan Dela Cruz"
-                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-semibold focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                      />
+                  </div>
+                </div>
+
+                {/* 2. Choose Your Vehicle from Available Fleet */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <Car className="w-5 h-5 text-brand-blue" />
+                      <span>Select Your Vehicle:</span>
+                    </h3>
+                    <span className="text-xs text-slate-500 font-medium">
+                      Availability for: <strong className="text-brand-navy">{format(new Date(pickupAt), 'MMM dd')} - {format(new Date(returnAt), 'MMM dd, yyyy')}</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {vehicles.map((v) => {
+                      const img = v.images?.find((i) => i.isPrimary)?.url || v.images?.[0]?.url;
+                      const isSelected = selectedVehicleId === v.id;
+                      const availInfo = checkVehicleAvailability(v);
+                      const isAvail = availInfo.isAvailable;
+
+                      return (
+                        <div
+                          key={v.id}
+                          onClick={
+                            isAvail
+                              ? () => {
+                                  setSelectedVehicleId(v.id);
+                                  setError(null);
+                                }
+                              : undefined
+                          }
+                          style={{ cursor: isAvail ? 'pointer' : 'not-allowed' }}
+                          className={`p-3.5 sm:p-4 rounded-2xl border-2 transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 select-none ${
+                            !isAvail
+                              ? 'opacity-40 bg-slate-100/90 border-slate-200 grayscale-[50%]'
+                              : isSelected
+                              ? 'border-brand-blue bg-blue-50/40 shadow-sm ring-2 ring-blue-500/20'
+                              : 'border-slate-200 hover:border-slate-300 bg-white hover:shadow-xs'
+                          }`}
+                        >
+                          <img
+                            src={img}
+                            alt={v.name}
+                            className="w-full sm:w-28 h-36 sm:h-24 object-cover rounded-xl bg-slate-100 shrink-0"
+                          />
+                          <div className="flex-1 flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start">
+                                <h4 className={`font-bold text-sm ${isAvail ? 'text-slate-900' : 'text-slate-500'}`}>
+                                  {v.name}
+                                </h4>
+                                {isSelected && isAvail && (
+                                  <CheckCircle className="w-4 h-4 text-brand-blue shrink-0" />
+                                )}
+                              </div>
+
+                              <div className="mt-1">
+                                {isAvail ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-full">
+                                    <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                    <span>
+                                      {availInfo.totalCount > 1
+                                        ? `${availInfo.availableCount} of ${availInfo.totalCount} Units Available`
+                                        : 'Available to Book'}
+                                    </span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full">
+                                    <XCircle className="w-3 h-3 text-rose-600" />
+                                    <span>Fully Booked · Cannot Select</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-slate-500 mt-1">
+                                {v.transmission} · {v.seats} Seats · {v.category.replace('_', '/')}
+                              </p>
+                            </div>
+
+                            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+                              <span className="text-xs font-extrabold text-brand-navy">
+                                From {formatPeso(v.startingRates?.SELF_DRIVE || v.startingRates?.WITH_DRIVER || 0)} /24h
+                              </span>
+                              {isSelected && quote && (
+                                <span className="text-xs font-black text-brand-blue bg-blue-50 px-2 py-0.5 rounded-md">
+                                  Total: {formatPeso(quote.totalAmount)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. Sticky Bottom Action Bar */}
+                <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <span className="text-[11px] text-slate-400 uppercase font-bold tracking-wider block">
+                      Trip Selection Summary
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-base font-extrabold text-white">
+                        {selectedVehicle?.name || 'Please select a vehicle'}
+                      </span>
+                      {selectedVehicle && (
+                        <span className="text-xs text-blue-300 bg-blue-900/60 border border-blue-700/60 px-2 py-0.5 rounded-md font-bold">
+                          {selectedRentalType === 'SELF_DRIVE' ? 'Self-Drive' : 'With Driver'} · {daysDifference} Day{daysDifference > 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
+                    {quote && (
+                      <p className="text-xs text-slate-300">
+                        Estimated Total: <strong className="text-emerald-400 text-sm">{formatPeso(quote.totalAmount)}</strong> (Reservation Fee to lock dates: <strong>{formatPeso(quote.reservationFee)}</strong>)
+                      </p>
+                    )}
                   </div>
-                  <p className="text-[11px] text-slate-600">
-                    💡 Our chauffeur monitors your flight arrival in real-time. Delayed flights are accommodated without extra fee.
-                  </p>
-                </div>
-              )}
 
-              {/* Instant Quote Preview */}
-              {quote && (
-                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-xs shadow-xs">
-                  <div>
-                    <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider block">
-                      {isTransfer ? '✨ All-in Chauffeur Transfer Rate' : 'Rental Duration & Rate'}
-                    </span>
-                    <span className="font-extrabold text-slate-900 text-sm block mt-0.5">
-                      {isTransfer
-                        ? `${selectedVehicle?.name} · Same-Day Transfer`
-                        : `${quote.rentalDays} Day(s) / ${quote.rentalHours} Hours (${quote.ratePlanLabel})`}
-                    </span>
-                    <span className="text-slate-600 font-bold block mt-0.5">
-                      Estimated Total: <strong className="text-brand-blue text-sm">{formatPeso(quote.totalAmount)}</strong>
-                    </span>
-                  </div>
-                  <div className="text-left sm:text-right shrink-0 bg-white p-3 rounded-xl border border-emerald-200">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Due Now (Reservation)</span>
-                    <span className="text-2xl font-black text-brand-blue block">
-                      ₱1,000.00
-                    </span>
-                    <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">
-                      Remaining {formatPeso(Math.max(0, quote.totalAmount - 1000))} balance paid upon meetup
-                    </span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleProceedToStep2}
+                    disabled={!selectedVehicleId || !checkVehicleAvailability(vehicles.find((v) => v.id === selectedVehicleId) || ({} as any)).isAvailable}
+                    className="w-full sm:w-auto bg-brand-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm px-7 py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 transition-all cursor-pointer"
+                  >
+                    <span>Continue to Renter Details</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
-              )}
 
-              <div className="flex justify-between pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => setStep(3)}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  disabled={submitting}
-                  onClick={handleProceedToCustomerInfo}
-                  className="bg-brand-blue hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
-                >
-                  Proceed to Customer Details <ArrowRight className="w-4 h-4" />
-                </button>
+                {/* Local Sponsors & Partner Ads */}
+                <div className="pt-2">
+                  <MapRouteAdsCarousel />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {/* STEP 5: CUSTOMER INFORMATION */}
-          {step === 5 && (
-            <form onSubmit={handleSaveCustomerInfo} noValidate className="space-y-6">
+        {/* ============================================================== */}
+        {/* STEP 2: RENTER INFORMATION & HANDOVER PREFERENCES */}
+        {/* ============================================================== */}
+        {step === 2 && (
+          <form onSubmit={handleSaveCustomerInfo} noValidate className="space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-6 md:p-8 space-y-6">
               <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 5 of 8</span>
+                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 2 of 3</span>
                 <h2 className="text-2xl font-black text-slate-900">Renter Information</h2>
-                <p className="text-xs text-slate-500 mt-1">Please provide accurate contact details for booking verification.</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter your contact details for your official reservation and contract. No account or password required!
+                </p>
               </div>
 
-              {/* Error Summary Banner */}
+              {/* Renter Errors Banner */}
               {Object.keys(renterErrors).length > 0 && Object.values(renterErrors).some(Boolean) && (
                 <div className="p-4 bg-red-50 border-2 border-red-300 rounded-2xl text-red-800 text-xs font-bold flex items-center gap-3 shadow-xs animate-shake">
                   <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
                   <div>
-                    <span className="block font-black text-sm text-red-900">Please correct the required fields below</span>
-                    <span className="font-medium text-red-700">All fields marked with an asterisk (*) and valid Philippine mobile number are required to proceed.</span>
+                    <span className="block font-black text-sm text-red-900">Please correct the highlighted fields below</span>
+                    <span className="font-medium text-red-700">Valid name, email, and 11-digit Philippine mobile number starting with 09 are required.</span>
                   </div>
                 </div>
               )}
 
+              {/* Required Core Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Full Name (As shown on License / ID) *</span>
+                    <span>Full Legal Name (As shown on ID) *</span>
                     {renterErrors.name && (
                       <span className="text-red-500 text-[11px] font-semibold lowercase tracking-normal">required</span>
                     )}
@@ -2129,7 +1433,45 @@ export const BookingWizardPage: React.FC = () => {
 
                 <div>
                   <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Email Address *</span>
+                    <span>Philippine Mobile Number *</span>
+                    {renterErrors.phone && (
+                      <span className="text-red-500 text-[11px] font-semibold lowercase tracking-normal">09xx 11-digits</span>
+                    )}
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={11}
+                    value={customerPhone}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      setCustomerPhone(cleaned);
+                      if (renterTouched.phone) {
+                        const errs = validateRenterInfo({ phone: cleaned });
+                        setRenterErrors((prev) => ({ ...prev, phone: errs.phone }));
+                      }
+                    }}
+                    onBlur={() => {
+                      setRenterTouched((prev) => ({ ...prev, phone: true }));
+                      const errs = validateRenterInfo({ phone: customerPhone });
+                      setRenterErrors((prev) => ({ ...prev, phone: errs.phone }));
+                    }}
+                    placeholder="e.g. 09953827972"
+                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
+                      renterErrors.phone
+                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
+                    }`}
+                  />
+                  {renterErrors.phone && (
+                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.phone}
+                    </p>
+                  )}
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Email Address (For Confirmation & Contract) *</span>
                     {renterErrors.email && (
                       <span className="text-red-500 text-[11px] font-semibold lowercase tracking-normal">invalid email</span>
                     )}
@@ -2162,950 +1504,554 @@ export const BookingWizardPage: React.FC = () => {
                     </p>
                   )}
                 </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Philippine Mobile Number *</span>
-                    <span className="text-slate-400 text-[11px] font-normal normal-case">11 digits (09XXXXXXXXX)</span>
-                  </label>
-                  <input
-                    type="tel"
-                    maxLength={11}
-                    value={customerPhone}
-                    onChange={(e) => {
-                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
-                      setCustomerPhone(cleaned);
-                      if (renterTouched.phone) {
-                        const errs = validateRenterInfo({ phone: cleaned });
-                        setRenterErrors((prev) => ({ ...prev, phone: errs.phone }));
-                      }
-                    }}
-                    onBlur={() => {
-                      setRenterTouched((prev) => ({ ...prev, phone: true }));
-                      const errs = validateRenterInfo({ phone: customerPhone });
-                      setRenterErrors((prev) => ({ ...prev, phone: errs.phone }));
-                    }}
-                    placeholder="e.g. 09953827972"
-                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
-                      renterErrors.phone
-                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
-                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
-                    }`}
-                  />
-                  {renterErrors.phone ? (
-                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.phone}
-                    </p>
-                  ) : (
-                    <p className="text-slate-500 text-[11px] mt-1 font-medium">
-                      Example: <strong className="text-brand-blue font-bold">09953827972</strong> (Used for booking SMS & confirmation updates)
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Complete Address *</span>
-                    {renterErrors.address && (
-                      <span className="text-red-500 text-[11px] font-semibold lowercase tracking-normal">required</span>
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    value={customerAddress}
-                    onChange={(e) => {
-                      setCustomerAddress(e.target.value);
-                      if (renterTouched.address) {
-                        const errs = validateRenterInfo({ address: e.target.value });
-                        setRenterErrors((prev) => ({ ...prev, address: errs.address }));
-                      }
-                    }}
-                    onBlur={() => {
-                      setRenterTouched((prev) => ({ ...prev, address: true }));
-                      const errs = validateRenterInfo({ address: customerAddress });
-                      setRenterErrors((prev) => ({ ...prev, address: errs.address }));
-                    }}
-                    placeholder="Street, Barangay, City, Province"
-                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
-                      renterErrors.address
-                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
-                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
-                    }`}
-                  />
-                  {renterErrors.address && (
-                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.address}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Emergency Contact Person</span>
-                    <span className="text-slate-400 text-[11px] font-normal normal-case">Optional</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={emergencyName}
-                    onChange={(e) => setEmergencyName(e.target.value)}
-                    placeholder="Name of contact person"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Emergency Contact Phone</span>
-                    <span className="text-slate-400 text-[11px] font-normal normal-case">Optional</span>
-                  </label>
-                  <input
-                    type="tel"
-                    maxLength={11}
-                    value={emergencyPhone}
-                    onChange={(e) => {
-                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 11);
-                      setEmergencyPhone(cleaned);
-                      if (renterTouched.emergencyPhone) {
-                        const errs = validateRenterInfo({ emergencyPhone: cleaned });
-                        setRenterErrors((prev) => ({ ...prev, emergencyPhone: errs.emergencyPhone }));
-                      }
-                    }}
-                    onBlur={() => {
-                      setRenterTouched((prev) => ({ ...prev, emergencyPhone: true }));
-                      const errs = validateRenterInfo({ emergencyPhone: emergencyPhone });
-                      setRenterErrors((prev) => ({ ...prev, emergencyPhone: errs.emergencyPhone }));
-                    }}
-                    placeholder="e.g. 09953827972"
-                    className={`w-full rounded-xl p-2.5 font-medium transition-all focus:outline-none ${
-                      renterErrors.emergencyPhone
-                        ? 'bg-red-50/50 border-2 border-red-500 focus:ring-2 focus:ring-red-400'
-                        : 'bg-slate-50 border border-slate-300 focus:ring-2 focus:ring-brand-blue'
-                    }`}
-                  />
-                  {renterErrors.emergencyPhone && (
-                    <p className="text-red-600 text-xs mt-1.5 flex items-center gap-1 font-bold">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {renterErrors.emergencyPhone}
-                    </p>
-                  )}
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Purpose of Rental
-                  </label>
-                  <input
-                    type="text"
-                    value={purpose}
-                    onChange={(e) => setPurpose(e.target.value)}
-                    placeholder="e.g. Vacation, Business Meeting, Wedding, Airport Transfer..."
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                  />
-                </div>
               </div>
 
-              <div className="flex justify-between pt-4 border-t border-slate-100">
+              {/* Handover & Delivery Options */}
+              <div className="space-y-3 pt-3 border-t border-slate-100">
+                <label className="block font-bold text-slate-700 uppercase tracking-wider text-xs">
+                  Pick-up & Handover Preference
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setPickupMethod('OFFICE')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      pickupMethod === 'OFFICE'
+                        ? 'border-brand-blue bg-blue-50/50 shadow-xs'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-900">🏢 Free Office Pick-up</span>
+                      {pickupMethod === 'OFFICE' && <CheckCircle className="w-4 h-4 text-brand-blue" />}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Custoworks Garage, Carnation St. CBD II, Naga City (Beside SM City Naga).
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setPickupMethod('DELIVERY')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
+                      pickupMethod === 'DELIVERY'
+                        ? 'border-brand-blue bg-blue-50/50 shadow-xs'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-slate-900">🚚 Doorstep Delivery / Airport Meetup</span>
+                      {pickupMethod === 'DELIVERY' && <CheckCircle className="w-4 h-4 text-brand-blue" />}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Vehicle delivered directly to your hotel, residence, or airport arrival terminal.
+                    </p>
+                  </div>
+                </div>
+
+                {pickupMethod === 'DELIVERY' && (
+                  <div className="pt-2">
+                    <label className="block font-bold text-slate-700 uppercase tracking-wider text-[11px] mb-1">
+                      Delivery Address / Meetup Point *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="e.g. Villa Caceres Hotel, Naga City or BIA Airport Arrival Terminal"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Optional Details Toggle */}
+              <div className="pt-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setStep(4)}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50"
+                  onClick={() => setShowOptionalFields((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
                 >
-                  <ArrowLeft className="w-4 h-4" /> Back
+                  <span>{showOptionalFields ? 'Hide Additional Details' : '+ Add Address, Emergency Contact, or Flight Info (Optional)'}</span>
+                  {showOptionalFields ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+
+                {showOptionalFields && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className="sm:col-span-2">
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Home Address
+                      </label>
+                      <input
+                        type="text"
+                        value={customerAddress}
+                        onChange={(e) => setCustomerAddress(e.target.value)}
+                        placeholder="Street, Barangay, City, Province"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Emergency Contact Person
+                      </label>
+                      <input
+                        type="text"
+                        value={emergencyName}
+                        onChange={(e) => setEmergencyName(e.target.value)}
+                        placeholder="Name of contact person"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Emergency Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        maxLength={11}
+                        value={emergencyPhone}
+                        onChange={(e) => setEmergencyPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                        placeholder="e.g. 09953827972"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Flight Number (If Airport Arrival)
+                      </label>
+                      <input
+                        type="text"
+                        value={flightNumber}
+                        onChange={(e) => setFlightNumber(e.target.value)}
+                        placeholder="e.g. 5J 323 / PR 2923"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Purpose of Rental
+                      </label>
+                      <input
+                        type="text"
+                        value={purpose}
+                        onChange={(e) => setPurpose(e.target.value)}
+                        placeholder="e.g. Vacation, Business Meeting, Wedding"
+                        className="w-full bg-white border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Step Navigation Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="w-full sm:w-auto border border-slate-300 text-slate-700 font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Back to Vehicle Selection
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
+                  className="w-full sm:w-auto bg-brand-blue hover:bg-blue-600 disabled:opacity-50 text-white font-bold text-xs px-7 py-3 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
                 >
-                  {submitting ? 'Saving...' : 'Next: Upload Requirements'} <ArrowRight className="w-4 h-4" />
+                  <span>{submitting ? 'Placing Hold...' : 'Proceed to Payment & Confirm Hold'}</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
-            </form>
-          )}
+            </div>
+          </form>
+        )}
 
-          {/* STEP 6: RENTAL REQUIREMENTS UPLOAD */}
-          {step === 6 && (
+        {/* ============================================================== */}
+        {/* STEP 3: PAYMENT, VERIFICATION & CONFIRMATION */}
+        {/* ============================================================== */}
+        {step === 3 && (
+          <form onSubmit={handleUploadPayment} className="space-y-6">
             <div className="space-y-6">
-              <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 6 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Rental Requirements</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Upload your documents for verification. Documents are securely stored and reviewed by our administrators.
-                </p>
-              </div>
-
-              {/* Official Tracking Number Banner */}
+              {/* Vehicle Hold Placed Banner */}
               {createdBooking?.reference && (
-                <div className="bg-gradient-to-r from-brand-navy to-brand-navy-light text-white p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm border border-blue-900/40">
+                <div className="bg-gradient-to-r from-brand-navy to-slate-900 text-white p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md border border-blue-900/40">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300 font-bold">
                       <Receipt className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-[11px] text-blue-200 uppercase font-semibold">Booking Reference / Tracking #</p>
-                      <p className="text-lg font-black font-mono tracking-wider text-amber-300">{createdBooking.reference}</p>
+                      <p className="text-[11px] text-blue-200 uppercase font-semibold">Official Booking Reference #</p>
+                      <p className="text-xl font-black font-mono tracking-wider text-amber-300">{createdBooking.reference}</p>
                     </div>
                   </div>
-                  <span className="text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-3 py-1 rounded-full font-bold self-start sm:self-auto">
-                    Vehicle Reserved (15-Min Hold)
+                  <span className="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-3.5 py-1.5 rounded-full font-bold self-start sm:self-auto flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Schedule Locked (30-Minute Hold)</span>
                   </span>
                 </div>
               )}
 
-              {/* No LTMS Portal? Helpful Friendly Notice */}
-              <div className="bg-gradient-to-r from-blue-50 via-indigo-50/40 to-slate-50 border border-blue-200/80 rounded-2xl p-4 text-xs flex items-start gap-3 shadow-2xs">
-                <div className="p-2 bg-brand-blue/10 rounded-xl text-brand-blue shrink-0 mt-0.5">
-                  <Info className="w-4 h-4" />
-                </div>
-                <div className="space-y-1">
-                  <p className="font-extrabold text-slate-900 text-sm">
-                    No LTMS Portal or Digital License? No Problem!
-                  </p>
-                  <p className="text-slate-600 leading-relaxed text-[11px]">
-                    Only your <strong className="text-slate-800">Physical Driver's License</strong>, <strong className="text-slate-800">Secondary Government ID</strong>, and <strong className="text-slate-800">Selfie Holding License</strong> are required. 
-                    The <em>LTMS Portal QR Code</em> and <em>Digital License</em> are <span className="text-emerald-700 font-bold">100% Optional</span> and can be safely skipped if you only carry your physical card.
-                  </p>
-                </div>
-              </div>
+              {/* Two-Column Layout: Financials & Payment Verification */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Left Column (2 Cols): Financial Breakdown & Terms */}
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-6 space-y-4 text-xs flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <h3 className="font-black text-sm text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-1.5">
+                      <FileCheck2 className="w-4 h-4 text-brand-blue" />
+                      <span>Trip Summary & Financials</span>
+                    </h3>
 
-              {/* Requirement Slots */}
-              <div className="space-y-4">
-                {(!createdBooking?.requirements || createdBooking.requirements.length === 0) && (
-                  <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                    <Loader2 className="w-8 h-8 text-brand-blue animate-spin mx-auto" />
-                    <p className="text-sm font-bold text-slate-800">Loading Document Requirements...</p>
-                    <p className="text-xs text-slate-500">Retrieving required document slots for this booking.</p>
-                    {createdBooking?.reference && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            const res = await api.get<{ booking: any }>(`/bookings/track/${createdBooking.reference}`);
-                            if (res.booking?.requirements?.length) setCreatedBooking(res.booking);
-                          } catch (err) {
-                            console.error(err);
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-blue hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
-                      >
-                        Refresh Requirements List
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {createdBooking?.requirements?.map((req: BookingRequirement) => {
-                  const hasUploaded = req.status === 'SUBMITTED' || req.status === 'APPROVED';
-                  const isUploading = uploadProgress[req.id];
-                  const options = req.requirementType?.options || [];
-
-                  return (
-                    <div
-                      key={req.id}
-                      className={`p-5 rounded-2xl border transition-all space-y-3 ${
-                        req.isRequired
-                          ? 'border-slate-200 bg-slate-50/50'
-                          : 'border-slate-200/70 bg-white/90'
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-sm text-slate-900">{req.name}</h4>
-                            {req.isRequired ? (
-                              <span className="text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded">
-                                REQUIRED
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">
-                                OPTIONAL · CAN SKIP
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-slate-500 mt-0.5">{req.requirementType?.description}</p>
-                        </div>
-
-                        {/* Status Badge */}
-                        <div>
-                          {hasUploaded ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">
-                              <CheckCircle className="w-3.5 h-3.5" /> Uploaded
-                            </span>
-                          ) : req.isRequired ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-100 px-3 py-1 rounded-full">
-                              <Clock className="w-3.5 h-3.5" /> Pending Upload
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full">
-                              Optional · Can Skip
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Document on file indicator */}
-                      {hasUploaded && req.documents && req.documents.length > 0 && (
-                        <div className="flex items-center gap-2 p-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-900">
-                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span className="font-semibold truncate">Uploaded File: {req.documents[0].originalName}</span>
-                          {req.documents[0].selectedOption && (
-                            <span className="ml-auto text-[10px] bg-emerald-200/80 text-emerald-950 px-2 py-0.5 rounded font-bold">
-                              {req.documents[0].selectedOption}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* AI Legitimacy Detection Result */}
-                      {aiVerifications[req.id] && (
-                        <div
-                          className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 transition-all ${
-                            aiVerifications[req.id].verdict === 'LEGIT'
-                              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950'
-                              : 'bg-amber-50/90 border-amber-300 text-amber-950'
-                          }`}
-                        >
-                          <Sparkles
-                            className={`w-4 h-4 shrink-0 mt-0.5 ${
-                              aiVerifications[req.id].verdict === 'LEGIT'
-                                ? 'text-emerald-600'
-                                : 'text-amber-600'
-                            }`}
-                          />
-                          <div className="flex-1 space-y-1">
-                            <div className="flex flex-wrap items-center justify-between gap-1">
-                              <span className="font-extrabold flex items-center gap-1.5">
-                                {aiVerifications[req.id].verdict === 'LEGIT' ? (
-                                  <span className="text-emerald-700">✓ AI Verified Legitimate</span>
-                                ) : (
-                                  <span className="text-amber-700">⚠ AI Flagged for Review</span>
-                                )}
-                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white/80 border border-slate-200">
-                                  {aiVerifications[req.id].confidence}% Match
-                                </span>
-                              </span>
-                              <span className="text-[10px] font-mono font-semibold text-slate-500">
-                                {aiVerifications[req.id].engine === 'GEMINI_VISION'
-                                  ? 'Gemini 2.0 Flash'
-                                  : 'AI Verification Engine'}
-                              </span>
-                            </div>
-                            <p className="text-[11px] leading-relaxed text-slate-700">
-                              {aiVerifications[req.id].analysisSummary}
-                            </p>
-                            {aiVerifications[req.id].extractedNumber && (
-                              <p className="text-[10px] font-mono text-slate-600">
-                                Document ID: <strong className="text-slate-900">{aiVerifications[req.id].extractedNumber}</strong>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Dropdown if secondary ID */}
-                      {options.length > 0 && !hasUploaded && (
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                            Choose Secondary ID Type:
-                          </label>
-                          <select
-                            value={secondaryIdOption}
-                            onChange={(e) => setSecondaryIdOption(e.target.value)}
-                            className="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-medium"
-                          >
-                            {options.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-
-                      {/* Upload & Camera Controls with Automatic Immediate Upload */}
-                      {requirementFiles[req.id] || hasUploaded ? (
-                        <div className="bg-white p-3.5 rounded-xl border border-blue-200 flex flex-col sm:flex-row items-center gap-4">
-                          {requirementPreviews[req.id] ? (
-                            <img
-                              src={requirementPreviews[req.id]}
-                              alt="Captured document"
-                              className="w-28 h-20 object-cover rounded-lg border border-slate-200 shadow-sm shrink-0"
-                            />
-                          ) : (
-                            <div className="w-28 h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 shrink-0">
-                              <ImageIcon className="w-8 h-8" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0 text-left w-full sm:w-auto space-y-1">
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 truncate">
-                              {isUploading ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
-                                  <span className="text-blue-700">Uploading & Verifying Document...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                                  <span className="text-emerald-800 font-extrabold truncate">
-                                    {requirementFiles[req.id]?.name || 'Document Saved & Verified on File'}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-slate-500">
-                              {isUploading
-                                ? 'Sending to secure server and running authenticity scan...'
-                                : '✓ Successfully uploaded and attached to your reservation.'}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                              <label className="cursor-pointer border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
-                                <Camera className="w-3.5 h-3.5 text-slate-500" />
-                                <span>Replace / Re-take</span>
-                                <input
-                                  type="file"
-                                  accept="image/*,application/pdf"
-                                  capture={req.name.toLowerCase().includes('selfie') ? 'user' : 'environment'}
-                                  onChange={(e) => {
-                                    if (e.target.files?.[0]) handleSelectRequirementFile(req.id, e.target.files[0]);
-                                  }}
-                                  className="hidden"
-                                />
-                              </label>
-
-                              {requirementFiles[req.id] && (
-                                <button
-                                  type="button"
-                                  onClick={() => saveFileToGallery(requirementFiles[req.id], `${req.name.replace(/\s+/g, '-')}.jpg`)}
-                                  className="border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
-                                  title="Save copy of this photo to your phone gallery / photos"
-                                >
-                                  <Download className="w-3.5 h-3.5 text-blue-600" />
-                                  <span>Save to Phone Gallery</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2.5">
-                            {/* Tap to Picture / Camera */}
-                            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all hover:scale-[1.02] active:scale-95">
-                              <Camera className="w-4 h-4 text-blue-200" />
-                              <span>Take Picture with Camera</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                capture={req.name.toLowerCase().includes('selfie') ? 'user' : 'environment'}
-                                onChange={(e) => {
-                                  if (e.target.files?.[0]) handleSelectRequirementFile(req.id, e.target.files[0]);
-                                }}
-                                className="hidden"
-                              />
-                            </label>
-
-                            {/* Upload Image / File */}
-                            <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl border border-slate-300 shadow-sm transition-all hover:scale-[1.02] active:scale-95">
-                              <ImageIcon className="w-4 h-4 text-slate-500" />
-                              <span>Upload from Gallery / Files</span>
-                              <input
-                                type="file"
-                                accept="image/*,application/pdf"
-                                onChange={(e) => {
-                                  if (e.target.files?.[0]) handleSelectRequirementFile(req.id, e.target.files[0]);
-                                }}
-                                className="hidden"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-start gap-2">
-                <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <span>
-                  Documents are automatically saved and verified upon capture. You can also update documents anytime from the <strong>Track Booking</strong> page using your Tracking Number.
-                </span>
-              </div>
-
-              <div className="flex justify-between pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => setStep(5)}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  onClick={handleProceedToSummary}
-                  className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
-                >
-                  Next: Booking Summary <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 7: BOOKING SUMMARY */}
-          {step === 7 && quote && (
-            <div className="space-y-6">
-              <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 7 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Review Booking Summary</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Verify your trip details, vehicle charges, and terms before proceeding to payment.
-                </p>
-              </div>
-
-              {/* Summary Cards */}
-              <div className="bg-slate-50 rounded-2xl border border-slate-200 p-5 space-y-4 text-xs">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-200">
-                  <div>
-                    <span className="text-slate-400 block uppercase font-bold text-[10px]">Vehicle Selected</span>
-                    <span className="text-base font-extrabold text-slate-900">{selectedVehicle?.name?.replace(/\s*\(Unit\s*1\)/i, '')}</span>
-                    <span className="text-slate-500 block">
-                      {selectedRentalType === 'SELF_DRIVE' ? 'Self Drive' : 'With Driver'} · {selectedVehicle?.seats} Seats
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block uppercase font-bold text-[10px]">Destination & Service</span>
-                    <span className="text-base font-extrabold text-slate-900">{selectedDestination?.name}</span>
-                    <span className="text-slate-500 block">
-                      Handover: {pickupMethod === 'DELIVERY' ? `Delivery (${deliveryAddress || 'Selected Zone'})` : 'Office Pick-up'}
-                    </span>
-                    {flightNumber && (
-                      <span className="text-[11px] font-bold text-brand-blue block mt-0.5">
-                        ✈️ Flight Tracked: {flightNumber}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b border-slate-200">
-                  <div>
-                    <span className="text-slate-400 block uppercase font-bold text-[10px]">Pick-up Schedule</span>
-                    <span className="font-bold text-slate-900">{formatDate(pickupAt)}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block uppercase font-bold text-[10px]">Return Schedule</span>
-                    <span className="font-bold text-slate-900">{formatDate(returnAt)}</span>
-                  </div>
-                </div>
-
-                {/* Uploaded Requirements Confirmation in Summary */}
-                {createdBooking?.requirements && createdBooking.requirements.length > 0 && (
-                  <div className="p-3 bg-white rounded-xl border border-slate-200/90 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                        Driver Requirements Verification
-                      </span>
-                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        Saved in Database
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                      {createdBooking.requirements.map((r: any) => {
-                        const isSaved =
-                          r.status === 'SUBMITTED' ||
-                          r.status === 'APPROVED' ||
-                          (r.documents && r.documents.length > 0);
-                        return (
-                          <div key={r.id} className="flex items-center gap-1.5 truncate">
-                            {isSaved ? (
-                              <span className="text-emerald-700 font-bold flex items-center gap-1 truncate">
-                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                <span className="truncate">{r.name}</span>
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 flex items-center gap-1 truncate">
-                                <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                <span className="truncate">{r.name} (Upload anytime)</span>
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Financial Breakdown Table */}
-                <div className="space-y-2 pt-2">
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-600">Rental Fee ({quote.rentalFeeLabel}):</span>
-                    <span className="font-bold text-slate-900">{formatPeso(quote.rentalFee)}</span>
-                  </div>
-                  {quote.fees.map((fee, idx) => (
-                    <div key={idx} className="flex justify-between py-1">
-                      <span className="text-slate-600">{fee.name}:</span>
-                      <span className="font-bold text-slate-900">{formatPeso(fee.amount)}</span>
-                    </div>
-                  ))}
-                  {quote.discount > 0 && (
-                    <div className="flex justify-between py-1 text-emerald-700">
-                      <span>Promo Discount ({quote.promotion?.name || 'Discount'}):</span>
-                      <span className="font-bold">- {formatPeso(quote.discount)}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between py-2 border-t border-slate-300 font-extrabold text-sm text-slate-900">
-                    <span>Total Rental Amount:</span>
-                    <span>{formatPeso(quote.totalAmount)}</span>
-                  </div>
-
-                  <div className="flex justify-between py-2 bg-blue-100/70 p-3 rounded-xl border border-blue-200 font-bold text-brand-navy">
-                    <span>Reservation Fee (Due Now to Block Schedule):</span>
-                    <span className="text-base">{formatPeso(quote.reservationFee)}</span>
-                  </div>
-
-                  <div className="flex justify-between py-1 text-[11px] text-slate-500">
-                    <span>Remaining Balance (Due Upon Vehicle Pick-up):</span>
-                    <span className="font-bold text-slate-800">{formatPeso(quote.balanceDue)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Policies Acknowledgement & Cleanliness Notice */}
-              <div className="bg-slate-50 border border-slate-200/90 p-4 rounded-xl text-xs space-y-3 text-slate-700">
-                <span className="font-extrabold text-slate-900 block text-sm">
-                  Important Rental Notices & Policies:
-                </span>
-                <div className="space-y-1.5 leading-relaxed">
-                  <p>• <strong>{formatPeso(quote?.reservationFee || 1000)} Reservation Fee / Security Deposit:</strong> Paid now to lock your vehicle schedule immediately. This amount serves as your <strong>Refundable Security Deposit</strong>, which is 100% refunded to you after return inspection in clean condition with matched fuel levels.</p>
-                  <p>• <strong>Full Rental Balance ({formatPeso(quote?.totalAmount || 2500)}):</strong> Paid upon vehicle pick-up at our Naga City office (or handover upon delivery).</p>
-                  <p>• <strong>Security Deposit Refund:</strong> Your {formatPeso(quote?.reservationFee || 1000)} deposit is refunded immediately upon vehicle return.</p>
-                </div>
-
-                {/* Carwash & Cleanliness Highlight */}
-                <div className="p-3 bg-blue-50/70 border border-blue-200/70 rounded-xl space-y-1.5 text-slate-700">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs">
-                    <Sparkles className="w-4 h-4 text-brand-blue" />
-                    <span>Vehicle Cleanliness & Carwash Return Policy</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                    Units are handed over thoroughly cleaned. <strong>If you return the vehicle washed and clean, NO carwash fee is charged</strong> and your security deposit is refunded 100% in full.
-                  </p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed">
-                    If the vehicle is returned unwashed and requires post-rental cleaning, the standard carwash charge will be deducted directly from your security deposit:
-                  </p>
-                  <div className="flex flex-wrap gap-2 pt-1 font-mono text-[11px]">
-                    <span className="bg-white border border-slate-200 px-2 py-0.5 rounded font-bold text-slate-800">
-                      🚗 Sedan: ₱300
-                    </span>
-                    <span className="bg-white border border-slate-200 px-2 py-0.5 rounded font-bold text-slate-800">
-                      🚙 MPV / SUV: ₱400
-                    </span>
-                    <span className="bg-white border border-slate-200 px-2 py-0.5 rounded font-bold text-slate-800">
-                      🚐 Van: ₱400
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-between pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => setStep(6)}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  disabled={submitting}
-                  onClick={handleSubmitBooking}
-                  className="bg-brand-blue hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-md shadow-blue-500/20"
-                >
-                  {submitting ? 'Confirming...' : 'Confirm & Proceed to Payment'} <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 8: PAYMENT */}
-          {step === 8 && (
-            <form onSubmit={handleUploadPayment} className="space-y-6">
-              <div>
-                <span className="text-xs font-extrabold text-brand-blue uppercase tracking-wider">Step 8 of 8</span>
-                <h2 className="text-2xl font-black text-slate-900">Pay Reservation Fee</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Send the <strong>{formatPeso(quote?.reservationFee || 1000)} reservation fee</strong> using any of our verified payment channels below.
-                </p>
-              </div>
-
-              {/* Payment Method Tabs */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {paymentMethods.map((m) => {
-                  const isSelected = selectedPaymentMethodId === m.id;
-                  return (
-                    <button
-                      type="button"
-                      key={m.id}
-                      onClick={() => setSelectedPaymentMethodId(m.id)}
-                      className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                        isSelected
-                          ? 'border-brand-blue bg-blue-50/50 shadow-sm'
-                          : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <h4 className="font-extrabold text-sm text-slate-900">{m.name}</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{m.accountName}</p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Selected Method Details */}
-              {(() => {
-                const method = paymentMethods.find((m) => m.id === selectedPaymentMethodId);
-                if (!method) return null;
-                return (
-                  <div className="bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-3 text-xs">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-slate-400 uppercase font-bold text-[10px]">Payment Account</span>
-                        <h4 className="font-extrabold text-base text-slate-900">{method.name}</h4>
-                        <p className="text-slate-600 mt-1">
-                          Account Name: <strong>{method.accountName}</strong>
-                        </p>
-                        <p className="text-slate-600">
-                          Account Number: <strong className="text-brand-navy text-sm font-mono">{method.accountNumber}</strong>
-                        </p>
-                      </div>
-                      <span className="bg-brand-navy text-white font-extrabold text-xs px-3 py-1.5 rounded-lg">
-                        AMOUNT: {formatPeso(quote?.reservationFee || 1000)}
-                      </span>
-                    </div>
-
-                    <p className="text-slate-500 text-[11px] bg-white p-3 rounded-xl border border-slate-200">
-                      {method.instructions}
-                    </p>
-
-                    {method.qrImageUrl && (
-                      <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center gap-4">
-                        <img
-                          src={method.qrImageUrl}
-                          alt={`${method.name} QR Code`}
-                          className="w-48 h-auto max-h-64 object-contain rounded-lg border border-slate-200 shadow-sm bg-white"
-                        />
-                        <div className="space-y-1.5 text-center sm:text-left">
-                          <span className="inline-block bg-blue-100 text-brand-blue text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                            Scan to Pay (InstaPay QR)
-                          </span>
-                          <p className="font-bold text-slate-800 text-xs">
-                            Scan this QR code using your {method.code === 'GCASH' ? 'GCash app' : 'BDO / banking app'}
-                          </p>
-                          <p className="text-slate-500 text-[11px] leading-relaxed">
-                            Open your app, choose &quot;Scan QR&quot;, and scan the code. Transfer <strong>{formatPeso(quote?.reservationFee || 1000)}</strong>, then upload the receipt below.
-                          </p>
-                          <a
-                            href={method.qrImageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] text-brand-blue font-bold hover:underline pt-1"
-                          >
-                            Open QR in full size ↗
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Upload Proof Fields */}
-              <div className="space-y-4 bg-white p-5 rounded-2xl border border-slate-200 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Bank / GCash Reference Number *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={paymentRefNumber}
-                    onChange={(e) => setPaymentRefNumber(e.target.value)}
-                    placeholder="e.g. 1029384756 or Ref # from receipt"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Payment Receipt Proof ({formatPeso(quote?.reservationFee || 1000)} Reservation Fee) *
-                  </label>
-                  {paymentReceiptFile ? (
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-blue-200 flex flex-col sm:flex-row items-center gap-4">
-                      {paymentReceiptPreview ? (
-                        <img
-                          src={paymentReceiptPreview}
-                          alt="Receipt Preview"
-                          className="w-28 h-20 object-cover rounded-lg border border-slate-200 shadow-sm shrink-0"
-                        />
-                      ) : (
-                        <div className="w-28 h-20 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 shrink-0">
-                          <ImageIcon className="w-8 h-8" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0 text-left w-full sm:w-auto">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 truncate">
-                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span className="truncate">{paymentReceiptFile.name}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          {(paymentReceiptFile.size / 1024).toFixed(1)} KB • Receipt captured & attached
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPaymentReceiptFile(null);
-                              setPaymentReceiptPreview(null);
-                            }}
-                            className="text-xs font-medium text-rose-600 hover:text-rose-700 border border-rose-200 bg-white px-2.5 py-1 rounded-lg"
-                          >
-                            Retake / Change Receipt
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => saveFileToGallery(paymentReceiptFile, 'Custoworks-Payment-Receipt.jpg')}
-                            className="text-xs font-bold text-blue-700 hover:text-blue-800 border border-blue-200 bg-blue-50 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors shadow-2xs"
-                            title="Save captured receipt directly to your phone gallery"
-                          >
-                            <Download className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Save Receipt to Phone Gallery</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <label className="cursor-pointer inline-flex items-center gap-1.5 bg-gradient-to-r from-brand-blue to-blue-600 hover:from-blue-700 hover:to-blue-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition-all">
-                          <Camera className="w-4 h-4 text-blue-200" />
-                          <span>Tap to Picture Receipt</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            onChange={(e) => {
-                              if (e.target.files?.[0]) {
-                                setPaymentReceiptFile(e.target.files[0]);
-                                setPaymentReceiptPreview(URL.createObjectURL(e.target.files[0]));
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-                        <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-300 shadow-sm transition-all">
-                          <ImageIcon className="w-4 h-4 text-slate-500" />
-                          <span>Upload Receipt from Gallery</span>
-                          <input
-                            type="file"
-                            accept="image/*,application/pdf"
-                            onChange={(e) => {
-                              if (e.target.files?.[0]) {
-                                setPaymentReceiptFile(e.target.files[0]);
-                                if (e.target.files[0].type.startsWith('image/')) {
-                                  setPaymentReceiptPreview(URL.createObjectURL(e.target.files[0]));
-                                }
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-                      <p className="text-[11px] text-slate-400">
-                        Accepted formats: JPG, PNG, PDF. Maximum file size: 5MB.
+                    <div>
+                      <span className="text-slate-400 uppercase font-bold text-[10px]">Vehicle Selected</span>
+                      <p className="font-extrabold text-slate-900 text-sm">{selectedVehicle?.name}</p>
+                      <p className="text-slate-500 text-[11px]">
+                        {selectedRentalType === 'SELF_DRIVE' ? 'Self-Drive' : 'With Driver'} · {selectedVehicle?.seats} Seats
                       </p>
                     </div>
-                  )}
+
+                    <div className="pt-2 border-t border-slate-100">
+                      <span className="text-slate-400 uppercase font-bold text-[10px]">Destination & Dates</span>
+                      <p className="font-bold text-slate-800">{selectedDestination?.name}</p>
+                      <p className="text-slate-600 text-[11px] mt-0.5">
+                        {formatDate(pickupAt)} ➔ {formatDate(returnAt)} ({daysDifference} Days)
+                      </p>
+                    </div>
+
+                    {quote && (
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        <div className="flex justify-between py-0.5">
+                          <span className="text-slate-600">Base Rental:</span>
+                          <span className="font-bold text-slate-900">{formatPeso(quote.rentalFee)}</span>
+                        </div>
+                        {quote.fees.map((f, i) => (
+                          <div key={i} className="flex justify-between py-0.5">
+                            <span className="text-slate-600">{f.name}:</span>
+                            <span className="font-bold text-slate-900">{formatPeso(f.amount)}</span>
+                          </div>
+                        ))}
+                        {quote.discount > 0 && (
+                          <div className="flex justify-between py-0.5 text-emerald-700">
+                            <span>Discount:</span>
+                            <span className="font-bold">- {formatPeso(quote.discount)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between py-2 border-t border-slate-200 font-extrabold text-sm text-slate-900">
+                          <span>Total Estimated Rental:</span>
+                          <span className="text-brand-blue">{formatPeso(quote.totalAmount)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Due Now Badge */}
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-brand-navy">Reservation Fee Due Now:</span>
+                        <span className="font-black text-brand-blue text-sm">{formatPeso(quote?.reservationFee || 1000)}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        Remaining balance of <strong>{formatPeso(quote?.balanceDue || 0)}</strong> is paid upon vehicle turnover.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cleanliness Notice */}
+                  <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-[11px] text-slate-600 space-y-1">
+                    <p className="font-bold text-slate-800 flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-brand-blue" />
+                      <span>Refundable Deposit & Clean Return</span>
+                    </p>
+                    <p>
+                      Your ₱1,000 reservation fee serves as your security deposit upon handover. Return the car in clean condition with matched fuel for 100% on-the-spot deposit refund!
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Column (3 Cols): Payment Verification & Document Upload */}
+                <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 sm:p-6 space-y-5 text-xs">
+                  <div>
+                    <h3 className="font-black text-sm text-slate-900 pb-1 flex items-center gap-1.5">
+                      <CreditCard className="w-4 h-4 text-brand-blue" />
+                      <span>Send Reservation Fee ({formatPeso(quote?.reservationFee || 1000)})</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Send the ₱1,000 reservation fee via GCash or Maya to lock your vehicle schedule immediately.
+                    </p>
+                  </div>
+
+                  {/* GCash / Maya Quick Account Box */}
+                  <div className="bg-gradient-to-r from-blue-50 via-indigo-50/40 to-slate-50 border border-blue-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-blue block">
+                          Verified Payment Account
+                        </span>
+                        <p className="font-black text-base text-slate-900">GCash / Maya / Bank Transfer</p>
+                        <p className="text-slate-600 font-semibold mt-0.5">
+                          Account Name: <strong>Jericho Oclares / Custoworks Dispatch</strong>
+                        </p>
+                      </div>
+                      <span className="font-extrabold text-xs bg-brand-blue text-white px-3 py-1.5 rounded-lg shadow-xs">
+                        Amount: {formatPeso(quote?.reservationFee || 1000)}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <div className="bg-white px-3 py-2 rounded-xl border border-blue-200 font-mono font-bold text-sm text-brand-navy flex items-center gap-2">
+                        <span>0995 382 7972</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('09953827972')}
+                        className="inline-flex items-center gap-1 text-xs font-bold bg-white hover:bg-slate-50 text-brand-blue border border-blue-200 px-3 py-2 rounded-xl transition-all shadow-2xs"
+                      >
+                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copied ? 'Copied!' : 'Copy GCash Number'}</span>
+                      </button>
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        (Secondary: 0961 722 5326)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Payment Proof Fields */}
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Bank / GCash Reference Number *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={paymentRefNumber}
+                        onChange={(e) => setPaymentRefNumber(e.target.value)}
+                        placeholder="e.g. 1029384756 or Ref # from receipt"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 font-medium focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Payment Receipt Screenshot ({formatPeso(quote?.reservationFee || 1000)} Fee) *
+                      </label>
+                      {paymentReceiptFile ? (
+                        <div className="bg-slate-50 p-3 rounded-xl border border-blue-200 flex items-center gap-3">
+                          {paymentReceiptPreview ? (
+                            <img
+                              src={paymentReceiptPreview}
+                              alt="Receipt Preview"
+                              className="w-16 h-16 object-cover rounded-lg border border-slate-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center shrink-0">
+                              <ImageIcon className="w-6 h-6 text-slate-400" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-slate-900 truncate">{paymentReceiptFile.name}</p>
+                            <p className="text-[11px] text-slate-500">{(paymentReceiptFile.size / 1024).toFixed(1)} KB · Attached</p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPaymentReceiptFile(null);
+                                setPaymentReceiptPreview(null);
+                              }}
+                              className="text-rose-600 font-bold text-[11px] hover:underline mt-0.5"
+                            >
+                              Remove & Retake
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="cursor-pointer inline-flex items-center gap-1.5 bg-brand-blue hover:bg-blue-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition-all">
+                            <Camera className="w-4 h-4" />
+                            <span>Capture Receipt Photo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  setPaymentReceiptFile(e.target.files[0]);
+                                  setPaymentReceiptPreview(URL.createObjectURL(e.target.files[0]));
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <label className="cursor-pointer inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-300 transition-all">
+                            <ImageIcon className="w-4 h-4 text-slate-500" />
+                            <span>Upload from Files</span>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  setPaymentReceiptFile(e.target.files[0]);
+                                  if (e.target.files[0].type.startsWith('image/')) {
+                                    setPaymentReceiptPreview(URL.createObjectURL(e.target.files[0]));
+                                  }
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Flexible Driver's License & Valid ID Section */}
+                  <div className="pt-3 border-t border-slate-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                        <FileCheck2 className="w-4 h-4 text-brand-blue" />
+                        <span>Driver&apos;s License & Valid ID Verification:</span>
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Flexible Submission
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+                      <label className="flex items-start gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={submitLaterRequirements}
+                          onChange={(e) => setSubmitLaterRequirements(e.target.checked)}
+                          className="mt-0.5 rounded text-brand-blue focus:ring-brand-blue"
+                        />
+                        <span className="text-[11px] text-slate-700 font-semibold leading-relaxed">
+                          I will submit my Driver&apos;s License later via <strong>Messenger / WhatsApp</strong> or present my physical card during vehicle release.
+                        </span>
+                      </label>
+
+                      {!submitLaterRequirements && (
+                        <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                          <p className="text-[11px] text-slate-500">
+                            Want to speed up release? Snap a quick photo of your Driver&apos;s License now:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {createdBooking?.requirements?.slice(0, 2).map((req: any) => {
+                              const hasDoc = req.status === 'SUBMITTED' || req.status === 'APPROVED' || requirementFiles[req.id];
+                              return (
+                                <label
+                                  key={req.id}
+                                  className={`cursor-pointer text-xs font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all ${
+                                    hasDoc
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-2xs'
+                                  }`}
+                                >
+                                  {hasDoc ? <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> : <Upload className="w-3.5 h-3.5 text-slate-500" />}
+                                  <span>{hasDoc ? `${req.name} (Ready)` : `Upload ${req.name}`}</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                      if (e.target.files?.[0]) handleSelectRequirementFile(req.id, e.target.files[0]);
+                                    }}
+                                    className="hidden"
+                                  />
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Submission Buttons */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="w-full sm:w-auto border border-slate-300 text-slate-700 font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                    >
+                      <ArrowLeft className="w-4 h-4" /> Back to Details
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs px-7 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+                    >
+                      <span>{submitting ? 'Submitting Reservation...' : 'Lock My Reservation & Complete ➔'}</span>
+                      <Check className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex justify-between pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setStep(7)}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-slate-50"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20"
-                >
-                  {submitting ? 'Submitting Receipt...' : 'Submit Payment for Verification'} <Check className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* STEP 9: SUCCESS & TRACKING SCREEN */}
-          {step === 9 && (
-            <div className="text-center py-6 space-y-6">
-              <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-                <CheckCircle className="w-8 h-8" />
-              </div>
-
-              <div>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Reservation Successfully Submitted!</h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-lg mx-auto">
-                  Thank you! Your {formatPeso(quote?.reservationFee || 1000)} reservation fee receipt and rental requirements have been received. No customer login or account needed!
-                </p>
-              </div>
-
-              {/* Official Confirmation Card with 1-Click Screenshot, Senior Guide & Direct Dispatch Chat */}
-              <ReservationConfirmationCard
-                reference={createdBooking?.reference || 'CW-PENDING'}
-                vehicleName={selectedVehicle?.name}
-                rentalType={selectedRentalType}
-                destinationName={selectedDestination?.name}
-                pickupAt={pickupAt}
-                returnAt={returnAt}
-                status={createdBooking?.status || 'PAYMENT_VERIFICATION'}
-                reservationFee={quote?.reservationFee || 1000}
-                customerName={customerName}
-                customerPhone={customerPhone}
-                onTrackClick={() => navigate(`/track?ref=${createdBooking?.reference}`)}
-              />
-
-              {/* What Happens Next Checklist */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 max-w-xl mx-auto text-left text-xs space-y-3">
-                <h4 className="font-extrabold text-slate-900 text-sm">What Happens Next?</h4>
-                <ol className="space-y-2 list-decimal list-inside text-slate-600">
-                  <li>Our Naga City dispatch team verifies your {formatPeso(quote?.reservationFee || 1000)} reservation fee receipt.</li>
-                  <li>Our team reviews your uploaded driver license & LTMS portal requirements.</li>
-                  <li>Once approved, your reservation status will automatically change to <strong>Confirmed & Accepted</strong>.</li>
-                  <li>Pay the remaining rental balance upon vehicle pickup at our office beside SM City Naga.</li>
-                </ol>
-              </div>
-
-              {/* Navigation Action Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2 max-w-xl mx-auto">
-                <button
-                  onClick={() => navigate(`/track?ref=${createdBooking?.reference}`)}
-                  className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all"
-                >
-                  <Search className="w-4 h-4" /> Track Status & Approvals Now
-                </button>
-                <button
-                  onClick={() => navigate('/')}
-                  className="border border-slate-300 text-slate-700 font-bold text-sm px-5 py-3.5 rounded-xl hover:bg-slate-50 transition-all"
-                >
-                  Return to Home
-                </button>
-              </div>
-
-              {/* Local Partner Perks & Sponsors for Your Trip */}
-              <div className="pt-4 max-w-xl mx-auto">
-                <MapRouteAdsCarousel />
-              </div>
             </div>
-          )}
-        </div>
+          </form>
+        )}
+
+        {/* ============================================================== */}
+        {/* STEP 4: SUCCESS & TRACKING SCREEN */}
+        {/* ============================================================== */}
+        {step === 4 && (
+          <div className="text-center py-6 space-y-6">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900">Reservation Successfully Submitted!</h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-lg mx-auto">
+                Thank you! Your {formatPeso(quote?.reservationFee || 1000)} reservation fee receipt has been received and your vehicle schedule is reserved.
+              </p>
+            </div>
+
+            {/* Official Confirmation Card with 1-Click Screenshot & Dispatch Chat */}
+            <ReservationConfirmationCard
+              reference={createdBooking?.reference || 'CW-PENDING'}
+              vehicleName={selectedVehicle?.name}
+              rentalType={selectedRentalType}
+              destinationName={selectedDestination?.name}
+              pickupAt={pickupAt}
+              returnAt={returnAt}
+              status={createdBooking?.status || 'PAYMENT_VERIFICATION'}
+              reservationFee={quote?.reservationFee || 1000}
+              customerName={customerName}
+              customerPhone={customerPhone}
+              onTrackClick={() => navigate(`/track?ref=${createdBooking?.reference}`)}
+            />
+
+            {/* What Happens Next Checklist */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-xl mx-auto text-left text-xs space-y-3 shadow-xs">
+              <h4 className="font-extrabold text-slate-900 text-sm">What Happens Next?</h4>
+              <ol className="space-y-2 list-decimal list-inside text-slate-600">
+                <li>Our Naga City dispatch team verifies your {formatPeso(quote?.reservationFee || 1000)} reservation receipt.</li>
+                <li>Your booking status automatically updates to <strong>Confirmed & Accepted</strong>.</li>
+                <li>Pay the remaining balance upon pickup or handover beside SM City Naga.</li>
+              </ol>
+            </div>
+
+            {/* Navigation Action Buttons */}
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2 max-w-xl mx-auto">
+              <button
+                onClick={() => navigate(`/track?ref=${createdBooking?.reference}`)}
+                className="bg-brand-blue hover:bg-blue-700 text-white font-bold text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Search className="w-4 h-4" /> Track Booking Status Now
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="border border-slate-300 text-slate-700 font-bold text-sm px-5 py-3.5 rounded-xl hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                Return to Home
+              </button>
+            </div>
+
+            <div className="pt-4 max-w-xl mx-auto">
+              <MapRouteAdsCarousel />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
-
