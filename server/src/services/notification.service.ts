@@ -131,7 +131,20 @@ export async function sendEmail(
     return info;
   } catch (primaryErr: any) {
     const primaryMsg = primaryErr?.message || String(primaryErr);
-    console.warn(`[email] Primary SMTP (port ${primaryPort}) failed: ${primaryMsg}. Attempting alternative port 2525...`);
+    console.warn(`[email] Primary SMTP (port ${primaryPort}) failed: ${primaryMsg}. Attempting alternative port 587...`);
+
+    // 2b. Try port 587 with STARTTLS
+    if (primaryPort !== 587) {
+      try {
+        const port587Transport = createSmtpTransport(587, false);
+        const info = await port587Transport.sendMail({ from: env.MAIL_FROM, to, subject, html, text, attachments });
+        console.log(`📧 [mail:sent:fallback-587] to=${to} subject="${subject}" messageId=${info.messageId}`);
+        transporter = port587Transport;
+        return info;
+      } catch (err587: any) {
+        console.warn(`[email] Port 587 fallback failed: ${err587?.message}`);
+      }
+    }
 
     // 3. Fallback to alternative port 2525 (Render Free tier blocks 465/587, but 2525 bypasses standard SMTP blocks)
     if (primaryPort !== 2525) {
@@ -144,6 +157,12 @@ export async function sendEmail(
       } catch (fallbackErr: any) {
         console.error(`[email] Fallback port 2525 failed: ${fallbackErr?.message}`);
       }
+    }
+
+    if (primaryMsg.includes('timeout') || primaryMsg.includes('Connection timeout')) {
+      throw new Error(
+        'Connection timeout: Render cloud host is blocking outbound SMTP ports (465/587). Please configure RESEND_API_KEY in Render environment variables or send directly using Gmail / Mail App.'
+      );
     }
 
     throw primaryErr;

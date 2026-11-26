@@ -108,6 +108,7 @@ export const AdminQuotationsTab: React.FC = () => {
   const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [lastAttemptedQuote, setLastAttemptedQuote] = useState<Quotation | null>(null);
 
   // Form State for Quotation
   const tomorrow = new Date();
@@ -271,8 +272,34 @@ export const AdminQuotationsTab: React.FC = () => {
     }
   };
 
+  const getGmailComposeUrl = (q: Quotation) => {
+    const subject = encodeURIComponent(`[Custoworks Car Rental] Official Rental Quotation #${q.id} for ${q.customerName}`);
+    const body = encodeURIComponent(
+      `Dear ${q.customerName},\n\nThank you for choosing Custoworks Car Rental Services Naga City!\n\nPlease find your official quotation summary below:\n\n` +
+      `• Quotation #: ${q.id}\n` +
+      `• Vehicle: ${q.vehicleName}\n` +
+      `• Rental Mode: ${q.rentalType === 'WITH_DRIVER' ? 'With Driver (Chauffeur)' : 'Self-Drive (LTMS Verified)'}\n` +
+      `• Destination: ${q.destinationName}\n` +
+      `• Duration: ${q.durationLabel}\n` +
+      `• Pickup: ${new Date(q.pickupDate).toLocaleString()} (${q.pickupLocation})\n` +
+      `• Return: ${new Date(q.returnDate).toLocaleString()} (${q.dropoffLocation})\n` +
+      `• Total Estimated Rental: PHP ${q.totalRentalAmount.toLocaleString()}\n` +
+      `• Required Reservation Fee: PHP ${q.reservationFee.toLocaleString()} (to lock dates & vehicle)\n` +
+      `• Balance Upon Release: PHP ${q.balanceUponRelease.toLocaleString()}\n\n` +
+      `Payment Options to Lock Dates:\n` +
+      `• GCash: 0995 382 7972 (Jericho Oclares)\n` +
+      `• Maya: 0961 722 5326 (Custoworks)\n` +
+      `• Bank: BDO Unibank Naga City\n` +
+      `• Office: Carnation St. CBD II Brgy. Triangulo (Beside SM City), Naga City\n\n` +
+      `Please find the official quotation PDF attached.\n\n` +
+      `Best regards,\nCustoworks Car Rental Services\nHotlines: 0961 722 5326 / 0995 382 7972\nFacebook: https://facebook.com/CustoWorkss`
+    );
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(q.customerEmail)}&su=${subject}&body=${body}`;
+  };
+
   const handleSendEmail = async (quote: Quotation) => {
     setSendingEmailId(quote.id);
+    setLastAttemptedQuote(quote);
     setActionError(null);
     setActionSuccess(null);
     try {
@@ -376,14 +403,59 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
         </div>
       )}
       {actionError && (
-        <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-between text-xs text-rose-800">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600" />
-            <span>{actionError}</span>
+        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl space-y-3 text-xs text-rose-300 shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-white text-sm">{actionError}</p>
+                <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                  Render cloud servers block outbound SMTP ports (465/587) by default. You can instantly open Gmail Web to send the quote to the client now, or download the PDF file.
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setActionError(null)} className="text-slate-400 hover:text-white p-1 rounded-lg">
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button onClick={() => setActionError(null)} className="text-rose-700 hover:text-rose-900">
-            <X className="w-4 h-4" />
-          </button>
+
+          {lastAttemptedQuote && (
+            <div className="pt-2 border-t border-rose-500/20 flex flex-wrap items-center justify-between gap-2.5">
+              <span className="text-[11px] text-rose-200 font-semibold">
+                Client: {lastAttemptedQuote.customerName} ({lastAttemptedQuote.customerEmail})
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={getGmailComposeUrl(lastAttemptedQuote)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow transition"
+                  title="Open Gmail with quotation message pre-loaded"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Open in Gmail (Web)</span>
+                </a>
+                <a
+                  href={`mailto:${lastAttemptedQuote.customerEmail}?subject=${encodeURIComponent(
+                    `[Custoworks Car Rental] Official Rental Quotation #${lastAttemptedQuote.id}`
+                  )}`}
+                  className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3 py-1.5 rounded-xl border border-slate-700 transition"
+                  title="Open default email application"
+                >
+                  <span>Mail App</span>
+                </a>
+                <a
+                  href={api.getFileUrl(`/contact/admin/quotations/${lastAttemptedQuote.id}/pdf`)}
+                  download={`Custoworks-Quotation-${lastAttemptedQuote.id}.pdf`}
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow transition"
+                  title="Download quotation PDF to your device"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -570,10 +642,19 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
                       onClick={() => handleSendEmail(q)}
                       disabled={sendingEmailId === q.id}
                       className="bg-blue-50 hover:bg-blue-100 text-brand-blue font-bold text-xs p-2 rounded-lg transition-colors"
-                      title="Send quotation & PDF via email"
+                      title="Send quotation & PDF via automated server email"
                     >
                       <Mail className="w-4 h-4" />
                     </button>
+                    <a
+                      href={getGmailComposeUrl(q)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs p-2 rounded-lg transition-colors"
+                      title="Open and send directly via Gmail Web"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                     <button
                       type="button"
                       onClick={() => copyForMessenger(q)}
@@ -1243,12 +1324,22 @@ Send ₱${quote.reservationFee.toLocaleString()} reservation fee via GCash (Prim
                   type="button"
                   onClick={() => handleSendEmail(viewingQuotation)}
                   disabled={sendingEmailId === viewingQuotation.id}
-                  className="inline-flex items-center gap-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold py-2 px-5 rounded-xl shadow-md transition-all"
-                  title="Sends email with the generated PDF attached"
+                  className="inline-flex items-center gap-2 bg-brand-blue hover:bg-blue-600 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-md transition-all"
+                  title="Sends email with the generated PDF attached via server"
                 >
                   <Mail className="w-4 h-4" />
-                  <span>{sendingEmailId === viewingQuotation.id ? 'Sending Email & PDF...' : 'Send PDF to Customer Email'}</span>
+                  <span>{sendingEmailId === viewingQuotation.id ? 'Sending...' : 'Server Email'}</span>
                 </button>
+                <a
+                  href={getGmailComposeUrl(viewingQuotation)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-md transition-all"
+                  title="Open directly in Gmail Web in your browser"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Open in Gmail</span>
+                </a>
               </div>
             </div>
           </div>
